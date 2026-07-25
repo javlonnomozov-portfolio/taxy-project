@@ -1,0 +1,23 @@
+{
+  "name": "@tty/bot",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "start:dev": "ts-node src/main.ts",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "echo \"(bot) no tests yet\""
+  },
+  "dependencies": {
+    "@tty/shared": "workspace:*",
+    "dotenv": "^16.4.5",
+    "socket.io-client": "^4.8.0",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}

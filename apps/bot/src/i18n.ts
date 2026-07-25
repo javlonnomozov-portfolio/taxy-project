@@ -1,0 +1,99 @@
+// Sodda i18n: uz/ru. Kalit → matn (yoki funksiya).
+export type Lang = 'uz' | 'ru';
+
+type Dict = Record<string, string | ((...a: string[]) => string)>;
+
+const uz: Dict = {
+  welcome: 'Assalomu alaykum! Toy TaxY (TTY) — mahalliy taksi xizmati. 🚕',
+  choose_lang: 'Tilni tanlang / Выберите язык:',
+  ask_phone: 'Ro‘yxatdan o‘tish uchun telefon raqamingizni ulashing 👇',
+  share_phone_btn: '📱 Raqamni ulashish',
+  registered: 'Tayyor! Endi taksi chaqirishingiz mumkin.',
+  menu_order: '🚕 Taksi chaqirish',
+  menu_lang: '🌐 Til',
+  choose_category: 'Mashina toifasini tanlang:',
+  cat_standard: 'Oddiy',
+  cat_comfort: 'Komfort',
+  cat_cargo: 'Yukli',
+  ask_pickup: 'Olib ketish joyini yuboring (lokatsiya) 👇',
+  send_location_btn: '📍 Joylashuvni yuborish',
+  ask_dest: 'Borish manzilini yozing yoki o‘tkazib yuboring:',
+  ask_note: 'Izoh qo‘shasizmi? (masalan: 2 yo‘lovchi) Yoki o‘tkazib yuboring:',
+  skip: '⏭ O‘tkazib yuborish',
+  cancel: '❌ Bekor qilish',
+  confirm: '✅ Tasdiqlash',
+  confirm_order: (cat: string) => `Buyurtma: ${cat}\nTasdiqlaysizmi?`,
+  searching: '🔎 Eng yaqin haydovchilar izlanmoqda…',
+  no_driver: '😔 Afsus, hozir bo‘sh taksi yo‘q. Keyinroq urinib ko‘ring.',
+  driver_found: (name: string, car: string, plate: string, phone: string, rating: string) =>
+    `✅ Haydovchi topildi!\n👤 ${name} ⭐ ${rating}\n🚗 ${car} (${plate})\n📞 ${phone}\n\nHaydovchi yo‘lda.`,
+  arrived: '🚗 Haydovchi yetib keldi!',
+  in_progress: '🛣 Safar boshlandi. Yaxshi yo‘l!',
+  completed: (price: string) => `✅ Safar yakunlandi.\n💰 Narx: ${price}\n\nHaydovchini baholang:`,
+  cancelled: 'Buyurtma bekor qilindi.',
+  cancelled_free: 'Buyurtma bekor qilindi (jarimasiz).',
+  cancelled_penalty: 'Buyurtma bekor qilindi. ⚠️ Bu bekor darajangizga ta’sir qiladi.',
+  thanks_rating: 'Bahoyingiz uchun rahmat! 🙏',
+  active_exists: 'Sizda allaqachon faol buyurtma bor.',
+  order_placed: 'Buyurtma qabul qilindi.',
+  cancel_order_btn: '❌ Buyurtmani bekor qilish',
+  err: 'Xatolik yuz berdi. Qayta urinib ko‘ring.',
+  invalid_phone:
+    '❗️ Telefon raqam noto‘g‘ri. To‘g‘ri kiriting (masalan: +998901234567) yoki pastdagi «📱 Raqamni ulashish» tugmasidan foydalaning.',
+  use_category_btn: '❗️ Iltimos, yuqoridagi tugmalardan mashina toifasini tanlang.',
+  use_location_btn: '❗️ Iltimos, «📍 Joylashuvni yuborish» tugmasi orqali joylashuvni yuboring.',
+  use_confirm_btn: '❗️ Iltimos, «✅ Tasdiqlash» yoki «❌ Bekor qilish» tugmasini bosing.',
+  register_first: '❗️ Avval ro‘yxatdan o‘ting — telefon raqamingizni ulashing.',
+  use_menu: 'Quyidagi menyudan foydalaning 👇',
+};
+
+const ru: Dict = {
+  welcome: 'Здравствуйте! Toy TaxY (TTY) — местное такси. 🚕',
+  choose_lang: 'Tilni tanlang / Выберите язык:',
+  ask_phone: 'Для регистрации поделитесь номером телефона 👇',
+  share_phone_btn: '📱 Поделиться номером',
+  registered: 'Готово! Теперь можно заказать такси.',
+  menu_order: '🚕 Заказать такси',
+  menu_lang: '🌐 Язык',
+  choose_category: 'Выберите класс авто:',
+  cat_standard: 'Обычный',
+  cat_comfort: 'Комфорт',
+  cat_cargo: 'Грузовой',
+  ask_pickup: 'Отправьте место подачи (локация) 👇',
+  send_location_btn: '📍 Отправить локацию',
+  ask_dest: 'Напишите адрес назначения или пропустите:',
+  ask_note: 'Добавить комментарий? (напр.: 2 пассажира) Или пропустите:',
+  skip: '⏭ Пропустить',
+  cancel: '❌ Отмена',
+  confirm: '✅ Подтвердить',
+  confirm_order: (cat: string) => `Заказ: ${cat}\nПодтверждаете?`,
+  searching: '🔎 Ищем ближайших водителей…',
+  no_driver: '😔 Извините, сейчас нет свободных такси. Попробуйте позже.',
+  driver_found: (name: string, car: string, plate: string, phone: string, rating: string) =>
+    `✅ Водитель найден!\n👤 ${name} ⭐ ${rating}\n🚗 ${car} (${plate})\n📞 ${phone}\n\nВодитель в пути.`,
+  arrived: '🚗 Водитель прибыл!',
+  in_progress: '🛣 Поездка началась. Счастливого пути!',
+  completed: (price: string) => `✅ Поездка завершена.\n💰 Стоимость: ${price}\n\nОцените водителя:`,
+  cancelled: 'Заказ отменён.',
+  cancelled_free: 'Заказ отменён (без штрафа).',
+  cancelled_penalty: 'Заказ отменён. ⚠️ Это повлияет на ваш рейтинг отмен.',
+  thanks_rating: 'Спасибо за оценку! 🙏',
+  active_exists: 'У вас уже есть активный заказ.',
+  order_placed: 'Заказ принят.',
+  cancel_order_btn: '❌ Отменить заказ',
+  err: 'Произошла ошибка. Попробуйте снова.',
+  invalid_phone:
+    '❗️ Неверный номер. Введите корректный (например: +998901234567) или используйте кнопку «📱 Поделиться номером».',
+  use_category_btn: '❗️ Пожалуйста, выберите класс авто кнопками выше.',
+  use_location_btn: '❗️ Пожалуйста, отправьте локацию кнопкой «📍 Отправить локацию».',
+  use_confirm_btn: '❗️ Пожалуйста, нажмите «✅ Подтвердить» или «❌ Отмена».',
+  register_first: '❗️ Сначала зарегистрируйтесь — поделитесь номером телефона.',
+  use_menu: 'Воспользуйтесь меню ниже 👇',
+};
+
+const dicts: Record<Lang, Dict> = { uz, ru };
+
+export function t(lang: Lang, key: string, ...args: string[]): string {
+  const v = (dicts[lang] ?? uz)[key] ?? uz[key] ?? key;
+  return typeof v === 'function' ? v(...args) : v;
+}
