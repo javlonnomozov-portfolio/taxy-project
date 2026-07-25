@@ -2,6 +2,7 @@
   "expo": {
     "name": "Toy TaxY Haydovchi",
     "slug": "tty-driver",
+    "owner": "javl9n",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -9,13 +10,19 @@
     "splash": {
       "backgroundColor": "#0f1420"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Buyurtmalarni olish uchun joylashuv kerak.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Fon rejimida buyurtmalarni olish uchun joylashuv kerak.",
-        "UIBackgroundModes": ["location", "fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -26,7 +33,12 @@
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "plugins": [
@@ -49,7 +61,7 @@
     "extra": {
       "apiUrl": "https://api-production-13444.up.railway.app",
       "eas": {
-        "projectId": "SET_AFTER_EAS_INIT"
+        "projectId": "486e16a1-b012-4256-b121-0ebbfc386cbd"
       }
     }
   }
