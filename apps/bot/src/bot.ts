@@ -15,6 +15,28 @@ import {
 import { getSession, resetDraft } from './session';
 import { trackOrder, stopTracking } from './tracker';
 
+// Yakuniy (terminal) holatlar — bulardan keyin zakaz faol emas.
+const TERMINAL_STATUSES = new Set([
+  'COMPLETED',
+  'CANCELLED_BY_CUSTOMER',
+  'CANCELLED_BY_DRIVER',
+  'CUSTOMER_NO_SHOW',
+  'NO_DRIVER',
+  'CLOSED_BY_OPERATOR',
+]);
+
+// Sessiyadagi activeOrderId hali ham backend'da faolmi? (tracker terminal eventni
+// o'tkazib yuborsa — masalan socket uzilsa — stale bo'lib qolishi mumkin.)
+async function stillActive(orderId: string): Promise<boolean> {
+  try {
+    const o = await apiClient.getOrder(orderId);
+    if (!o || !o.status) return false; // topilmadi → faol emas
+    return !TERMINAL_STATUSES.has(o.status);
+  } catch {
+    return true; // tarmoq xatosi — ehtiyot bo'lib bloklaymiz
+  }
+}
+
 // Telefon raqamni normallashtirish: +998XXXXXXXXX yoki null (noto'g'ri).
 function normalizePhone(raw: string): string | null {
   const d = raw.replace(/\D/g, '');
@@ -117,7 +139,11 @@ export function createBot(): Telegraf {
       return ctx.reply(t(s.lang, 'cancelled'), mainMenu(s.lang));
     }
     if (text === t(s.lang, 'menu_order')) {
-      if (s.activeOrderId) return ctx.reply(t(s.lang, 'active_exists'));
+      // Stale activeOrderId'ni backend bilan tekshiramiz — terminal bo'lsa tozalaymiz.
+      if (s.activeOrderId && (await stillActive(s.activeOrderId))) {
+        return ctx.reply(t(s.lang, 'active_exists'));
+      }
+      s.activeOrderId = undefined;
       s.step = 'category';
       s.draft = {};
       return ctx.reply(t(s.lang, 'choose_category'), categoryKeyboard(s.lang));

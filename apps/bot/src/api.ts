@@ -43,6 +43,11 @@ export const apiClient = {
     return req<{ penalized: boolean }>('POST', `/orders/${orderId}/cancel`, { reason: 'customer' });
   },
 
+  // Zakaz holatini olish (bot stale activeOrderId'ni tekshirishi uchun).
+  getOrder(orderId: string) {
+    return req<{ id: string; status: string } | null>('GET', `/orders/${orderId}`);
+  },
+
   // Biriktirilgan taksining oxirgi joylashuvi va holati (mijozga ko'rsatish uchun).
   driverLocation(orderId: string) {
     return req<{
