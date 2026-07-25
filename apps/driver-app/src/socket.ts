@@ -17,6 +17,7 @@ export const EV = {
   orderOffer: 'order:offer',
   orderOfferCancelled: 'order:offer_cancelled',
   orderAssigned: 'order:assigned',
+  tripEnded: 'trip:ended', // safar tashqi sabab bilan tugadi (mijoz/operator bekor qildi)
 } as const;
 
 export function connectDriver(token: string): Socket {

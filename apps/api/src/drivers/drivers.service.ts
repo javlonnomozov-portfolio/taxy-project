@@ -117,11 +117,27 @@ export class DriversService {
 
   async updateLocation(driverId: string, lat: number, lng: number): Promise<void> {
     const driver = await this.drivers.findOne({ where: { id: driverId } });
-    if (!driver || driver.status !== DriverStatus.ONLINE_IDLE) return;
+    // Onlayn yoki safardagi haydovchidan qabul qilamiz; oflayn — e'tiborsiz.
+    if (
+      !driver ||
+      (driver.status !== DriverStatus.ONLINE_IDLE && driver.status !== DriverStatus.ON_TRIP)
+    ) {
+      return;
+    }
     const category = await this.getCategory(driverId);
-    await this.geo.setDriverLocation(driverId, category, lng, lat);
-    await this.drivers.update(driverId, { lastSeenAt: new Date() });
-    // Operator jonli xaritasi uchun.
+    const now = new Date();
+    // Oxirgi joylashuvni HAR DOIM saqlaymiz — safar davomida ham (mijoz/kuzatuv uchun).
+    await this.drivers.update(driverId, {
+      lastLat: lat,
+      lastLng: lng,
+      lastLocationAt: now,
+      lastSeenAt: now,
+    });
+    // Geo-indeksga faqat bo'sh (ONLINE_IDLE) haydovchi tushadi — dispatch shu yerdan qidiradi.
+    if (driver.status === DriverStatus.ONLINE_IDLE) {
+      await this.geo.setDriverLocation(driverId, category, lng, lat);
+    }
+    // Operator jonli xaritasi uchun (onlayn va safardagi taksilar).
     this.realtime.emitToOps(SOCKET_EVENTS.ops.driverUpdate, {
       driverId,
       lat,
@@ -129,6 +145,36 @@ export class DriversService {
       status: driver.status,
       category,
     });
+  }
+
+  /** Xarita boshlang'ich yuklamasi: onlayn/safardagi haydovchilar oxirgi joylashuvi bilan. */
+  async listActiveWithLocation(): Promise<
+    Array<{ driverId: string; lat: number; lng: number; status: DriverStatus; category: VehicleCategory }>
+  > {
+    const drivers = await this.drivers.find({
+      where: [{ status: DriverStatus.ONLINE_IDLE }, { status: DriverStatus.ON_TRIP }],
+    });
+    const out = [];
+    for (const d of drivers) {
+      if (d.lastLat == null || d.lastLng == null) continue;
+      out.push({
+        driverId: d.id,
+        lat: d.lastLat,
+        lng: d.lastLng,
+        status: d.status,
+        category: await this.getCategory(d.id),
+      });
+    }
+    return out;
+  }
+
+  /** Bitta haydovchining oxirgi ma'lum joylashuvi va holati (mijozga ko'rsatish uchun). */
+  async lastLocation(
+    driverId: string,
+  ): Promise<{ lat: number; lng: number; at: Date | null; status: DriverStatus } | null> {
+    const d = await this.drivers.findOne({ where: { id: driverId } });
+    if (!d || d.lastLat == null || d.lastLng == null) return null;
+    return { lat: d.lastLat, lng: d.lastLng, at: d.lastLocationAt, status: d.status };
   }
 
   /** Dispatch biriktirgach — band, geo-indeksdan chiqadi. */

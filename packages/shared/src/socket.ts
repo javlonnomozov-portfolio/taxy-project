@@ -87,6 +87,7 @@ export const SOCKET_EVENTS = {
     orderOffer: 'order:offer',
     orderOfferCancelled: 'order:offer_cancelled',
     orderAssigned: 'order:assigned',
+    tripEnded: 'trip:ended', // safar tashqi sabab bilan tugadi (mijoz/operator bekor qildi)
     announcement: 'announcement',
   },
   customer: {

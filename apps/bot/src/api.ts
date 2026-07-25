@@ -43,6 +43,17 @@ export const apiClient = {
     return req<{ penalized: boolean }>('POST', `/orders/${orderId}/cancel`, { reason: 'customer' });
   },
 
+  // Biriktirilgan taksining oxirgi joylashuvi va holati (mijozga ko'rsatish uchun).
+  driverLocation(orderId: string) {
+    return req<{
+      orderStatus: string;
+      driverStatus: string;
+      lat: number;
+      lng: number;
+      at: string | null;
+    } | null>('GET', `/orders/${orderId}/driver-location`);
+  },
+
   rateDriver(orderId: string, score: number) {
     return req('POST', '/ratings/customer-to-driver', {
       orderId,

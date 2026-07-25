@@ -84,6 +84,15 @@ export function HomeScreen({
       });
       setDistanceM(0);
     });
+    // Safar mijoz/operator tomonidan bekor qilindi — ekranni yopib, yana buyurtma qabul qilamiz.
+    s.on(EV.tripEnded, (e: { orderId: string; reason?: string }) => {
+      setOffer((cur) => (cur?.orderId === e.orderId ? null : cur));
+      if (tripRef.current && tripRef.current.orderId === e.orderId) {
+        setTrip(null);
+        setDistanceM(0);
+        Alert.alert(t('trip_cancelled_title'), t('trip_cancelled_msg'));
+      }
+    });
     // Push tokenini ro'yxatga olish (dev-build kerak)
     (async () => {
       const expoToken = await registerForPush();

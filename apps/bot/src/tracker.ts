@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import type { Telegram } from 'telegraf';
 import { CONFIG } from './config';
 import { Lang, t } from './i18n';
-import { cancelOrderKeyboard, mainMenu, ratingKeyboard } from './keyboards';
+import { mainMenu, ratingKeyboard, trackingKeyboard } from './keyboards';
 
 interface DriverCard {
   name: string;
@@ -56,7 +56,7 @@ export function trackOrder(opts: {
         if (m.driver)
           await send(
             t(lang, 'driver_found', m.driver.name, m.driver.vehicle || '—', m.driver.plate || '—', m.driver.phone, String(m.driver.ratingAvg ?? 0)),
-            cancelOrderKeyboard(lang),
+            trackingKeyboard(lang),
           );
         break;
       case 'ARRIVED':

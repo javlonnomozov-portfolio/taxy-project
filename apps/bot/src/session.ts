@@ -18,6 +18,7 @@ export interface Session {
   draft: Draft;
   activeOrderId?: string;
   ratingOrderId?: string;
+  lastLocShownAt?: number; // taksi joylashuvini ko'rsatish rate-limit (10s)
 }
 
 const store = new Map<number, Session>();

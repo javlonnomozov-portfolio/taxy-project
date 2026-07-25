@@ -40,6 +40,8 @@ const dict: Record<Lang, Record<string, string>> = {
     balance: 'Balans',
     sos: 'SOS',
     cancel_trip: 'Bekor qilish',
+    trip_cancelled_title: 'Safar bekor qilindi',
+    trip_cancelled_msg: 'Buyurtma mijoz yoki operator tomonidan bekor qilindi.',
     lang_switch: 'Rus tili',
   },
   ru: {
@@ -81,6 +83,8 @@ const dict: Record<Lang, Record<string, string>> = {
     balance: 'Баланс',
     sos: 'SOS',
     cancel_trip: 'Отменить',
+    trip_cancelled_title: 'Поездка отменена',
+    trip_cancelled_msg: 'Заказ отменён клиентом или оператором.',
     lang_switch: 'O‘zbekcha',
   },
 };

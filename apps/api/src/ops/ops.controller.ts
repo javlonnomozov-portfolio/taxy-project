@@ -80,6 +80,13 @@ export class OpsController {
     return this.ops.confirmScheduled(id);
   }
 
+  // Jonli xarita uchun onlayn/safardagi taksilar (operator+).
+  @Roles(PanelRole.OPERATOR, PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Get('drivers/online')
+  activeDrivers() {
+    return this.ops.listActiveDrivers();
+  }
+
   // --- Haydovchilar (admin+) ---
   @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
   @Get('drivers')

@@ -7,6 +7,7 @@ import { Customer } from '../entities/customer.entity';
 import { OrdersEventsModule } from './order-events.module';
 import { DispatchModule } from '../dispatch/dispatch.module';
 import { TripsModule } from '../trips/trips.module';
+import { DriversModule } from '../drivers/drivers.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { TripsModule } from '../trips/trips.module';
     OrdersEventsModule,
     DispatchModule,
     TripsModule,
+    DriversModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

@@ -224,7 +224,14 @@ export class TripsService {
     const penalized = !withinFreeWindow || !preAccept.includes(order.status);
 
     await this.orders.update(orderId, { status: OrderStatus.CANCELLED_BY_CUSTOMER });
-    if (order.driverId) await this.drivers.markIdle(order.driverId);
+    if (order.driverId) {
+      await this.drivers.markIdle(order.driverId);
+      // Haydovchi ilovasiga xabar beramiz — safar ekrani yopilib, yana buyurtma qabul qilsin.
+      this.realtime.emitToDriver(order.driverId, SOCKET_EVENTS.driver.tripEnded, {
+        orderId,
+        reason: 'customer_cancel',
+      });
+    }
     // Bekor darajasi (cancel_rate) metrikasi order_events'dan Sprint 3'da hisoblanadi.
     await this.events.record(orderId, 'cancelled', ActorType.CUSTOMER, {
       actorId: order.customerId,

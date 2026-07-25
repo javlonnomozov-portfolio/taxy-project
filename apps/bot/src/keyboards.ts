@@ -38,6 +38,13 @@ export const confirmKeyboard = (lang: Lang) =>
 export const cancelOrderKeyboard = (lang: Lang) =>
   Markup.inlineKeyboard([[Markup.button.callback(t(lang, 'cancel_order_btn'), 'order:cancel')]]);
 
+// Haydovchi topilgach: taksi joylashuvini ko'rish + bekor qilish.
+export const trackingKeyboard = (lang: Lang) =>
+  Markup.inlineKeyboard([
+    [Markup.button.callback(t(lang, 'show_location_btn'), 'order:where')],
+    [Markup.button.callback(t(lang, 'cancel_order_btn'), 'order:cancel')],
+  ]);
+
 export const ratingKeyboard = () =>
   Markup.inlineKeyboard([
     [1, 2, 3, 4, 5].map((n) => Markup.button.callback(`${n}⭐`, `rate:${n}`)),

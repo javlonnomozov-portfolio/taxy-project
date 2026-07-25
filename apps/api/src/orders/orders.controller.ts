@@ -53,6 +53,12 @@ export class OrdersController {
     return this.orders.findById(id);
   }
 
+  // Biriktirilgan taksining oxirgi joylashuvi (bot mijozga ko'rsatadi).
+  @Get(':id/driver-location')
+  driverLocation(@Param('id') id: string) {
+    return this.orders.driverLocation(id);
+  }
+
   @Post(':id/cancel')
   cancel(@Param('id') id: string, @Body() dto: CancelDto) {
     return this.trips.cancelByCustomer(id, dto.reason);

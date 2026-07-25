@@ -7,7 +7,10 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "scheme": "ttydriver",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
       "backgroundColor": "#0f1420"
     },
     "assetBundlePatterns": [
@@ -27,6 +30,10 @@
     },
     "android": {
       "package": "uz.toytaxy.driver",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#B40496"
+      },
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",

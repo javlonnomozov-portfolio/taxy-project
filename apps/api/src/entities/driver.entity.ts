@@ -74,6 +74,17 @@ export class Driver {
   @Column({ type: 'timestamptz', name: 'last_seen_at', nullable: true })
   lastSeenAt!: Date | null;
 
+  // Oxirgi ma'lum joylashuv — onlayn ham, safar (ON_TRIP) davomida ham yangilanadi.
+  // Xarita va mijozga "taksi qayerda" ni ko'rsatish uchun yagona manba.
+  @Column({ type: 'double precision', name: 'last_lat', nullable: true })
+  lastLat!: number | null;
+
+  @Column({ type: 'double precision', name: 'last_lng', nullable: true })
+  lastLng!: number | null;
+
+  @Column({ type: 'timestamptz', name: 'last_location_at', nullable: true })
+  lastLocationAt!: Date | null;
+
   @OneToMany(() => Vehicle, (v) => v.driver)
   vehicles!: Vehicle[];
 

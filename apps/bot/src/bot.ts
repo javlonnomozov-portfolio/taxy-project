@@ -23,6 +23,27 @@ function normalizePhone(raw: string): string | null {
   return null;
 }
 
+// Zakaz holatidan mijozga tushunarli iborani hosil qilish.
+function statusPhrase(lang: Lang, orderStatus: string): string {
+  switch (orderStatus) {
+    case 'ARRIVED':
+      return t(lang, 'taxi_arrived');
+    case 'IN_PROGRESS':
+      return t(lang, 'taxi_in_trip');
+    default: // ACCEPTED, CONFIRMED, ARRIVING
+      return t(lang, 'taxi_on_way');
+  }
+}
+
+// "N soniya/daqiqa oldin" — joylashuv qachon yangilangani.
+function agoText(lang: Lang, iso: string | null): string {
+  if (!iso) return t(lang, 'ago_now');
+  const sec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (sec < 5) return t(lang, 'ago_now');
+  if (sec < 60) return t(lang, 'ago_sec', String(sec));
+  return t(lang, 'ago_min', String(Math.floor(sec / 60)));
+}
+
 export function createBot(): Telegraf {
   const bot = new Telegraf(CONFIG.botToken);
 
@@ -196,6 +217,36 @@ export function createBot(): Telegraf {
       );
     } catch {
       await ctx.reply(t(s.lang, 'err'));
+    }
+  });
+
+  // Taksi joylashuvini ko'rish (10 soniyada bir marta ruxsat).
+  bot.action('order:where', async (ctx) => {
+    const s = getSession(ctx.chat!.id);
+    if (!s.activeOrderId) {
+      await ctx.answerCbQuery();
+      return;
+    }
+    const now = Date.now();
+    if (s.lastLocShownAt && now - s.lastLocShownAt < 10_000) {
+      const wait = Math.ceil((10_000 - (now - s.lastLocShownAt)) / 1000);
+      await ctx.answerCbQuery(t(s.lang, 'loc_too_soon', String(wait)));
+      return;
+    }
+    await ctx.answerCbQuery();
+    try {
+      const loc = await apiClient.driverLocation(s.activeOrderId);
+      if (!loc) {
+        await ctx.reply(t(s.lang, 'loc_unavailable'));
+        return;
+      }
+      s.lastLocShownAt = now;
+      await ctx.replyWithLocation(loc.lat, loc.lng);
+      await ctx.reply(
+        t(s.lang, 'taxi_loc_caption', statusPhrase(s.lang, loc.orderStatus), agoText(s.lang, loc.at)),
+      );
+    } catch {
+      await ctx.reply(t(s.lang, 'loc_unavailable'));
     }
   });
 

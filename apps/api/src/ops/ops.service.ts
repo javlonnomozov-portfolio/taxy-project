@@ -32,11 +32,18 @@ export class OpsService {
   }
 
   listOrders(status?: OrderStatus): Promise<Order[]> {
-    return this.orders.find({
-      where: status ? { status } : { status: In(ACTIVE_STATUSES) },
-      order: { createdAt: 'DESC' },
-      take: 200,
-    });
+    if (status) {
+      return this.orders.find({ where: { status }, order: { createdAt: 'DESC' }, take: 200 });
+    }
+    // Faol zakazlar + so'nggi 30 daqiqadagi NO_DRIVER (operator qo'lda biriktirishi uchun).
+    const since = new Date(Date.now() - 30 * 60_000);
+    return this.orders
+      .createQueryBuilder('o')
+      .where('o.status IN (:...active)', { active: ACTIVE_STATUSES })
+      .orWhere('o.status = :nd AND o.created_at > :since', { nd: OrderStatus.NO_DRIVER, since })
+      .orderBy('o.created_at', 'DESC')
+      .take(200)
+      .getMany();
   }
 
   /** Qo'lda biriktirish (NO_DRIVER yoki DISPATCHING holatida). */
@@ -100,7 +107,13 @@ export class OpsService {
     if (!order) throw new NotFoundException('Buyurtma topilmadi');
     this.dispatch.abort(orderId);
     await this.orders.update(orderId, { status: OrderStatus.CLOSED_BY_OPERATOR });
-    if (order.driverId) await this.drivers.markIdle(order.driverId);
+    if (order.driverId) {
+      await this.drivers.markIdle(order.driverId);
+      this.realtime.emitToDriver(order.driverId, SOCKET_EVENTS.driver.tripEnded, {
+        orderId,
+        reason: 'operator_close',
+      });
+    }
     await this.events.record(orderId, 'closed', ActorType.OPERATOR, { reason });
     this.realtime.emitToCustomer(order.customerId, SOCKET_EVENTS.customer.orderStatus, {
       orderId,
@@ -114,6 +127,10 @@ export class OpsService {
 
   listDrivers() {
     return this.drivers.listAll();
+  }
+  /** Xarita boshlang'ich yuklamasi: onlayn/safardagi taksilar oxirgi joylashuvi bilan. */
+  listActiveDrivers() {
+    return this.drivers.listActiveWithLocation();
   }
   createDriver(data: {
     phone: string;

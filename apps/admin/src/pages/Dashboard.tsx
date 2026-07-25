@@ -18,7 +18,8 @@ interface Order {
 interface DriverPos { driverId: string; lat: number; lng: number; status: string; category: string }
 interface Alert { type: string; orderId?: string; message: string; at: number }
 
-const CENTER: [number, number] = [41.311, 69.24];
+// Xizmat hududi markazi — Bulung'ur (Samarqand viloyati).
+const CENTER: [number, number] = [39.7683, 67.2792];
 
 export function Dashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -31,8 +32,17 @@ export function Dashboard() {
     } catch { /* ignore */ }
   }
 
+  // Boshlang'ich onlayn/safardagi taksilar (socket yangilanishlarigacha xarita bo'sh qolmasin).
+  async function loadDrivers() {
+    try {
+      const list = await api<DriverPos[]>('GET', '/ops/drivers/online');
+      setDrivers(Object.fromEntries(list.map((d) => [d.driverId, d])));
+    } catch { /* ignore */ }
+  }
+
   useEffect(() => {
     load();
+    loadDrivers();
     const s = connectOps();
     s.on('order:update', () => load());
     s.on('driver:update', (d: DriverPos) =>
@@ -41,7 +51,10 @@ export function Dashboard() {
     s.on('alert', (a: Omit<Alert, 'at'>) =>
       setAlerts((prev) => [{ ...a, at: Date.now() }, ...prev].slice(0, 50)),
     );
-    const iv = setInterval(load, 10000);
+    const iv = setInterval(() => {
+      load();
+      loadDrivers();
+    }, 10000);
     return () => {
       s.close();
       clearInterval(iv);

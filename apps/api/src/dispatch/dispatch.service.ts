@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import {
   ActorType,
   OrderStatus,
+  OrderType,
   SOCKET_EVENTS,
   VehicleCategory,
 } from '@tty/shared';
@@ -38,8 +39,14 @@ interface DispatchState {
 
 const DEFAULT_METER = { baseFare: 4000, perKm: 0, waitingPerMin: 0 };
 
+// Dispatch holati faqat xotirada (states Map + setTimeout). Servis qayta ishga
+// tushganda (Railway deploy/crash) DISPATCHING'dagi zakazlar "yetim" qoladi —
+// ularni tiklaydigan timer yo'q, mijozning keyingi zakazlari bloklanadi.
+// Boot'da: yaqinda yaratilganlarni qayta dispatch qilamiz, eskirganlarni NO_DRIVER.
+const RECOVERY_MAX_AGE_MS = 15 * 60_000; // 15 daqiqadan eski yetimlar → NO_DRIVER
+
 @Injectable()
-export class DispatchService {
+export class DispatchService implements OnModuleInit {
   private readonly log = new Logger(DispatchService.name);
   private readonly states = new Map<string, DispatchState>();
 
@@ -55,6 +62,71 @@ export class DispatchService {
     private readonly config: ConfigService,
   ) {}
 
+  /** Servis ko'tarilganda xotira yo'qolgani uchun yetim qolgan zakazlarni tiklaymiz. */
+  async onModuleInit(): Promise<void> {
+    try {
+      await this.recoverOrphans();
+    } catch (e) {
+      this.log.error(`Yetim zakazlarni tiklashda xato: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * Qayta ishga tushishdan keyin DISPATCHING'da (yoki dispatch qilinmagan CREATED'da)
+   * osilib qolgan zakazlar: yaqinlarini qayta dispatch qilamiz, eskirganlarini NO_DRIVER.
+   * Rejalashtirilgan (SCHEDULED) CREATED zakazlarga tegmaymiz — ular operator tasdig'ini kutadi.
+   */
+  private async recoverOrphans(): Promise<void> {
+    const orphans = await this.orders.find({
+      where: [
+        { status: OrderStatus.DISPATCHING },
+        { status: OrderStatus.CREATED, orderType: Not(OrderType.SCHEDULED) },
+      ],
+    });
+    if (orphans.length === 0) return;
+    this.log.warn(`${orphans.length} ta yetim zakaz topildi — tiklanmoqda...`);
+
+    let redispatched = 0;
+    let expired = 0;
+    for (const o of orphans) {
+      if (this.states.has(o.id)) continue; // allaqachon faol (bo'lmasligi kerak)
+      const ageMs = Date.now() - new Date(o.createdAt).getTime();
+      if (ageMs > RECOVERY_MAX_AGE_MS) {
+        if (await this.expireOrphan(o)) expired++;
+      } else {
+        // start() faqat CREATED'dan ishlaydi — DISPATCHING'ni qaytaramiz.
+        if (o.status === OrderStatus.DISPATCHING) {
+          await this.orders.update(o.id, { status: OrderStatus.CREATED });
+        }
+        await this.start(o.id);
+        redispatched++;
+      }
+    }
+    this.log.warn(`Yetim zakazlar tiklandi: ${redispatched} qayta dispatch, ${expired} NO_DRIVER`);
+  }
+
+  /** Eskirgan yetim zakazni NO_DRIVER'ga o'tkazish (xotira holatisiz). */
+  private async expireOrphan(order: Order): Promise<boolean> {
+    const res = await this.orders
+      .createQueryBuilder()
+      .update(Order)
+      .set({ status: OrderStatus.NO_DRIVER })
+      .where('id = :id AND status IN (:...st)', {
+        id: order.id,
+        st: [OrderStatus.DISPATCHING, OrderStatus.CREATED],
+      })
+      .execute();
+    if (!res.affected) return false;
+    await this.events.record(order.id, 'no_driver', ActorType.SYSTEM, { reason: 'recovery_expired' });
+    this.notifyCustomer(order.customerId, order.id, OrderStatus.NO_DRIVER);
+    this.realtime.emitToOps(SOCKET_EVENTS.ops.alert, {
+      type: 'NO_DRIVER',
+      orderId: order.id,
+      message: 'Haydovchi topilmadi (tiklashda eskirgan)',
+    });
+    return true;
+  }
+
   async start(orderId: string): Promise<void> {
     const order = await this.orders.findOne({ where: { id: orderId } });
     if (!order || order.status !== OrderStatus.CREATED) return;
@@ -63,6 +135,12 @@ export class DispatchService {
     await this.orders.update(orderId, { status: OrderStatus.DISPATCHING });
     await this.events.record(orderId, 'dispatching', ActorType.SYSTEM);
     this.notifyCustomer(order.customerId, orderId, OrderStatus.DISPATCHING);
+    // Operator paneli yangi zakazni darhol ko'rsin (10s pollingni kutmasdan).
+    this.realtime.emitToOps(SOCKET_EVENTS.ops.orderUpdate, {
+      orderId,
+      status: OrderStatus.DISPATCHING,
+      driverId: null,
+    });
 
     const lng = order.pickupLng;
     const lat = order.pickupLat;
@@ -92,7 +170,7 @@ export class DispatchService {
       active: true,
     };
     state.noDriverTimer = setTimeout(
-      () => void this.onNoDriver(state),
+      () => this.onNoDriver(state).catch((e) => this.log.error(`onNoDriver xato: ${(e as Error).message}`)),
       this.config.get<number>('DISPATCH_NO_DRIVER_TIMEOUT_SEC')! * 1000,
     );
     this.states.set(orderId, state);
@@ -171,7 +249,7 @@ export class DispatchService {
 
   private async offer(state: DispatchState, driverId: string, distanceM: number): Promise<void> {
     const timeout = setTimeout(
-      () => void this.decline(state, driverId, 'timeout'),
+      () => this.decline(state, driverId, 'timeout').catch((e) => this.log.error(`decline xato: ${(e as Error).message}`)),
       state.offerTimeoutMs,
     );
     state.offered.set(driverId, timeout);
@@ -189,7 +267,9 @@ export class DispatchService {
       payload: { distanceM, radius: state.radiusSteps[state.radiusIdx] },
     });
     // Fon rejimida push (ilova ochiq bo'lmasa) — stub, keyin FCM.
-    void this.notifications.pushToDriver(driverId, 'Yangi buyurtma', `${distanceM} m uzoqlikda`);
+    this.notifications
+      .pushToDriver(driverId, 'Yangi buyurtma', `${distanceM} m uzoqlikda`)
+      .catch((e) => this.log.error(`push xato: ${(e as Error).message}`));
   }
 
   private async decline(state: DispatchState, driverId: string, reason: string): Promise<void> {
