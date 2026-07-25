@@ -1,0 +1,5 @@
+# Lokal docker volume (root-egali — EAS arxivlashda EACCES beradi)
+data/
+# Lokal test/log artefaktlari
+*.log
+.env
