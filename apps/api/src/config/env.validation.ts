@@ -12,6 +12,8 @@ export const envSchema = z.object({
   JWT_SECRET: z.string().min(8),
   JWT_EXPIRES_IN: z.string().default('7d'),
   INTERNAL_API_KEY: z.string().min(8).default('dev_internal_key'),
+  ADMIN_LOGIN: z.string().optional(),
+  ADMIN_PASSWORD: z.string().optional(),
   // Dispatch sozlamalari (default; keyin DB settings bilan almashtiriladi)
   DISPATCH_WINDOW_SIZE: z.coerce.number().default(6),
   DISPATCH_OFFER_TIMEOUT_SEC: z.coerce.number().default(15),

@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { ActorType, OrderStatus, OrderType, SOCKET_EVENTS, VehicleCategory } from '@tty/shared';
+import { ActorType, OrderStatus, OrderType, PanelRole, SOCKET_EVENTS, VehicleCategory } from '@tty/shared';
 import { Order } from '../entities/order.entity';
 import { ACTIVE_STATUSES } from '../orders/orders.constants';
 import { OrderEventsService } from '../orders/order-events.service';
@@ -9,6 +9,7 @@ import { DriversService } from '../drivers/drivers.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { SettingsService } from '../settings/settings.service';
 import { BillingService } from '../billing/billing.service';
+import { AuthService } from '../auth/auth.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { SettingsConfig } from '../entities/settings.entity';
 import { Tariff } from '../entities/tariff.entity';
@@ -22,8 +23,13 @@ export class OpsService {
     private readonly dispatch: DispatchService,
     private readonly settings: SettingsService,
     private readonly billing: BillingService,
+    private readonly auth: AuthService,
     private readonly realtime: RealtimeService,
   ) {}
+
+  createAdmin(login: string, password: string, role: PanelRole) {
+    return this.auth.createAdmin(login, password, role);
+  }
 
   listOrders(status?: OrderStatus): Promise<Order[]> {
     return this.orders.find({

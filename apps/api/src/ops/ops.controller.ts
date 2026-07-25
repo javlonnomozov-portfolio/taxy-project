@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsEnum, IsNumber, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsObject, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderStatus, PanelRole, VehicleCategory } from '@tty/shared';
 import { OpsService } from './ops.service';
@@ -37,6 +37,11 @@ class CreateDriverDto {
   @IsOptional() @IsString() firstName?: string;
   @IsOptional() @IsString() lastName?: string;
   @ValidateNested() @Type(() => NewVehicleDto) vehicle!: NewVehicleDto;
+}
+class CreateAdminDto {
+  @IsString() login!: string;
+  @IsString() @MinLength(6) password!: string;
+  @IsEnum(PanelRole) role!: PanelRole;
 }
 
 @Controller('ops')
@@ -87,6 +92,13 @@ export class OpsController {
   @Post('drivers')
   createDriver(@Body() dto: CreateDriverDto) {
     return this.ops.createDriver(dto);
+  }
+
+  // Super-admin operator/admin akkaunt yaratadi.
+  @Roles(PanelRole.SUPER_ADMIN)
+  @Post('admins')
+  createAdmin(@Body() dto: CreateAdminDto) {
+    return this.ops.createAdmin(dto.login, dto.password, dto.role);
   }
 
   @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)

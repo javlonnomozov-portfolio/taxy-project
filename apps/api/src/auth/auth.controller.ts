@@ -3,7 +3,8 @@ import { Request } from 'express';
 import { IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import { Public, Roles, JwtPayload } from './roles';
+import { PanelRole } from '@tty/shared';
+import { Public, Roles, JwtPayload, AuthRole } from './roles';
 
 class DriverLoginDto {
   @IsString() @MinLength(9) phone!: string;
@@ -16,6 +17,10 @@ class AdminLoginDto {
   @IsString() login!: string;
   @IsString() password!: string;
 }
+class AdminChangePasswordDto {
+  @IsString() @MinLength(6) newPassword!: string;
+}
+const PANEL: AuthRole[] = [PanelRole.SUPER_ADMIN, PanelRole.ADMIN, PanelRole.OPERATOR];
 
 @Controller('auth')
 export class AuthController {
@@ -39,5 +44,13 @@ export class AuthController {
   @Post('admin/login')
   adminLogin(@Body() dto: AdminLoginDto) {
     return this.auth.adminLogin(dto.login, dto.password);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Roles(...PANEL)
+  @Post('admin/change-password')
+  adminChangePassword(@Req() req: Request, @Body() dto: AdminChangePasswordDto) {
+    const user = (req as Request & { user: JwtPayload }).user;
+    return this.auth.changeAdminPassword(user.sub, dto.newPassword);
   }
 }

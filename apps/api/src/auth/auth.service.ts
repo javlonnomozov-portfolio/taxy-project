@@ -42,14 +42,35 @@ export class AuthService {
     return { ok: true };
   }
 
-  /** Admin panel login (dev: parolni oddiy solishtirish; keyin bcrypt). */
+  /** Admin panel login (bcrypt). */
   async adminLogin(login: string, password: string): Promise<{ token: string; role: PanelRole }> {
     const admin = await this.admins.findOne({ where: { login } });
-    if (!admin || admin.passwordHash !== password) {
+    if (!admin || !(await bcrypt.compare(password, admin.passwordHash))) {
       throw new UnauthorizedException('Login yoki parol noto‘g‘ri');
     }
     const token = await this.sign({ sub: admin.id, role: admin.role });
     return { token, role: admin.role };
+  }
+
+  async changeAdminPassword(adminId: string, newPassword: string): Promise<{ ok: true }> {
+    if (!newPassword || newPassword.length < 6) {
+      throw new UnauthorizedException('Parol kamida 6 belgidan iborat bo‘lsin');
+    }
+    await this.admins.update(adminId, { passwordHash: await bcrypt.hash(newPassword, 10) });
+    return { ok: true };
+  }
+
+  /** Yangi admin/operator yaratish (super-admin). */
+  async createAdmin(login: string, password: string, role: PanelRole): Promise<AdminUser> {
+    const existing = await this.admins.findOne({ where: { login } });
+    if (existing) throw new UnauthorizedException('Bunday login allaqachon mavjud');
+    return this.admins.save(
+      this.admins.create({ login, role, passwordHash: await bcrypt.hash(password, 10) }),
+    );
+  }
+
+  static hash(password: string): Promise<string> {
+    return bcrypt.hash(password, 10);
   }
 
   private sign(payload: JwtPayload): Promise<string> {
