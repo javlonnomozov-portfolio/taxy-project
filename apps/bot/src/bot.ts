@@ -4,6 +4,7 @@ import { CONFIG } from './config';
 import { apiClient } from './api';
 import { Lang, t } from './i18n';
 import {
+  cancelOrderKeyboard,
   categoryKeyboard,
   confirmKeyboard,
   langKeyboard,
@@ -135,6 +136,17 @@ export function createBot(): Telegraf {
       return ctx.reply(t(s.lang, 'choose_lang'), langKeyboard);
     }
     if (text === t(s.lang, 'cancel')) {
+      // Faol buyurtma bo'lsa uni backend'da ham bekor qilamiz (nafaqat draftni) —
+      // aks holda "qidirilyapti" holatida zakaz osilib qolardi.
+      if (s.activeOrderId) {
+        try {
+          await apiClient.cancelOrder(s.activeOrderId);
+        } catch {
+          /* allaqachon terminal bo'lishi mumkin — e'tiborsiz */
+        }
+        stopTracking(s.activeOrderId);
+        s.activeOrderId = undefined;
+      }
       resetDraft(s);
       return ctx.reply(t(s.lang, 'cancelled'), mainMenu(s.lang));
     }
@@ -202,7 +214,9 @@ export function createBot(): Telegraf {
       });
       s.activeOrderId = order.id;
       resetDraft(s);
-      await ctx.reply(t(s.lang, 'searching'));
+      // "Qidirilyapti" xabari bilan birga bekor qilish tugmasi — haydovchi
+      // topilmasa ham mijoz zakazni bekor qila olsin.
+      await ctx.reply(t(s.lang, 'searching'), cancelOrderKeyboard(s.lang));
       trackOrder({
         orderId: order.id,
         chatId: ctx.chat!.id,
