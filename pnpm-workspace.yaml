@@ -1,3 +1,5 @@
 packages:
   - "apps/*"
   - "packages/*"
+  # driver-app — mustaqil Expo loyihasi (o'z node_modules, pnpm workspace'dan tashqarida)
+  - "!apps/driver-app"

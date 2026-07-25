@@ -27,6 +27,8 @@ npm-debug.log*
 # native / RN
 apps/driver-app/android/
 apps/driver-app/ios/
+apps/driver-app/.expo/
+apps/driver-app/dist/
 *.apk
 *.keystore
 

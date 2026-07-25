@@ -1,25 +1,43 @@
-# @tty/driver-app — Haydovchi ilovasi (React Native)
+# @tty/driver-app — Haydovchi ilovasi (Expo / React Native)
 
-> **Placeholder.** React Native ilovasi alohida native toolchain (Android SDK / Xcode)
-> talab qilgani uchun bu jild Sprint 0'da bo'sh qoldirildi. Skeletni init qilish qadami
-> quyida. To'liq tasklar: [../../docs/tasks/03-driver-app.md](../../docs/tasks/03-driver-app.md).
+Toy TaxY haydovchi mobil ilovasi. **Mustaqil Expo loyihasi** (pnpm workspace'dan tashqarida —
+o'z `node_modules`). Telefonda **Expo Go** orqali darrov ishga tushadi.
 
-## Init qilish (keyinroq)
+## Imkoniyatlar
+- Telefon + parol bilan **kirish** (super-admin bergan temp parol)
+- Birinchi kirishda **parolni majburiy almashtirish**
+- **Onlayn/oflayn** rejim + fon GPS (davomiy joylashuv yuborish)
+- **Taklif** oynasi (masofa, izoh, 20 sek taymer) → qabul/rad
+- **Safar** bosqichlari: yetib keldim → boshlash → tugatish
+- Jonli **taksometr** (GPS masofasi bo'yicha)
+- **Navigatsiya** (Yandex Maps) va mijozga **qo'ng'iroq** tugmalari
+- i18n: o'zbek / rus
+
+## Ishga tushirish
 
 ```bash
-# 1) RN loyihasini shu jildga init qilish (yoki Expo)
-npx @react-native-community/cli init driverApp --directory apps/driver-app --skip-git-init
-# yoki Expo:
-# npx create-expo-app@latest apps/driver-app
-
-# 2) package name'ni @tty/driver-app ga o'zgartirish va workspace'ga ulash
-# 3) Kutubxonalar: MapLibre GL Native, socket.io-client, react-native-geolocation
-#    (background), @tty/shared (umumiy turlar/kontraktlar), i18n
+cd apps/driver-app
+npm install
+npx expo start
 ```
 
-## Sprint 0'dagi vazifa
-- [ ] RN skeletni init qilish, bo'sh login ekrani
-- [ ] `@tty/shared` ni ulash (Socket kontraktlari)
-- [ ] Dev muhitni hujjatlash
+So'ng telefoningizda **Expo Go** ilovasini o'rnating (App Store / Play Market) va
+terminaldagi **QR kodni** skanerlang. Ilova telefoningizda ochiladi.
 
-Batafsil: [03-driver-app.md](../../docs/tasks/03-driver-app.md).
+> API manzili `app.json` > `extra.apiUrl` da (default — Railway production).
+> Lokal API bilan sinash uchun uni `http://<kompyuter-IP>:3000` ga o'zgartiring
+> (telefon va kompyuter bir Wi-Fi tarmog'ida bo'lsin; `localhost` telefonda ishlamaydi).
+
+## Kirish ma'lumotlari
+Super-admin panelda (**admin**) haydovchi qo'shadi → bir martalik parol beriladi →
+shu telefon + parol bilan kiring → yangi parol o'rnating.
+
+## Skriptlar
+- `npm start` — Expo dev server
+- `npm run typecheck` — TypeScript tekshirish
+
+## Keyingi bosqich (TODO)
+- In-app xarita (react-native-maps + OSM)
+- Fon rejimida location (expo-task-manager) ilova yopiqda ham
+- Push (FCM) — ilova yopiqda taklif bildirishnomasi
+- Balans/tarix, SOS, reyting ekranlari

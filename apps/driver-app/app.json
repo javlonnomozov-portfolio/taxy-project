@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Toy TaxY Haydovchi",
+    "slug": "tty-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "ttydriver",
+    "splash": {
+      "backgroundColor": "#0f1420"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Buyurtmalarni olish uchun joylashuv kerak.",
+        "UIBackgroundModes": ["location"]
+      }
+    },
+    "android": {
+      "package": "uz.toytaxy.driver",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "FOREGROUND_SERVICE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Buyurtmalarni olish uchun joylashuv kerak."
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "https://api-production-13444.up.railway.app"
+    }
+  }
+}

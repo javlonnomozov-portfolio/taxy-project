@@ -1,0 +1,60 @@
+import { StyleSheet } from 'react-native';
+
+export const C = {
+  bg: '#0f1420',
+  panel: '#182031',
+  panel2: '#1f2940',
+  border: '#2a3550',
+  text: '#e6ebf5',
+  muted: '#8a96b0',
+  accent: '#4c8dff',
+  ok: '#3ddc84',
+  danger: '#ff5a5f',
+  warn: '#ffb020',
+};
+
+export const S = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: C.bg, padding: 20 },
+  center: { flex: 1, justifyContent: 'center' },
+  title: { color: C.text, fontSize: 24, fontWeight: '700', marginBottom: 6 },
+  subtitle: { color: C.muted, fontSize: 14, marginBottom: 20 },
+  label: { color: C.muted, fontSize: 13, marginBottom: 6 },
+  input: {
+    backgroundColor: C.panel,
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    color: C.text,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    marginBottom: 14,
+  },
+  btn: {
+    backgroundColor: C.accent,
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnGhost: {
+    backgroundColor: C.panel2,
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  btnGhostText: { color: C.text, fontSize: 15, fontWeight: '600' },
+  btnOk: { backgroundColor: C.ok },
+  btnDanger: { backgroundColor: C.danger },
+  card: {
+    backgroundColor: C.panel,
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 18,
+  },
+  err: { color: C.danger, fontSize: 13, marginBottom: 10 },
+  row: { flexDirection: 'row', alignItems: 'center' },
+});
