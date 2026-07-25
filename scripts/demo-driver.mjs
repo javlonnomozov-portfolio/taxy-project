@@ -1,6 +1,7 @@
 // Demo uchun doimiy onlayn haydovchi: taklifni qabul qiladi va safarni bosqichma-bosqich
 // yakunlaydi (kechikishlar bilan — mijoz Telegram'da har bosqichni ko'radi).
 import { io } from 'socket.io-client';
+import { adminLogin, createDriver } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 // Haydovchi joyi — buyurtma yaratilganda mijoz lokatsiyasiga yaqinlashtiramiz emas,
@@ -16,12 +17,24 @@ async function j(m, p, b, h = {}) {
 
 async function main() {
   const phone = '+998901112233';
-  const otp = await j('POST', '/auth/driver/otp', { phone });
-  const v = await j('POST', '/auth/driver/verify', { phone, code: otp.devCode });
-  await j('POST', '/drivers/register', {
-    firstName: 'Demo', lastName: 'Haydovchi',
-    vehicle: { category: 'standard', plate: '01 A 777 AA', make: 'Chevrolet', model: 'Cobalt', color: 'oq' },
-  }, { authorization: 'Bearer ' + v.token });
+  const adminToken = await adminLogin(API);
+  // Agar allaqachon mavjud bo'lsa, boshqa raqam bilan urinamiz (demo qayta ishga tushganda).
+  let v;
+  try {
+    v = await createDriver(API, adminToken, {
+      phone,
+      firstName: 'Demo',
+      lastName: 'Haydovchi',
+      vehicle: { category: 'standard', plate: '01 A 777 AA', make: 'Chevrolet', model: 'Cobalt', color: 'oq' },
+    });
+  } catch {
+    const phone2 = '+99890' + Math.floor(1000000 + Math.random() * 8999999);
+    v = await createDriver(API, adminToken, {
+      phone: phone2,
+      firstName: 'Demo',
+      vehicle: { category: 'standard', plate: '01 A 777 AA', model: 'Cobalt' },
+    });
+  }
 
   const s = io(API + '/driver', { auth: { token: v.token }, transports: ['websocket'] });
   const busy = new Set();

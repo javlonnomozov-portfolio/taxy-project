@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { ApprovalStatus, DriverStatus, VehicleCategory } from '@tty/shared';
+import * as bcrypt from 'bcryptjs';
 import { SOCKET_EVENTS } from '@tty/shared';
 import { REDIS } from '../redis/redis.module';
 import { GeoService } from '../geo/geo.service';
@@ -26,28 +27,40 @@ export class DriversService {
     return `driver:cat:${driverId}`;
   }
 
-  async register(
-    driverId: string,
-    data: {
-      firstName?: string;
-      lastName?: string;
-      vehicle: { make?: string; model?: string; color?: string; plate?: string; category: VehicleCategory };
-    },
-  ): Promise<Driver> {
-    const driver = await this.mustFind(driverId);
-    driver.firstName = data.firstName ?? driver.firstName;
-    driver.lastName = data.lastName ?? driver.lastName;
-    // Dev qulaylik: production'da KYC tasdig'i operator orqali (2.11).
-    if (this.config.get('NODE_ENV') !== 'production') {
-      driver.approvalStatus = ApprovalStatus.APPROVED;
-    }
-    await this.drivers.save(driver);
+  private genTempPassword(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let p = '';
+    for (let i = 0; i < 8; i++) p += chars[Math.floor(Math.random() * chars.length)];
+    return p;
+  }
 
-    let vehicle = await this.vehicles.findOne({ where: { driverId } });
-    vehicle = vehicle ?? this.vehicles.create({ driverId });
-    Object.assign(vehicle, data.vehicle);
-    await this.vehicles.save(vehicle);
-    return driver;
+  /**
+   * Super-admin ofisda haydovchini qo'lda qo'shadi (2.11 KYC).
+   * Bir martalik temp parol yaratiladi (bir marta ko'rsatiladi), birinchi kirishda
+   * haydovchi uni almashtiradi. Haydovchi darrov approved (ofisda tekshirilgan).
+   */
+  async createByAdmin(data: {
+    phone: string;
+    firstName?: string;
+    lastName?: string;
+    vehicle: { make?: string; model?: string; color?: string; plate?: string; category: VehicleCategory };
+  }): Promise<{ driver: Driver; tempPassword: string }> {
+    const existing = await this.drivers.findOne({ where: { phone: data.phone } });
+    if (existing) throw new ForbiddenException('Bu telefon bilan haydovchi allaqachon mavjud');
+
+    const tempPassword = this.genTempPassword();
+    const driver = await this.drivers.save(
+      this.drivers.create({
+        phone: data.phone,
+        firstName: data.firstName ?? null,
+        lastName: data.lastName ?? null,
+        passwordHash: await bcrypt.hash(tempPassword, 10),
+        mustChangePassword: true,
+        approvalStatus: ApprovalStatus.APPROVED,
+      }),
+    );
+    await this.vehicles.save(this.vehicles.create({ driverId: driver.id, ...data.vehicle }));
+    return { driver, tempPassword };
   }
 
   async approve(driverId: string): Promise<Driver> {

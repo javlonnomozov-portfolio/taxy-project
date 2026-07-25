@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { OrderStatus, PanelRole, VehicleCategory } from '@tty/shared';
 import { OpsService } from './ops.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -23,6 +24,19 @@ class TopUpDto {
 class BillingDto {
   @IsString() mode!: string;
   @IsOptional() @IsObject() config?: Record<string, unknown>;
+}
+class NewVehicleDto {
+  @IsOptional() @IsString() make?: string;
+  @IsOptional() @IsString() model?: string;
+  @IsOptional() @IsString() color?: string;
+  @IsOptional() @IsString() plate?: string;
+  @IsEnum(VehicleCategory) category!: VehicleCategory;
+}
+class CreateDriverDto {
+  @IsString() phone!: string;
+  @IsOptional() @IsString() firstName?: string;
+  @IsOptional() @IsString() lastName?: string;
+  @ValidateNested() @Type(() => NewVehicleDto) vehicle!: NewVehicleDto;
 }
 
 @Controller('ops')
@@ -66,6 +80,13 @@ export class OpsController {
   @Get('drivers')
   drivers() {
     return this.ops.listDrivers();
+  }
+
+  // Super-admin haydovchini qo'lda qo'shadi → temp parol (bir marta) qaytadi.
+  @Roles(PanelRole.SUPER_ADMIN)
+  @Post('drivers')
+  createDriver(@Body() dto: CreateDriverDto) {
+    return this.ops.createDriver(dto);
   }
 
   @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)

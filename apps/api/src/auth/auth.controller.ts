@@ -1,14 +1,16 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
 import { IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
-import { Public } from './roles';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { Public, Roles, JwtPayload } from './roles';
 
-class OtpRequestDto {
+class DriverLoginDto {
   @IsString() @MinLength(9) phone!: string;
+  @IsString() password!: string;
 }
-class OtpVerifyDto {
-  @IsString() @MinLength(9) phone!: string;
-  @IsString() code!: string;
+class ChangePasswordDto {
+  @IsString() @MinLength(6) newPassword!: string;
 }
 class AdminLoginDto {
   @IsString() login!: string;
@@ -20,15 +22,17 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Public()
-  @Post('driver/otp')
-  otp(@Body() dto: OtpRequestDto) {
-    return this.auth.requestDriverOtp(dto.phone);
+  @Post('driver/login')
+  driverLogin(@Body() dto: DriverLoginDto) {
+    return this.auth.driverLogin(dto.phone, dto.password);
   }
 
-  @Public()
-  @Post('driver/verify')
-  verify(@Body() dto: OtpVerifyDto) {
-    return this.auth.verifyDriverOtp(dto.phone, dto.code);
+  @UseGuards(JwtAuthGuard)
+  @Roles('driver')
+  @Post('driver/change-password')
+  changePassword(@Req() req: Request, @Body() dto: ChangePasswordDto) {
+    const user = (req as Request & { user: JwtPayload }).user;
+    return this.auth.changeDriverPassword(user.sub, dto.newPassword);
   }
 
   @Public()

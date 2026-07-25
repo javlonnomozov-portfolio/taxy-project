@@ -2,6 +2,7 @@
 // Haydovchi ilova hali yo'q, shuning uchun haydovchilarni socket orqali simulyatsiya qilamiz.
 // Ishga tushirish: API ishlab turgan holda `node scripts/dispatch-sim.mjs`
 import { io } from 'socket.io-client';
+import { adminLogin, createDriver } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -69,19 +70,17 @@ async function main() {
     { 'x-internal-key': KEY },
   );
 
-  // 2) Haydovchilar (OTP → verify → register)
+  // 2) Haydovchilar (super-admin qo'shadi → temp parol → login)
+  const adminToken = await adminLogin(API);
   const drivers = [];
   for (let i = 0; i < N; i++) {
     const phone = '+99891000' + String(i).padStart(4, '0');
-    const otp = await j('POST', '/auth/driver/otp', { phone });
-    const v = await j('POST', '/auth/driver/verify', { phone, code: otp.devCode });
-    await j(
-      'POST',
-      '/drivers/register',
-      { firstName: 'Haydovchi' + i, vehicle: { category: 'standard', plate: '01A' + i, model: 'Cobalt' } },
-      { authorization: 'Bearer ' + v.token },
-    );
-    drivers.push({ i, phone, token: v.token, driverId: v.driverId, lng: pickup.lng + i * 0.0008 });
+    const d = await createDriver(API, adminToken, {
+      phone,
+      firstName: 'Haydovchi' + i,
+      vehicle: { category: 'standard', plate: '01A' + i, model: 'Cobalt' },
+    });
+    drivers.push({ i, phone, token: d.token, driverId: d.driverId, lng: pickup.lng + i * 0.0008 });
   }
   console.log(`${N} ta haydovchi ro'yxatdan o'tdi, mijoz tayyor.\n`);
 

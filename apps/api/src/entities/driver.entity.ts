@@ -23,6 +23,12 @@ export class Driver {
   @Column({ type: 'text', name: 'last_name', nullable: true })
   lastName!: string | null;
 
+  @Column({ type: 'text', name: 'password_hash', nullable: true })
+  passwordHash!: string | null;
+
+  @Column({ type: 'boolean', name: 'must_change_password', default: true })
+  mustChangePassword!: boolean;
+
   @Column({ type: 'enum', enum: DriverStatus, enumName: 'driver_status', default: DriverStatus.OFFLINE })
   status!: DriverStatus;
 

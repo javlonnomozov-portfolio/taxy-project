@@ -18,6 +18,7 @@ async function j(m, p, b, h = {}) { const r = await fetch(API + p, { method: m, 
 
 const { createBot } = await import('../apps/bot/dist/bot.js');
 const { io } = await import('socket.io-client');
+const { adminLogin, createDriver } = await import('./helpers.mjs');
 
 // --- Soxta Telegram ---
 const sent = []; // {chatId, text}
@@ -45,10 +46,13 @@ const feedCb = (data) => bot.handleUpdate({ update_id: uid++, callback_query: { 
 
 // --- Simulyatsiya haydovchisi ---
 async function startDriver() {
-  const phone = '+998900500500';
-  const otp = await j('POST', '/auth/driver/otp', { phone });
-  const v = await j('POST', '/auth/driver/verify', { phone, code: otp.devCode });
-  await j('POST', '/drivers/register', { firstName: 'Jasur', vehicle: { category: 'standard', plate: '01BOT', make: 'Chevrolet', model: 'Cobalt', color: 'oq' } }, { authorization: 'Bearer ' + v.token });
+  const phone = '+99890' + Math.floor(1000000 + Math.random() * 8999999);
+  const adminToken = await adminLogin(API);
+  const v = await createDriver(API, adminToken, {
+    phone,
+    firstName: 'Jasur',
+    vehicle: { category: 'standard', plate: '01BOT', make: 'Chevrolet', model: 'Cobalt', color: 'oq' },
+  });
   const s = io(API + '/driver', { auth: { token: v.token }, transports: ['websocket'] });
   await new Promise((r) => s.on('connect', r));
   await new Promise((r) => s.emit('driver:online', {}, r));

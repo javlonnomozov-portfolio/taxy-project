@@ -109,6 +109,14 @@ export class OpsService {
   listDrivers() {
     return this.drivers.listAll();
   }
+  createDriver(data: {
+    phone: string;
+    firstName?: string;
+    lastName?: string;
+    vehicle: { make?: string; model?: string; color?: string; plate?: string; category: VehicleCategory };
+  }) {
+    return this.drivers.createByAdmin(data);
+  }
   topUpDriver(driverId: string, amount: number, note?: string) {
     return this.billing.topUp(driverId, amount, note);
   }

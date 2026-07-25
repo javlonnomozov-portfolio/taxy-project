@@ -1,6 +1,7 @@
 // Sprint 3 simulyatsiyasi: komissiya/balans, ikki tomonlama baho, reyting tie-break, oldindan buyurtma.
 // DISPATCH_WINDOW_SIZE=1 bilan ishga tushirilishi kerak (tie-break aniq ko'rinishi uchun).
 import { io } from 'socket.io-client';
+import { adminLogin, createDriver } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -13,11 +14,13 @@ async function waitFor(fn, ms = 3000, step = 50) { const end = Date.now() + ms; 
 const emitAck = (s, ev, d) => new Promise((res) => { let done = false; const t = setTimeout(() => { if (!done) (done = true, res({ __timeout: true })); }, 3000); s.emit(ev, d, (r) => { if (!done) (done = true, clearTimeout(t), res(r)); }); });
 async function j(m, p, b, h = {}) { const r = await fetch(API + p, { method: m, headers: { 'content-type': 'application/json', ...h }, body: b ? JSON.stringify(b) : undefined }); const t = await r.text(); if (!r.ok) throw new Error(`${m} ${p} → ${r.status} ${t}`); return t ? JSON.parse(t) : {}; }
 
-async function mkDriver(suffix, name) {
+async function mkDriver(adminToken, suffix, name) {
   const p = '+99893' + suffix.padStart(7, '0');
-  const otp = await j('POST', '/auth/driver/otp', { phone: p });
-  const v = await j('POST', '/auth/driver/verify', { phone: p, code: otp.devCode });
-  await j('POST', '/drivers/register', { firstName: name, vehicle: { category: 'standard', plate: 'S' + suffix, model: 'Nexia' } }, { authorization: 'Bearer ' + v.token });
+  const v = await createDriver(API, adminToken, {
+    phone: p,
+    firstName: name,
+    vehicle: { category: 'standard', plate: 'S' + suffix, model: 'Nexia' },
+  });
   const s = io(API + '/driver', { auth: { token: v.token }, transports: ['websocket'] });
   s.offers = []; s.assigned = null;
   s.on('order:offer', (o) => s.offers.push(o));
@@ -29,12 +32,12 @@ async function mkDriver(suffix, name) {
 
 async function main() {
   console.log(`\n=== TTY Sprint 3 simulyatsiyasi (${API}) ===\n`);
-  const admin = await j('POST', '/auth/admin/login', { login: 'admin', password: 'admin123' });
-  const H = { authorization: 'Bearer ' + admin.token };
+  const adminToken = await adminLogin(API);
+  const H = { authorization: 'Bearer ' + adminToken };
   const customer = await j('POST', '/customers/upsert', { telegramId: String(Date.now()), phone: '+998901234500', firstName: 'Sardor' }, { 'x-internal-key': KEY });
 
-  const A = await mkDriver('1', 'Anvar');
-  const B = await mkDriver('2', 'Botir');
+  const A = await mkDriver(adminToken, '1', 'Anvar');
+  const B = await mkDriver(adminToken, '2', 'Botir');
   const ping = async (drv) => { drv.socket.emit('driver:location', { lat: pickup.lat, lng: pickup.lng }); };
 
   const cs = io(API + '/customer', { auth: { customerId: customer.id, internalKey: KEY }, transports: ['websocket'] });

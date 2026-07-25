@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, auth } from '../api';
 import { money } from '../ui';
 
 interface Driver {
@@ -19,13 +19,45 @@ function approvalBadge(s: string) {
   return <span className={`badge ${cls}`}>{s}</span>;
 }
 
+const EMPTY_FORM = { phone: '', firstName: '', lastName: '', make: '', model: '', color: '', plate: '', category: 'standard' };
+
 export function Drivers() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [created, setCreated] = useState<{ phone: string; tempPassword: string } | null>(null);
+  const [formErr, setFormErr] = useState('');
+  const isSuperAdmin = auth.role === 'super_admin';
 
   const load = () => api<Driver[]>('GET', '/ops/drivers').then(setDrivers).catch(() => {});
   useEffect(() => {
     load();
   }, []);
+
+  async function submitNew(e: React.FormEvent) {
+    e.preventDefault();
+    setFormErr('');
+    try {
+      const res = await api<{ driver: { id: string }; tempPassword: string }>('POST', '/ops/drivers', {
+        phone: form.phone,
+        firstName: form.firstName || undefined,
+        lastName: form.lastName || undefined,
+        vehicle: {
+          make: form.make || undefined,
+          model: form.model || undefined,
+          color: form.color || undefined,
+          plate: form.plate || undefined,
+          category: form.category,
+        },
+      });
+      setCreated({ phone: form.phone, tempPassword: res.tempPassword });
+      setForm({ ...EMPTY_FORM });
+      setShowForm(false);
+      load();
+    } catch (e) {
+      setFormErr((e as Error).message || 'Xato');
+    }
+  }
 
   async function act(id: string, path: string, body?: unknown) {
     try {
@@ -59,9 +91,55 @@ export function Drivers() {
   const flagged = (d: Driver) =>
     Number(d.ratingAvg) > 0 && (Number(d.ratingAvg) < 3.5 || Number(d.cancelRate) > 30);
 
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
   return (
     <>
-      <div className="topbar"><h1>Haydovchilar</h1></div>
+      <div className="topbar">
+        <h1>Haydovchilar</h1>
+        {isSuperAdmin && (
+          <button className="primary" onClick={() => { setShowForm((s) => !s); setCreated(null); }}>
+            {showForm ? 'Yopish' : '+ Haydovchi qo‘shish'}
+          </button>
+        )}
+      </div>
+
+      {created && (
+        <div className="card" style={{ marginBottom: 16, borderColor: 'var(--ok)' }}>
+          <h2>✅ Haydovchi qo‘shildi — bir martalik parol</h2>
+          <p>Haydovchiga bu ma’lumotlarni bering (parol faqat bir marta ko‘rsatiladi):</p>
+          <div className="flex" style={{ gap: 24 }}>
+            <div><div className="lbl">Telefon</div><b>{created.phone}</b></div>
+            <div><div className="lbl">Vaqtinchalik parol</div><b style={{ fontSize: 18, letterSpacing: 1 }}>{created.tempPassword}</b></div>
+          </div>
+          <p className="lbl" style={{ marginBottom: 0 }}>Haydovchi birinchi kirishda parolni almashtiradi.</p>
+        </div>
+      )}
+
+      {showForm && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h2>Yangi haydovchi (ofis KYC)</h2>
+          <form onSubmit={submitNew}>
+            <div className="flex" style={{ flexWrap: 'wrap', gap: 10 }}>
+              <input placeholder="Telefon +99890..." value={form.phone} onChange={(e) => set('phone', e.target.value)} required style={{ minWidth: 160 }} />
+              <input placeholder="Ism" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />
+              <input placeholder="Familiya" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />
+              <input placeholder="Marka" value={form.make} onChange={(e) => set('make', e.target.value)} />
+              <input placeholder="Model" value={form.model} onChange={(e) => set('model', e.target.value)} />
+              <input placeholder="Rang" value={form.color} onChange={(e) => set('color', e.target.value)} />
+              <input placeholder="Davlat raqami" value={form.plate} onChange={(e) => set('plate', e.target.value)} />
+              <select value={form.category} onChange={(e) => set('category', e.target.value)}>
+                <option value="standard">Oddiy</option>
+                <option value="comfort">Komfort</option>
+                <option value="cargo">Yukli</option>
+              </select>
+              <button className="primary" type="submit">Qo‘shish</button>
+            </div>
+            {formErr && <div className="err">{formErr}</div>}
+          </form>
+        </div>
+      )}
+
       <div className="card">
         <table>
           <thead>

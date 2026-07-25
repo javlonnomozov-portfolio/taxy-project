@@ -1,11 +1,9 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import Redis from 'ioredis';
+import * as bcrypt from 'bcryptjs';
 import { PanelRole } from '@tty/shared';
-import { REDIS } from '../redis/redis.module';
 import { Driver } from '../entities/driver.entity';
 import { AdminUser } from '../entities/admin-user.entity';
 import { JwtPayload } from './roles';
@@ -14,39 +12,34 @@ import { JwtPayload } from './roles';
 export class AuthService {
   constructor(
     private readonly jwt: JwtService,
-    private readonly config: ConfigService,
-    @Inject(REDIS) private readonly redis: Redis,
     @InjectRepository(Driver) private readonly drivers: Repository<Driver>,
     @InjectRepository(AdminUser) private readonly admins: Repository<AdminUser>,
   ) {}
 
-  private isProd(): boolean {
-    return this.config.get('NODE_ENV') === 'production';
-  }
-
-  /** OTP yaratish va Redis'ga saqlash. Dev rejimda kod javobda qaytariladi. */
-  async requestDriverOtp(phone: string): Promise<{ sent: true; devCode?: string }> {
-    const code = String(Math.floor(1000 + Math.random() * 9000));
-    await this.redis.set(`otp:driver:${phone}`, code, 'EX', 300);
-    // TODO: SMS provayder orqali yuborish (keyingi bosqich).
-    return this.isProd() ? { sent: true } : { sent: true, devCode: code };
-  }
-
-  /** OTP tekshirish → haydovchi yaratiladi/topiladi → JWT. */
-  async verifyDriverOtp(phone: string, code: string): Promise<{ token: string; driverId: string }> {
-    const stored = await this.redis.get(`otp:driver:${phone}`);
-    const devBypass = !this.isProd() && code === '0000';
-    if (!devBypass && (!stored || stored !== code)) {
-      throw new UnauthorizedException('OTP kod noto‘g‘ri yoki muddati o‘tgan');
+  /** Haydovchi kirishi: telefon + parol (super-admin bergan temp yoki o'zi qo'ygan). */
+  async driverLogin(
+    phone: string,
+    password: string,
+  ): Promise<{ token: string; driverId: string; mustChangePassword: boolean }> {
+    const driver = await this.drivers.findOne({ where: { phone } });
+    if (!driver || !driver.passwordHash) {
+      throw new UnauthorizedException('Telefon yoki parol noto‘g‘ri');
     }
-    await this.redis.del(`otp:driver:${phone}`);
+    const ok = await bcrypt.compare(password, driver.passwordHash);
+    if (!ok) throw new UnauthorizedException('Telefon yoki parol noto‘g‘ri');
 
-    let driver = await this.drivers.findOne({ where: { phone } });
-    if (!driver) {
-      driver = await this.drivers.save(this.drivers.create({ phone }));
-    }
     const token = await this.sign({ sub: driver.id, role: 'driver', phone });
-    return { token, driverId: driver.id };
+    return { token, driverId: driver.id, mustChangePassword: driver.mustChangePassword };
+  }
+
+  /** Birinchi kirishdan keyin (yoki istalgan payt) parolni almashtirish. */
+  async changeDriverPassword(driverId: string, newPassword: string): Promise<{ ok: true }> {
+    if (!newPassword || newPassword.length < 6) {
+      throw new UnauthorizedException('Parol kamida 6 belgidan iborat bo‘lsin');
+    }
+    const hash = await bcrypt.hash(newPassword, 10);
+    await this.drivers.update(driverId, { passwordHash: hash, mustChangePassword: false });
+    return { ok: true };
   }
 
   /** Admin panel login (dev: parolni oddiy solishtirish; keyin bcrypt). */

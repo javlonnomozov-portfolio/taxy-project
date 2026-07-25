@@ -1,6 +1,7 @@
 // Sprint 2 simulyatsiyasi: to'liq safar lifecycle + taksometr + no-show + bekor + ops.
 // Bitta haydovchi + bitta mijoz ketma-ket buyurtmalarda ishtirok etadi.
 import { io } from 'socket.io-client';
+import { adminLogin, createDriver } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -45,9 +46,12 @@ async function main() {
   // Mijoz + haydovchi
   const customer = await j('POST', '/customers/upsert', { telegramId: String(Date.now()), phone: '+998901112233', firstName: 'Ali' }, { 'x-internal-key': KEY });
   const phone = '+998911234567';
-  const otp = await j('POST', '/auth/driver/otp', { phone });
-  const v = await j('POST', '/auth/driver/verify', { phone, code: otp.devCode });
-  await j('POST', '/drivers/register', { firstName: 'Vali', vehicle: { category: 'standard', plate: '01X777', make: 'Chevrolet', model: 'Nexia', color: 'oq' } }, { authorization: 'Bearer ' + v.token });
+  const adminToken = await adminLogin(API);
+  const v = await createDriver(API, adminToken, {
+    phone,
+    firstName: 'Vali',
+    vehicle: { category: 'standard', plate: '01X777', make: 'Chevrolet', model: 'Nexia', color: 'oq' },
+  });
 
   // Socketlar
   const d = io(API + '/driver', { auth: { token: v.token }, transports: ['websocket'] });
