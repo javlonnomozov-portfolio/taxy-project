@@ -1,0 +1,15 @@
+server {
+    listen ${PORT};
+    server_name _;
+    root /usr/share/nginx/html;
+
+    # SPA fallback — react-router yo'llari uchun
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /assets/ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}
