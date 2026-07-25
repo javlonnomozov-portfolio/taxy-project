@@ -50,7 +50,8 @@ export function HomeScreen({
   onLogout: () => void;
 }) {
   const t = makeT(lang);
-  const [online, setOnline] = useState(false);
+  const [intent, setIntent] = useState(false); // haydovchi ishlashni xohlaydi (tugma bosilgan)
+  const [online, setOnline] = useState(false); // backend TASDIQLAGAN holat (ack + ulanish)
   const [offer, setOffer] = useState<Offer | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -62,11 +63,25 @@ export function HomeScreen({
   const lastLoc = useRef<{ lat: number; lng: number } | null>(null);
   const tripRef = useRef<Trip | null>(null);
   tripRef.current = trip;
+  const wantOnlineRef = useRef(false); // socket handlerlari uchun "onlayn bo'lishni xohlayapti"
+  const registerOnlineRef = useRef<() => void>(() => {});
 
   // Socket ulanish
   useEffect(() => {
     const s = connectDriver(token);
     socketRef.current = s;
+    // Backend'ga "onlayn" yuborish — faqat ACK (ok) kelganda UI onlayn bo'ladi.
+    const registerOnline = () =>
+      s.emit(EV.online, {}, (ack?: { ok?: boolean }) => {
+        if (ack?.ok) setOnline(true);
+      });
+    registerOnlineRef.current = registerOnline;
+    // Ulanish/qayta ulanish: agar haydovchi ishlashni xohlasa — qayta ro'yxatdan o'tamiz.
+    s.on('connect', () => {
+      if (wantOnlineRef.current) registerOnline();
+    });
+    // Uzilish: backend grace'dan keyin oflayn qiladi — UI'da halol ko'rsatamiz ("Ulanmoqda…").
+    s.on('disconnect', () => setOnline(false));
     s.on(EV.orderOffer, (o: Offer) => {
       if (!tripRef.current) {
         setOffer(o);
@@ -127,24 +142,30 @@ export function HomeScreen({
       Alert.alert('Ruxsat', 'Joylashuv ruxsati kerak.');
       return;
     }
-    socketRef.current?.emit(EV.online, {});
-    setOnline(true);
-    watchRef.current = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.High, timeInterval: 4000, distanceInterval: 15 },
-      (pos) => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        socketRef.current?.emit(EV.location, loc);
-        if (tripRef.current?.stage === 'in_progress' && lastLoc.current) {
-          setDistanceM((d) => d + haversine(lastLoc.current!, loc));
-        }
-        lastLoc.current = loc;
-      },
-    );
+    wantOnlineRef.current = true;
+    setIntent(true);
+    // Backend'ga ro'yxatdan o'tamiz — ACK kelganda UI onlayn bo'ladi (registerOnline).
+    registerOnlineRef.current();
+    if (!watchRef.current) {
+      watchRef.current = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.High, timeInterval: 4000, distanceInterval: 15 },
+        (pos) => {
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          socketRef.current?.emit(EV.location, loc);
+          if (tripRef.current?.stage === 'in_progress' && lastLoc.current) {
+            setDistanceM((d) => d + haversine(lastLoc.current!, loc));
+          }
+          lastLoc.current = loc;
+        },
+      );
+    }
     // Fon rejimida ham joylashuv (ilova yopiq bo'lsa HTTP orqali)
     void startBackgroundLocation();
   }
 
   function goOffline() {
+    wantOnlineRef.current = false;
+    setIntent(false);
     socketRef.current?.emit(EV.offline, {});
     watchRef.current?.remove();
     watchRef.current = null;
@@ -276,18 +297,24 @@ export function HomeScreen({
             width: 14,
             height: 14,
             borderRadius: 7,
-            backgroundColor: online ? C.ok : C.muted,
+            backgroundColor: online ? C.ok : intent ? C.warn : C.muted,
             marginBottom: 10,
           }}
         />
-        <Text style={{ color: online ? C.ok : C.muted, fontSize: 18, fontWeight: '700' }}>
-          {online ? t('online') : t('offline')}
+        <Text
+          style={{
+            color: online ? C.ok : intent ? C.warn : C.muted,
+            fontSize: 18,
+            fontWeight: '700',
+          }}
+        >
+          {online ? t('online') : intent ? t('connecting') : t('offline')}
         </Text>
         {online && <Text style={[S.label, { marginTop: 6 }]}>{t('waiting_orders')}</Text>}
       </View>
 
       <View style={{ marginTop: 20 }}>
-        {online ? (
+        {intent ? (
           <TouchableOpacity style={[S.btn, S.btnDanger]} onPress={goOffline}>
             <Text style={S.btnText}>{t('go_offline')}</Text>
           </TouchableOpacity>

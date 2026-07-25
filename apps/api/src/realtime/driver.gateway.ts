@@ -24,6 +24,11 @@ export class DriverGateway
   private readonly log = new Logger(DriverGateway.name);
   @WebSocketServer() server!: Server;
 
+  // Socket uzilishida darhol oflayn qilmaymiz — qisqa uzilishlar (ilova foni,
+  // tarmoq) uchun grace. Shu vaqt ichida qayta ulansa, oflayn bekor qilinadi.
+  private readonly offlineTimers = new Map<string, NodeJS.Timeout>();
+  private readonly OFFLINE_GRACE_MS = 30_000;
+
   constructor(
     private readonly jwt: JwtService,
     private readonly drivers: DriversService,
@@ -43,6 +48,12 @@ export class DriverGateway
       if (payload.role !== 'driver') throw new Error('rol');
       client.data.driverId = payload.sub;
       await client.join(`driver:${payload.sub}`);
+      // Qayta ulandi — kutilayotgan oflayn taymerini bekor qilamiz.
+      const pending = this.offlineTimers.get(payload.sub);
+      if (pending) {
+        clearTimeout(pending);
+        this.offlineTimers.delete(payload.sub);
+      }
     } catch {
       client.disconnect(true);
     }
@@ -50,7 +61,20 @@ export class DriverGateway
 
   async handleDisconnect(client: Socket) {
     const driverId = client.data.driverId as string | undefined;
-    if (driverId) await this.drivers.goOffline(driverId);
+    if (!driverId) return;
+    // Shu haydovchining boshqa (yangi) ulanishi bormi? Bo'lsa — oflayn qilmaymiz.
+    const sockets = await this.server.in(`driver:${driverId}`).fetchSockets();
+    if (sockets.length > 0) return;
+    // Grace: qisqa uzilish bo'lsa qayta ulanishiga imkon beramiz.
+    const existing = this.offlineTimers.get(driverId);
+    if (existing) clearTimeout(existing);
+    this.offlineTimers.set(
+      driverId,
+      setTimeout(() => {
+        this.offlineTimers.delete(driverId);
+        void this.drivers.goOffline(driverId);
+      }, this.OFFLINE_GRACE_MS),
+    );
   }
 
   private driverId(client: Socket): string {
