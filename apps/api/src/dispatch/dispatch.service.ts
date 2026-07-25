@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
 import {
   ActorType,
+  DriverStatus,
   OrderStatus,
   OrderType,
   SOCKET_EVENTS,
@@ -35,6 +36,7 @@ interface DispatchState {
   declined: Set<string>;
   active: boolean;
   noDriverTimer?: NodeJS.Timeout;
+  targeted?: boolean; // operator bitta haydovchiga yo'naltirilgan taklif — rad etilsa kengaymaydi
 }
 
 const DEFAULT_METER = { baseFare: 4000, perKm: 0, waitingPerMin: 0 };
@@ -142,19 +144,23 @@ export class DispatchService implements OnModuleInit {
       driverId: null,
     });
 
-    const lng = order.pickupLng;
-    const lat = order.pickupLat;
+    const state = this.buildState(order, customer);
+    this.states.set(orderId, state);
+    await this.fillWindow(state);
+  }
+
+  /** Buyurtma + mijozdan dispatch holatini yasash (start va offerToDriver uchun umumiy). */
+  private buildState(order: Order, customer: Customer | null): DispatchState {
     const radiusSteps = this.config
       .get<string>('DISPATCH_RADIUS_STEPS_M')!
       .split(',')
       .map((s) => Number(s.trim()));
-
     const state: DispatchState = {
-      orderId,
+      orderId: order.id,
       customerId: order.customerId,
       category: order.vehicleCategory,
-      lng,
-      lat,
+      lng: order.pickupLng,
+      lat: order.pickupLat,
       note: order.note,
       customerPhone: customer?.phone ?? null,
       customerName:
@@ -173,9 +179,59 @@ export class DispatchService implements OnModuleInit {
       () => this.onNoDriver(state).catch((e) => this.log.error(`onNoDriver xato: ${(e as Error).message}`)),
       this.config.get<number>('DISPATCH_NO_DRIVER_TIMEOUT_SEC')! * 1000,
     );
+    return state;
+  }
+
+  /**
+   * Operator xaritadan tanlagan bitta haydovchiga yo'naltirilgan taklif yuboradi.
+   * Haydovchi ilovada qabul qilsa — odatdagi biriktirish oqimi ishlaydi.
+   * Rad etsa/vaqt tugasa — kengaymaydi, NO_DRIVER'ga qaytadi (operator boshqa taksi tanlaydi).
+   */
+  async offerToDriver(orderId: string, driverId: string): Promise<void> {
+    const order = await this.orders.findOne({ where: { id: orderId } });
+    if (!order) throw new Error('Buyurtma topilmadi');
+    if (
+      ![OrderStatus.NO_DRIVER, OrderStatus.DISPATCHING, OrderStatus.CREATED].includes(order.status)
+    ) {
+      throw new Error('Bu holatda taklif yuborib bo‘lmaydi');
+    }
+    const driver = await this.driverRepo.findOne({ where: { id: driverId } });
+    if (!driver) throw new Error('Haydovchi topilmadi');
+    if (driver.status !== DriverStatus.ONLINE_IDLE) throw new Error('Haydovchi hozir bo‘sh emas');
+
+    this.abort(orderId); // avvalgi holatni tozalaymiz
+    await this.orders.update(orderId, { status: OrderStatus.DISPATCHING });
+    await this.events.record(orderId, 'dispatching', ActorType.OPERATOR, {
+      actorId: driverId,
+      reason: 'manual_offer',
+    });
+    this.realtime.emitToOps(SOCKET_EVENTS.ops.orderUpdate, {
+      orderId,
+      status: OrderStatus.DISPATCHING,
+      driverId: null,
+    });
+    this.notifyCustomer(order.customerId, orderId, OrderStatus.DISPATCHING);
+
+    const customer = await this.customers.findOne({ where: { id: order.customerId } });
+    const state = this.buildState(order, customer);
+    state.targeted = true;
     this.states.set(orderId, state);
 
-    await this.fillWindow(state);
+    const distanceM =
+      driver.lastLat != null && driver.lastLng != null
+        ? this.haversineM(order.pickupLat, order.pickupLng, driver.lastLat, driver.lastLng)
+        : 0;
+    await this.offer(state, driverId, distanceM);
+  }
+
+  private haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371000;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    return Math.round(2 * R * Math.asin(Math.sqrt(a)));
   }
 
   /** Dispatch'ni to'xtatish (operator qo'lda biriktirganda). */
@@ -284,7 +340,12 @@ export class DispatchService implements OnModuleInit {
       actorId: driverId,
       reason,
     });
-    await this.fillWindow(state);
+    // Yo'naltirilgan (operator) taklif kengaymaydi — rad etilsa NO_DRIVER'ga qaytadi.
+    if (state.targeted) {
+      await this.onNoDriver(state);
+    } else {
+      await this.fillWindow(state);
+    }
   }
 
   /** Gateway'dan keladi: haydovchi javobi. */

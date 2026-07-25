@@ -62,6 +62,13 @@ export class OpsController {
     return this.ops.assign(id, dto.driverId);
   }
 
+  // Xaritadan tanlangan haydovchiga yo'naltirilgan taklif (haydovchi ilovada qabul qiladi).
+  @Roles(PanelRole.OPERATOR, PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Post('orders/:id/offer')
+  offer(@Param('id') id: string, @Body() dto: AssignDto) {
+    return this.ops.offerToDriver(id, dto.driverId);
+  }
+
   @Roles(PanelRole.OPERATOR, PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
   @Post('orders/:id/close')
   close(@Param('id') id: string, @Body() dto: CloseDto) {

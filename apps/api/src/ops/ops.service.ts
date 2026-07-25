@@ -81,6 +81,12 @@ export class OpsService {
     return (await this.orders.findOne({ where: { id: orderId } }))!;
   }
 
+  /** Operator xaritadan tanlagan haydovchiga yo'naltirilgan taklif yuboradi. */
+  async offerToDriver(orderId: string, driverId: string): Promise<{ ok: true }> {
+    await this.dispatch.offerToDriver(orderId, driverId);
+    return { ok: true };
+  }
+
   /** Oldindan buyurtmalar ro'yxati (tasdiqlashni kutayotgan). */
   listScheduled(): Promise<Order[]> {
     return this.orders.find({
