@@ -8,7 +8,7 @@ export class RatingsBilling1722000000000 implements MigrationInterface {
     await q.query(`ALTER TABLE drivers ADD COLUMN IF NOT EXISTS balance numeric(12,2) NOT NULL DEFAULT 0`);
 
     await q.query(`CREATE TABLE ratings (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
       direction text NOT NULL, -- 'customer_to_driver' | 'driver_to_customer'
       driver_id uuid REFERENCES drivers(id) ON DELETE SET NULL,
@@ -22,7 +22,7 @@ export class RatingsBilling1722000000000 implements MigrationInterface {
     await q.query(`CREATE INDEX idx_ratings_customer ON ratings (customer_id)`);
 
     await q.query(`CREATE TABLE transactions (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       driver_id uuid NOT NULL REFERENCES drivers(id) ON DELETE CASCADE,
       type text NOT NULL, -- commission | topup | subscription | adjustment
       amount numeric(12,2) NOT NULL, -- musbat: balans oshadi, manfiy: kamayadi

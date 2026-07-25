@@ -6,7 +6,7 @@ export class TripAndSeed1721900000000 implements MigrationInterface {
 
   public async up(q: QueryRunner): Promise<void> {
     await q.query(`CREATE TABLE trip_tracks (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
       points jsonb NOT NULL DEFAULT '[]'::jsonb,
       retention_until date,
@@ -15,11 +15,12 @@ export class TripAndSeed1721900000000 implements MigrationInterface {
     await q.query(`CREATE INDEX idx_trip_tracks_order ON trip_tracks (order_id)`);
 
     await q.query(`CREATE TABLE sos_events (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       order_id uuid REFERENCES orders(id) ON DELETE SET NULL,
       actor text NOT NULL,
       actor_id uuid,
-      location geography(Point,4326),
+      lat double precision,
+      lng double precision,
       status text NOT NULL DEFAULT 'open',
       created_at timestamptz NOT NULL DEFAULT now())`);
 

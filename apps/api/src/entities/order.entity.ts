@@ -7,12 +7,6 @@ import {
 } from 'typeorm';
 import { OrderStatus, OrderType, VehicleCategory } from '@tty/shared';
 
-// GeoJSON Point ({ type:'Point', coordinates:[lng,lat] }) — PostGIS geography bilan.
-export interface GeoPoint {
-  type: 'Point';
-  coordinates: [number, number];
-}
-
 @Entity('orders')
 export class Order {
   @PrimaryGeneratedColumn('uuid')
@@ -40,25 +34,20 @@ export class Order {
   })
   vehicleCategory!: VehicleCategory;
 
-  @Column({
-    type: 'geography',
-    spatialFeatureType: 'Point',
-    srid: 4326,
-    name: 'pickup_point',
-  })
-  pickupPoint!: GeoPoint;
+  @Column({ type: 'double precision', name: 'pickup_lat' })
+  pickupLat!: number;
+
+  @Column({ type: 'double precision', name: 'pickup_lng' })
+  pickupLng!: number;
 
   @Column({ type: 'text', name: 'pickup_address', nullable: true })
   pickupAddress!: string | null;
 
-  @Column({
-    type: 'geography',
-    spatialFeatureType: 'Point',
-    srid: 4326,
-    name: 'dest_point',
-    nullable: true,
-  })
-  destPoint!: GeoPoint | null;
+  @Column({ type: 'double precision', name: 'dest_lat', nullable: true })
+  destLat!: number | null;
+
+  @Column({ type: 'double precision', name: 'dest_lng', nullable: true })
+  destLng!: number | null;
 
   @Column({ type: 'text', name: 'dest_address', nullable: true })
   destAddress!: string | null;

@@ -1,15 +1,13 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// Boshlang'ich migratsiya: PostGIS + core jadvallar (Sprint 0).
-// Qolgan jadvallar (ratings, transactions, complaints, ...) keyingi migratsiyalarda.
-// Qarang: docs/tasks/06-domain-model.md
+// Boshlang'ich migratsiya: core jadvallar (Sprint 0).
+// Koordinatalar oddiy lat/lng (double precision) — geo qidiruv Redis GEO orqali
+// (PostGIS shart emas, shuning uchun har qanday Postgres'da ishlaydi).
+// uuid uchun gen_random_uuid() (PG13+ core, extension'siz).
 export class InitCore1721800000000 implements MigrationInterface {
   name = 'InitCore1721800000000';
 
   public async up(q: QueryRunner): Promise<void> {
-    await q.query(`CREATE EXTENSION IF NOT EXISTS postgis`);
-    await q.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
-
     // --- enum turlari ---
     await q.query(`CREATE TYPE order_status AS ENUM (
       'CREATED','DISPATCHING','ACCEPTED','CONFIRMED','ARRIVING','ARRIVED',
@@ -23,7 +21,7 @@ export class InitCore1721800000000 implements MigrationInterface {
 
     // --- customers ---
     await q.query(`CREATE TABLE customers (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       telegram_id bigint UNIQUE,
       phone text,
       first_name text,
@@ -39,7 +37,7 @@ export class InitCore1721800000000 implements MigrationInterface {
 
     // --- drivers ---
     await q.query(`CREATE TABLE drivers (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       phone text UNIQUE NOT NULL,
       first_name text,
       last_name text,
@@ -51,15 +49,15 @@ export class InitCore1721800000000 implements MigrationInterface {
       cancel_rate numeric(5,2) NOT NULL DEFAULT 0,
       acceptance_rate numeric(5,2) NOT NULL DEFAULT 0,
       completion_rate numeric(5,2) NOT NULL DEFAULT 0,
-      last_location geography(Point,4326),
+      last_lat double precision,
+      last_lng double precision,
       last_seen_at timestamptz,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now())`);
-    await q.query(`CREATE INDEX idx_drivers_last_location ON drivers USING GIST (last_location)`);
 
     // --- vehicles ---
     await q.query(`CREATE TABLE vehicles (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       driver_id uuid NOT NULL REFERENCES drivers(id) ON DELETE CASCADE,
       make text, model text, color text, plate text,
       category vehicle_category NOT NULL DEFAULT 'standard',
@@ -67,7 +65,7 @@ export class InitCore1721800000000 implements MigrationInterface {
 
     // --- tariffs ---
     await q.query(`CREATE TABLE tariffs (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       category vehicle_category NOT NULL UNIQUE,
       base_fare numeric(10,2) NOT NULL DEFAULT 4000,
       per_km numeric(10,2) NOT NULL DEFAULT 0,
@@ -79,15 +77,17 @@ export class InitCore1721800000000 implements MigrationInterface {
 
     // --- orders ---
     await q.query(`CREATE TABLE orders (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       customer_id uuid NOT NULL REFERENCES customers(id),
       driver_id uuid REFERENCES drivers(id),
       order_type order_type NOT NULL DEFAULT 'standard',
       status order_status NOT NULL DEFAULT 'CREATED',
       vehicle_category vehicle_category NOT NULL DEFAULT 'standard',
-      pickup_point geography(Point,4326) NOT NULL,
+      pickup_lat double precision NOT NULL,
+      pickup_lng double precision NOT NULL,
       pickup_address text,
-      dest_point geography(Point,4326),
+      dest_lat double precision,
+      dest_lng double precision,
       dest_address text,
       note text,
       scheduled_at timestamptz,
@@ -103,13 +103,12 @@ export class InitCore1721800000000 implements MigrationInterface {
       started_at timestamptz,
       completed_at timestamptz)`);
     await q.query(`CREATE INDEX idx_orders_status ON orders (status)`);
-    await q.query(`CREATE INDEX idx_orders_pickup ON orders USING GIST (pickup_point)`);
     await q.query(`CREATE INDEX idx_orders_customer ON orders (customer_id)`);
     await q.query(`CREATE INDEX idx_orders_driver ON orders (driver_id)`);
 
     // --- order_events (audit + metrika manbasi) ---
     await q.query(`CREATE TABLE order_events (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
       type text NOT NULL,
       actor text NOT NULL,
@@ -119,7 +118,7 @@ export class InitCore1721800000000 implements MigrationInterface {
       created_at timestamptz NOT NULL DEFAULT now())`);
     await q.query(`CREATE INDEX idx_order_events_order ON order_events (order_id)`);
 
-    // --- settings (bitta global qator, key-value jsonb) ---
+    // --- settings (bitta global qator) ---
     await q.query(`CREATE TABLE settings (
       id int PRIMARY KEY DEFAULT 1,
       config jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -128,7 +127,7 @@ export class InitCore1721800000000 implements MigrationInterface {
 
     // --- admin_users (panel, RBAC) ---
     await q.query(`CREATE TABLE admin_users (
-      id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       login text UNIQUE NOT NULL,
       password_hash text NOT NULL,
       role text NOT NULL DEFAULT 'operator',

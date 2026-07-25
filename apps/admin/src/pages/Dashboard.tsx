@@ -10,7 +10,8 @@ interface Order {
   vehicleCategory: string;
   customerId: string;
   driverId: string | null;
-  pickupPoint: { coordinates: [number, number] };
+  pickupLat: number;
+  pickupLng: number;
   finalPrice: number | null;
   createdAt: string;
 }
@@ -109,7 +110,8 @@ export function Dashboard() {
               </CircleMarker>
             ))}
             {orders.map((o) => {
-              const [lng, lat] = o.pickupPoint?.coordinates ?? [];
+              const lat = o.pickupLat;
+              const lng = o.pickupLng;
               if (lat == null) return null;
               return (
                 <CircleMarker

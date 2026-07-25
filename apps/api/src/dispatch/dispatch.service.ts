@@ -64,7 +64,8 @@ export class DispatchService {
     await this.events.record(orderId, 'dispatching', ActorType.SYSTEM);
     this.notifyCustomer(order.customerId, orderId, OrderStatus.DISPATCHING);
 
-    const [lng, lat] = order.pickupPoint.coordinates;
+    const lng = order.pickupLng;
+    const lat = order.pickupLat;
     const radiusSteps = this.config
       .get<string>('DISPATCH_RADIUS_STEPS_M')!
       .split(',')

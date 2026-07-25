@@ -51,11 +51,11 @@ export class OrdersService {
       orderType: input.orderType ?? OrderType.STANDARD,
       status: OrderStatus.CREATED,
       vehicleCategory: input.category,
-      pickupPoint: { type: 'Point', coordinates: [input.pickup.lng, input.pickup.lat] },
+      pickupLat: input.pickup.lat,
+      pickupLng: input.pickup.lng,
       pickupAddress: input.pickupAddress ?? null,
-      destPoint: input.destination
-        ? { type: 'Point', coordinates: [input.destination.lng, input.destination.lat] }
-        : null,
+      destLat: input.destination?.lat ?? null,
+      destLng: input.destination?.lng ?? null,
       destAddress: input.destAddress ?? null,
       note: input.note ?? null,
       scheduledAt: isScheduled ? new Date(input.scheduledAt!) : null,
