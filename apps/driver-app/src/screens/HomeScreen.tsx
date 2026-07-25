@@ -3,6 +3,9 @@ import { Alert, Linking, Text, TouchableOpacity, View } from 'react-native';
 import * as Location from 'expo-location';
 import { Socket } from 'socket.io-client';
 import { connectDriver, EV } from '../socket';
+import { api } from '../api';
+import { registerForPush } from '../push';
+import { startBackgroundLocation, stopBackgroundLocation } from '../location-task';
 import { S, C } from '../theme';
 import { Lang, makeT } from '../i18n';
 
@@ -81,6 +84,17 @@ export function HomeScreen({
       });
       setDistanceM(0);
     });
+    // Push tokenini ro'yxatga olish (dev-build kerak)
+    (async () => {
+      const expoToken = await registerForPush();
+      if (expoToken) {
+        try {
+          await api('POST', '/drivers/push-token', { token: expoToken }, token);
+        } catch {
+          /* ignore */
+        }
+      }
+    })();
     return () => {
       s.close();
       socketRef.current = null;
@@ -117,12 +131,15 @@ export function HomeScreen({
         lastLoc.current = loc;
       },
     );
+    // Fon rejimida ham joylashuv (ilova yopiq bo'lsa HTTP orqali)
+    void startBackgroundLocation();
   }
 
   function goOffline() {
     socketRef.current?.emit(EV.offline, {});
     watchRef.current?.remove();
     watchRef.current = null;
+    void stopBackgroundLocation();
     setOnline(false);
   }
 

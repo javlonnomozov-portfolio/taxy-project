@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native';
+import './src/location-task'; // fon location task'ini ro'yxatga olish (top-level)
 import { LoginScreen } from './src/screens/LoginScreen';
 import { ChangePasswordScreen } from './src/screens/ChangePasswordScreen';
 import { HomeScreen } from './src/screens/HomeScreen';

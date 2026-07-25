@@ -142,6 +142,10 @@ export class DriversService {
     await this.drivers.update(driverId, { status: DriverStatus.ONLINE_IDLE });
   }
 
+  async setPushToken(driverId: string, token: string): Promise<void> {
+    await this.drivers.update(driverId, { pushToken: token });
+  }
+
   async findById(id: string): Promise<Driver | null> {
     return this.drivers.findOne({ where: { id } });
   }

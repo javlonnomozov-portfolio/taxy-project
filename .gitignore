@@ -29,6 +29,8 @@ apps/driver-app/android/
 apps/driver-app/ios/
 apps/driver-app/.expo/
 apps/driver-app/dist/
+apps/driver-app/google-services.json
+apps/driver-app/GoogleService-Info.plist
 *.apk
 *.keystore
 

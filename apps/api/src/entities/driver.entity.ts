@@ -29,6 +29,9 @@ export class Driver {
   @Column({ type: 'boolean', name: 'must_change_password', default: true })
   mustChangePassword!: boolean;
 
+  @Column({ type: 'text', name: 'push_token', nullable: true })
+  pushToken!: string | null;
+
   @Column({ type: 'enum', enum: DriverStatus, enumName: 'driver_status', default: DriverStatus.OFFLINE })
   status!: DriverStatus;
 

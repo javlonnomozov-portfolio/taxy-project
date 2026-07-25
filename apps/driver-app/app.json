@@ -14,7 +14,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Buyurtmalarni olish uchun joylashuv kerak.",
-        "UIBackgroundModes": ["location"]
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Fon rejimida buyurtmalarni olish uchun joylashuv kerak.",
+        "UIBackgroundModes": ["location", "fetch", "remote-notification"]
       }
     },
     "android": {
@@ -22,19 +23,34 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "FOREGROUND_SERVICE"
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS"
       ]
     },
     "plugins": [
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Buyurtmalarni olish uchun joylashuv kerak."
+          "locationWhenInUsePermission": "Buyurtmalarni olish uchun joylashuv kerak.",
+          "locationAlwaysAndWhenInUsePermission": "Fon rejimida joylashuv kerak.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#4c8dff"
         }
       ]
     ],
     "extra": {
-      "apiUrl": "https://api-production-13444.up.railway.app"
+      "apiUrl": "https://api-production-13444.up.railway.app",
+      "eas": {
+        "projectId": "SET_AFTER_EAS_INIT"
+      }
     }
   }
 }
