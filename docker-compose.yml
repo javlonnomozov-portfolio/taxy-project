@@ -1,0 +1,39 @@
+# Lokal rivojlantirish uchun infratuzilma.
+# Production — Railway (qarang docs/tasks/05-infra-devops.md).
+version: "3.9"
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: tty_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tty}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tty_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-tty}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tty} -d ${POSTGRES_DB:-tty}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: tty_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # OSRM / Nominatim / tileserver — og'ir servislar, keyingi bosqichda qo'shiladi
+  # (qarang docs/tasks/05-infra-devops.md, "Xarita servislari — strategiya").
