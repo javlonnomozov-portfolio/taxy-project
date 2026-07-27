@@ -12,6 +12,25 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Taklif kelganda mahalliy bildirishnoma — ovoz + vibratsiya bilan.
+// Ilova fonda (lekin jarayon tirik) bo'lganda ham haydovchi diqqatini tortadi.
+export async function notifyOffer(distanceKm: string): Promise<void> {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '🚕 Yangi buyurtma!',
+        body: `${distanceKm} km uzoqlikda — qabul qiling`,
+        sound: 'default',
+        vibrate: [0, 250, 250, 250],
+        priority: Notifications.AndroidNotificationPriority.MAX,
+      },
+      trigger: null, // darhol
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
 // Expo push tokenini olish (dev-build kerak; Expo Go SDK 51'da cheklangan).
 export async function registerForPush(): Promise<string | null> {
   if (!Device.isDevice) return null;

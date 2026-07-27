@@ -4,7 +4,7 @@ import * as Location from 'expo-location';
 import { Socket } from 'socket.io-client';
 import { connectDriver, EV } from '../socket';
 import { api } from '../api';
-import { registerForPush } from '../push';
+import { registerForPush, notifyOffer } from '../push';
 import { startBackgroundLocation, stopBackgroundLocation } from '../location-task';
 import { S, C } from '../theme';
 import { Lang, makeT } from '../i18n';
@@ -95,6 +95,8 @@ export function HomeScreen({
       if (!tripRef.current) {
         setOffer(o);
         setCountdown(o.timeoutSec ?? 120);
+        // Fon rejimida ham diqqatni tortish uchun ovozli bildirishnoma.
+        void notifyOffer((o.distanceM / 1000).toFixed(1));
       }
     });
     s.on(EV.orderOfferCancelled, (o: { orderId: string }) => {
