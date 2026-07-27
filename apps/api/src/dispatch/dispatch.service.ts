@@ -13,6 +13,7 @@ import {
 import { Order } from '../entities/order.entity';
 import { Customer } from '../entities/customer.entity';
 import { Driver } from '../entities/driver.entity';
+import { Tariff } from '../entities/tariff.entity';
 import { OrderEventsService } from '../orders/order-events.service';
 import { GeoService } from '../geo/geo.service';
 import { DriversService } from '../drivers/drivers.service';
@@ -25,6 +26,10 @@ interface DispatchState {
   category: VehicleCategory;
   lng: number;
   lat: number;
+  pickupAddress: string | null;
+  destLat: number | null;
+  destLng: number | null;
+  destAddress: string | null;
   note: string | null;
   customerPhone: string | null;
   customerName: string | null; // showName bo'lsa
@@ -56,6 +61,7 @@ export class DispatchService implements OnModuleInit {
     @InjectRepository(Order) private readonly orders: Repository<Order>,
     @InjectRepository(Customer) private readonly customers: Repository<Customer>,
     @InjectRepository(Driver) private readonly driverRepo: Repository<Driver>,
+    @InjectRepository(Tariff) private readonly tariffRepo: Repository<Tariff>,
     private readonly events: OrderEventsService,
     private readonly geo: GeoService,
     private readonly drivers: DriversService,
@@ -161,6 +167,10 @@ export class DispatchService implements OnModuleInit {
       category: order.vehicleCategory,
       lng: order.pickupLng,
       lat: order.pickupLat,
+      pickupAddress: order.pickupAddress,
+      destLat: order.destLat,
+      destLng: order.destLng,
+      destAddress: order.destAddress,
       note: order.note,
       customerPhone: customer?.phone ?? null,
       customerName:
@@ -222,6 +232,21 @@ export class DispatchService implements OnModuleInit {
         ? this.haversineM(order.pickupLat, order.pickupLng, driver.lastLat, driver.lastLng)
         : 0;
     await this.offer(state, driverId, distanceM);
+  }
+
+  /** Toifa uchun real taksometr sozlamasi (tarifdan; bo'lmasa default). */
+  private async meterFor(category: VehicleCategory): Promise<{
+    baseFare: number;
+    perKm: number;
+    waitingPerMin: number;
+  }> {
+    const tariff = await this.tariffRepo.findOne({ where: { category } });
+    if (!tariff) return DEFAULT_METER;
+    return {
+      baseFare: Number(tariff.baseFare),
+      perKm: Number(tariff.perKm),
+      waitingPerMin: Number(tariff.waitingPerMin),
+    };
   }
 
   private haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -310,14 +335,7 @@ export class DispatchService implements OnModuleInit {
     );
     state.offered.set(driverId, timeout);
 
-    this.realtime.emitToDriver(driverId, SOCKET_EVENTS.driver.orderOffer, {
-      orderId: state.orderId,
-      pickup: { lat: state.lat, lng: state.lng },
-      distanceM,
-      category: state.category,
-      note: state.note ?? undefined,
-      customer: { phone: state.customerPhone ?? '', name: state.customerName ?? undefined },
-    });
+    this.emitOfferPayload(state, driverId, distanceM);
     await this.events.record(state.orderId, 'offered', ActorType.SYSTEM, {
       actorId: driverId,
       payload: { distanceM, radius: state.radiusSteps[state.radiusIdx] },
@@ -326,6 +344,38 @@ export class DispatchService implements OnModuleInit {
     this.notifications
       .pushToDriver(driverId, 'Yangi buyurtma', `${distanceM} m uzoqlikda`)
       .catch((e) => this.log.error(`push xato: ${(e as Error).message}`));
+  }
+
+  private emitOfferPayload(state: DispatchState, driverId: string, distanceM: number): void {
+    this.realtime.emitToDriver(driverId, SOCKET_EVENTS.driver.orderOffer, {
+      orderId: state.orderId,
+      pickup: { lat: state.lat, lng: state.lng },
+      pickupAddress: state.pickupAddress ?? undefined,
+      dest: state.destLat != null ? { lat: state.destLat, lng: state.destLng! } : undefined,
+      destAddress: state.destAddress ?? undefined,
+      distanceM,
+      category: state.category,
+      note: state.note ?? undefined,
+      timeoutSec: Math.round(state.offerTimeoutMs / 1000),
+      customer: { phone: state.customerPhone ?? '', name: state.customerName ?? undefined },
+    });
+  }
+
+  /**
+   * Qayta ulangan haydovchiga hali kutilayotgan taklifni qayta yuboramiz
+   * (ilova fondan qaytганда taklif ko'rinmay qolmasin).
+   */
+  async resendActiveOffer(driverId: string): Promise<void> {
+    const driver = await this.driverRepo.findOne({ where: { id: driverId } });
+    for (const state of this.states.values()) {
+      if (state.active && state.offered.has(driverId)) {
+        const distanceM =
+          driver?.lastLat != null && driver.lastLng != null
+            ? this.haversineM(state.lat, state.lng, driver.lastLat, driver.lastLng)
+            : 0;
+        this.emitOfferPayload(state, driverId, distanceM);
+      }
+    }
   }
 
   private async decline(state: DispatchState, driverId: string, reason: string): Promise<void> {
@@ -404,8 +454,12 @@ export class DispatchService implements OnModuleInit {
     const info = await this.drivers.findWithVehicle(driverId);
     this.realtime.emitToDriver(driverId, SOCKET_EVENTS.driver.orderAssigned, {
       orderId: state.orderId,
+      pickup: { lat: state.lat, lng: state.lng },
+      pickupAddress: state.pickupAddress ?? undefined,
+      dest: state.destLat != null ? { lat: state.destLat, lng: state.destLng! } : undefined,
+      destAddress: state.destAddress ?? undefined,
       customer: { phone: state.customerPhone ?? '', name: state.customerName ?? undefined },
-      meterConfig: DEFAULT_METER,
+      meterConfig: await this.meterFor(state.category),
     });
 
     const driverCard = info
@@ -435,6 +489,16 @@ export class DispatchService implements OnModuleInit {
 
   private async onNoDriver(state: DispatchState): Promise<void> {
     if (!state.active) return;
+    // Hali javob kutilayotgan takliflar bor — taklif oynasi tugagunча kutamiz
+    // (taklif vaqti no-driver timerdan uzunroq bo'lishi mumkin).
+    if (state.offered.size > 0) {
+      if (state.noDriverTimer) clearTimeout(state.noDriverTimer);
+      state.noDriverTimer = setTimeout(
+        () => this.onNoDriver(state).catch((e) => this.log.error(`onNoDriver xato: ${(e as Error).message}`)),
+        state.offerTimeoutMs,
+      );
+      return;
+    }
     state.active = false;
     if (state.noDriverTimer) clearTimeout(state.noDriverTimer);
     for (const [id, t] of state.offered) {

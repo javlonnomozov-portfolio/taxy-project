@@ -1,7 +1,7 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { ApprovalStatus, DriverStatus, VehicleCategory } from '@tty/shared';
 import * as bcrypt from 'bcryptjs';
@@ -147,25 +147,45 @@ export class DriversService {
     });
   }
 
-  /** Xarita boshlang'ich yuklamasi: onlayn/safardagi haydovchilar oxirgi joylashuvi bilan. */
+  /** Xarita boshlang'ich yuklamasi: onlayn/safardagi haydovchilar (ism, mashina, joylashuv). */
   async listActiveWithLocation(): Promise<
-    Array<{ driverId: string; lat: number; lng: number; status: DriverStatus; category: VehicleCategory }>
+    Array<{
+      driverId: string;
+      name: string;
+      phone: string;
+      plate: string;
+      car: string;
+      ratingAvg: number;
+      lat: number;
+      lng: number;
+      status: DriverStatus;
+      category: VehicleCategory;
+    }>
   > {
     const drivers = await this.drivers.find({
       where: [{ status: DriverStatus.ONLINE_IDLE }, { status: DriverStatus.ON_TRIP }],
     });
-    const out = [];
-    for (const d of drivers) {
-      if (d.lastLat == null || d.lastLng == null) continue;
-      out.push({
+    const withLoc = drivers.filter((d) => d.lastLat != null && d.lastLng != null);
+    if (withLoc.length === 0) return [];
+    const vehicles = await this.vehicles.find({
+      where: { driverId: In(withLoc.map((d) => d.id)) },
+    });
+    const vmap = new Map(vehicles.map((v) => [v.driverId, v]));
+    return withLoc.map((d) => {
+      const v = vmap.get(d.id);
+      return {
         driverId: d.id,
-        lat: d.lastLat,
-        lng: d.lastLng,
+        name: [d.firstName, d.lastName].filter(Boolean).join(' ') || 'Haydovchi',
+        phone: d.phone,
+        plate: v?.plate ?? '',
+        car: [v?.color, v?.make, v?.model].filter(Boolean).join(' '),
+        ratingAvg: Number(d.ratingAvg),
+        lat: d.lastLat!,
+        lng: d.lastLng!,
         status: d.status,
-        category: await this.getCategory(d.id),
-      });
-    }
-    return out;
+        category: v?.category ?? VehicleCategory.STANDARD,
+      };
+    });
   }
 
   /** Bitta haydovchining oxirgi ma'lum joylashuvi va holati (mijozga ko'rsatish uchun). */

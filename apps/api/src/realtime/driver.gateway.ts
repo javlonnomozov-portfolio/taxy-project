@@ -27,7 +27,7 @@ export class DriverGateway
   // Socket uzilishida darhol oflayn qilmaymiz — qisqa uzilishlar (ilova foni,
   // tarmoq) uchun grace. Shu vaqt ichida qayta ulansa, oflayn bekor qilinadi.
   private readonly offlineTimers = new Map<string, NodeJS.Timeout>();
-  private readonly OFFLINE_GRACE_MS = 30_000;
+  private readonly OFFLINE_GRACE_MS = 120_000; // taklif oynasi (2 daq) davomida onlayn qoladi
 
   constructor(
     private readonly jwt: JwtService,
@@ -54,6 +54,8 @@ export class DriverGateway
         clearTimeout(pending);
         this.offlineTimers.delete(payload.sub);
       }
+      // Fondan qaytган bo'lsa — hali kutilayotgan taklifni qayta ko'rsatamiz.
+      await this.dispatch.resendActiveOffer(payload.sub);
     } catch {
       client.disconnect(true);
     }

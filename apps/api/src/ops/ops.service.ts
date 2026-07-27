@@ -65,10 +65,17 @@ export class OpsService {
       reason: 'manual_assign',
     });
     const info = await this.drivers.findWithVehicle(driverId);
+    const tariff = await this.settings.getTariff(order.vehicleCategory);
     this.realtime.emitToDriver(driverId, SOCKET_EVENTS.driver.orderAssigned, {
       orderId,
+      pickup: { lat: order.pickupLat, lng: order.pickupLng },
+      pickupAddress: order.pickupAddress ?? undefined,
+      dest: order.destLat != null ? { lat: order.destLat, lng: order.destLng! } : undefined,
+      destAddress: order.destAddress ?? undefined,
       customer: {},
-      meterConfig: { baseFare: 4000, perKm: 0, waitingPerMin: 0 },
+      meterConfig: tariff
+        ? { baseFare: Number(tariff.baseFare), perKm: Number(tariff.perKm), waitingPerMin: Number(tariff.waitingPerMin) }
+        : { baseFare: 4000, perKm: 0, waitingPerMin: 0 },
     });
     this.realtime.emitToCustomer(order.customerId, SOCKET_EVENTS.customer.orderStatus, {
       orderId,

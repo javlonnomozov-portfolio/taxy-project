@@ -16,9 +16,9 @@ export const envSchema = z.object({
   ADMIN_PASSWORD: z.string().optional(),
   // Dispatch sozlamalari (default; keyin DB settings bilan almashtiriladi)
   DISPATCH_WINDOW_SIZE: z.coerce.number().default(6),
-  DISPATCH_OFFER_TIMEOUT_SEC: z.coerce.number().default(15),
+  DISPATCH_OFFER_TIMEOUT_SEC: z.coerce.number().default(120), // taklif oynasi — kamida 2 daqiqa
   DISPATCH_RADIUS_STEPS_M: z.string().default('2000,4000,6000'),
-  DISPATCH_NO_DRIVER_TIMEOUT_SEC: z.coerce.number().default(60),
+  DISPATCH_NO_DRIVER_TIMEOUT_SEC: z.coerce.number().default(180), // taklif oynasidan uzunroq
 });
 
 export type Env = z.infer<typeof envSchema>;

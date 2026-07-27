@@ -15,13 +15,24 @@ interface Order {
   finalPrice: number | null;
   createdAt: string;
 }
-interface DriverPos { driverId: string; lat: number; lng: number; status: string; category: string }
+interface DriverPos {
+  driverId: string;
+  lat: number;
+  lng: number;
+  status: string;
+  category: string;
+  name?: string;
+  phone?: string;
+  plate?: string;
+  car?: string;
+  ratingAvg?: number;
+}
 interface Alert { type: string; orderId?: string; message: string; at: number }
+type Toast = { text: string; kind: 'ok' | 'err' } | null;
 
 // Xizmat hududi markazi — Bulung'ur (Samarqand viloyati).
 const CENTER: [number, number] = [39.7683, 67.2792];
 
-// Ranglar — taksi va zakaz turlari bir-biridan farq qilib tursin.
 const COLOR = {
   idle: '#3ddc84', // bo'sh taksi (yashil)
   onTrip: '#8b95a5', // safardagi taksi (kulrang)
@@ -36,7 +47,6 @@ function orderColor(status: string): string {
 }
 const ASSIGNABLE = ['NO_DRIVER', 'DISPATCHING', 'CREATED'];
 
-// Tanlangan zakazga xaritani uchiradi.
 function FlyTo({ pos }: { pos: [number, number] | null }) {
   const map = useMap();
   useEffect(() => {
@@ -49,19 +59,30 @@ export function Dashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Record<string, DriverPos>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null); // tanlangan zakaz
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null); // tanlangan taksi
+  const [toast, setToast] = useState<Toast>(null);
+  const [confirmCloseId, setConfirmCloseId] = useState<string | null>(null);
+
+  function flash(text: string, kind: 'ok' | 'err' = 'ok') {
+    setToast({ text, kind });
+    setTimeout(() => setToast(null), 4000);
+  }
 
   async function load() {
     try {
       setOrders(await api<Order[]>('GET', '/ops/orders'));
     } catch { /* ignore */ }
   }
-
-  // Boshlang'ich onlayn/safardagi taksilar (socket yangilanishlarigacha xarita bo'sh qolmasin).
   async function loadDrivers() {
     try {
       const list = await api<DriverPos[]>('GET', '/ops/drivers/online');
-      setDrivers(Object.fromEntries(list.map((d) => [d.driverId, d])));
+      // To'liq ma'lumot (ism/mashina) — socket yangilanishlari faqat lat/lng/status beradi.
+      setDrivers((prev) => {
+        const next: Record<string, DriverPos> = {};
+        for (const d of list) next[d.driverId] = { ...prev[d.driverId], ...d };
+        return next;
+      });
     } catch { /* ignore */ }
   }
 
@@ -70,8 +91,9 @@ export function Dashboard() {
     loadDrivers();
     const s = connectOps();
     s.on('order:update', () => load());
+    // Jonli yangilanish — mavjud ism/mashina ma'lumotini saqlab, joylashuvni yangilaymiz.
     s.on('driver:update', (d: DriverPos) =>
-      setDrivers((prev) => ({ ...prev, [d.driverId]: d })),
+      setDrivers((prev) => ({ ...prev, [d.driverId]: { ...prev[d.driverId], ...d } })),
     );
     s.on('alert', (a: Omit<Alert, 'at'>) =>
       setAlerts((prev) => [{ ...a, at: Date.now() }, ...prev].slice(0, 50)),
@@ -94,29 +116,36 @@ export function Dashboard() {
     () => orders.find((o) => o.id === selectedId) ?? null,
     [orders, selectedId],
   );
-  // Tanlangan zakaz uchun taklif yuborish rejimi (faqat biriktirilmagan zakazlar).
+  const selectedDriver = selectedDriverId ? drivers[selectedDriverId] : null;
   const dispatchMode = !!selectedOrder && ASSIGNABLE.includes(selectedOrder.status);
-  // Xaritada ko'rsatiladigan zakazlar: tanlangan bo'lsa faqat o'sha.
   const visibleOrders = selectedOrder ? [selectedOrder] : orders;
 
   async function sendOffer(driverId: string) {
-    if (!selectedOrder) return;
-    if (!confirm('Bu taksiga so‘rov yuborilsinmi?')) return;
+    if (!selectedOrder) {
+      flash('Avval quyidan zakazni tanlang', 'err');
+      return;
+    }
     try {
       await api('POST', `/ops/orders/${selectedOrder.id}/offer`, { driverId });
       setSelectedId(null);
+      setSelectedDriverId(null);
       load();
-      alert('✅ So‘rov yuborildi — haydovchi qabul qilishini kuting.');
+      flash('So‘rov yuborildi — haydovchi qabul qilishini kuting.');
     } catch (e) {
-      alert('Xato: ' + (e as Error).message);
+      flash('Xato: ' + (e as Error).message, 'err');
     }
   }
 
-  async function close(o: Order) {
-    if (!confirm('Buyurtmani yopish?')) return;
-    await api('POST', `/ops/orders/${o.id}/close`, { reason: 'operator' });
-    if (selectedId === o.id) setSelectedId(null);
-    load();
+  async function doClose(o: Order) {
+    try {
+      await api('POST', `/ops/orders/${o.id}/close`, { reason: 'operator' });
+      if (selectedId === o.id) setSelectedId(null);
+      setConfirmCloseId(null);
+      load();
+      flash('Buyurtma yopildi.');
+    } catch (e) {
+      flash('Xato: ' + (e as Error).message, 'err');
+    }
   }
 
   const selectedPos: [number, number] | null =
@@ -129,6 +158,20 @@ export function Dashboard() {
       <div className="topbar">
         <h1>Boshqaruv paneli</h1>
       </div>
+
+      {toast && (
+        <div
+          className="card"
+          style={{
+            marginBottom: 12,
+            borderColor: toast.kind === 'ok' ? COLOR.idle : COLOR.noDriver,
+            color: toast.kind === 'ok' ? COLOR.idle : COLOR.noDriver,
+          }}
+        >
+          {toast.kind === 'ok' ? '✅ ' : '⚠️ '}
+          {toast.text}
+        </div>
+      )}
 
       <div className="stat" style={{ marginBottom: 16 }}>
         <div className="card">
@@ -147,7 +190,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Taklif yuborish rejimi — banner */}
       {dispatchMode && (
         <div
           className="card"
@@ -161,17 +203,17 @@ export function Dashboard() {
           }}
         >
           <span>
-            🚕 <b>Buyurtma uchun</b> xaritadan yoki quyidagi ro‘yxatdan bo‘sh taksini tanlang va
+            🚕 <b>Buyurtma tanlandi.</b> Xaritadan yoki o‘ng paneldan bo‘sh taksini tanlab
             <b> so‘rov yuboring</b>.
           </span>
-          <button className="danger" onClick={() => setSelectedId(null)}>
+          <button className="danger" onClick={() => { setSelectedId(null); setSelectedDriverId(null); }}>
             Bekor qilish
           </button>
         </div>
       )}
 
       <div className="grid" style={{ gridTemplateColumns: '2fr 1fr' }}>
-        <div className="card" style={{ padding: 0, overflow: 'hidden', height: 380, position: 'relative' }}>
+        <div className="card" style={{ padding: 0, overflow: 'hidden', height: 400, position: 'relative' }}>
           <MapContainer center={CENTER} zoom={13} style={{ height: '100%', width: '100%' }}>
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -181,42 +223,20 @@ export function Dashboard() {
 
             {activeDrivers.map((d) => {
               const idle = d.status === 'ONLINE_IDLE';
-              const canOffer = dispatchMode && idle;
+              const sel = d.driverId === selectedDriverId;
               return (
                 <CircleMarker
                   key={d.driverId}
                   center={[d.lat, d.lng]}
-                  radius={canOffer ? 9 : 7}
+                  radius={sel ? 11 : dispatchMode && idle ? 9 : 7}
                   pathOptions={{
                     color: idle ? COLOR.idle : COLOR.onTrip,
                     fillColor: idle ? COLOR.idle : COLOR.onTrip,
-                    fillOpacity: 0.85,
-                    weight: canOffer ? 3 : 1,
+                    fillOpacity: 0.9,
+                    weight: sel ? 4 : dispatchMode && idle ? 3 : 1,
                   }}
-                >
-                  <Popup>
-                    <div style={{ minWidth: 150 }}>
-                      <b>Taksi {d.driverId.slice(0, 8)}</b>
-                      <div style={{ color: '#666', fontSize: 12 }}>
-                        {idle ? 'Bo‘sh (onlayn)' : 'Safarda'} · {d.category}
-                      </div>
-                      {canOffer && (
-                        <button
-                          className="primary"
-                          style={{ marginTop: 8, width: '100%' }}
-                          onClick={() => sendOffer(d.driverId)}
-                        >
-                          📨 So‘rov yuborish
-                        </button>
-                      )}
-                      {dispatchMode && !idle && (
-                        <div style={{ color: '#999', fontSize: 12, marginTop: 6 }}>
-                          Safarda — so‘rov yuborib bo‘lmaydi
-                        </div>
-                      )}
-                    </div>
-                  </Popup>
-                </CircleMarker>
+                  eventHandlers={{ click: () => setSelectedDriverId(d.driverId) }}
+                />
               );
             })}
 
@@ -234,6 +254,7 @@ export function Dashboard() {
                     fillOpacity: sel ? 0.9 : 0.6,
                     weight: sel ? 3 : 1,
                   }}
+                  eventHandlers={{ click: () => ASSIGNABLE.includes(o.status) && setSelectedId(o.id) }}
                 >
                   <Popup>Buyurtma · {o.status}</Popup>
                 </CircleMarker>
@@ -241,7 +262,6 @@ export function Dashboard() {
             })}
           </MapContainer>
 
-          {/* Ranglar izohi */}
           <div
             style={{
               position: 'absolute',
@@ -263,17 +283,55 @@ export function Dashboard() {
           </div>
         </div>
 
+        {/* O'ng panel: tanlangan taksi ma'lumoti yoki ogohlantirishlar */}
         <div className="card">
-          <h2>Ogohlantirishlar</h2>
-          <div className="alerts">
-            {alerts.length === 0 && <div className="lbl">Hozircha yo‘q</div>}
-            {alerts.map((a, i) => (
-              <div key={i} className={`alert ${a.type}`}>
-                <b>{a.type}</b> — {a.message}
-                <div className="lbl">{new Date(a.at).toLocaleTimeString('uz-UZ')}</div>
+          {selectedDriver ? (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ margin: 0 }}>🚖 Taksi</h2>
+                <button className="danger" onClick={() => setSelectedDriverId(null)}>✕</button>
               </div>
-            ))}
-          </div>
+              <div style={{ marginTop: 12, lineHeight: 1.9 }}>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{selectedDriver.name || 'Haydovchi'}</div>
+                <div className="lbl">Holat: {selectedDriver.status === 'ONLINE_IDLE' ? '🟢 Bo‘sh' : '⚪ Safarda'}</div>
+                <div>📞 {selectedDriver.phone || '—'}</div>
+                <div>🚗 {selectedDriver.car || '—'}</div>
+                <div>🔢 Davlat raqami: <b>{selectedDriver.plate || '—'}</b></div>
+                <div>⭐ Reyting: {selectedDriver.ratingAvg ?? 0}</div>
+                <div className="lbl">Toifa: {selectedDriver.category}</div>
+              </div>
+              {dispatchMode ? (
+                selectedDriver.status === 'ONLINE_IDLE' ? (
+                  <button
+                    className="primary"
+                    style={{ marginTop: 14, width: '100%' }}
+                    onClick={() => sendOffer(selectedDriver.driverId)}
+                  >
+                    📨 Shu taksiga so‘rov yuborish
+                  </button>
+                ) : (
+                  <div className="lbl" style={{ marginTop: 14 }}>Bu taksi safarda — so‘rov yuborib bo‘lmaydi.</div>
+                )
+              ) : (
+                <div className="lbl" style={{ marginTop: 14 }}>
+                  So‘rov yuborish uchun avval quyidan zakazni tanlang.
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <h2>Ogohlantirishlar</h2>
+              <div className="alerts">
+                {alerts.length === 0 && <div className="lbl">Hozircha yo‘q</div>}
+                {alerts.map((a, i) => (
+                  <div key={i} className={`alert ${a.type}`}>
+                    <b>{a.type}</b> — {a.message}
+                    <div className="lbl">{new Date(a.at).toLocaleTimeString('uz-UZ')}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -313,7 +371,14 @@ export function Dashboard() {
                         {sel ? 'Tanlangan ✓' : 'Taksi tanlash'}
                       </button>
                     )}
-                    <button className="danger" onClick={() => close(o)}>Yopish</button>
+                    {confirmCloseId === o.id ? (
+                      <>
+                        <button className="danger" onClick={() => doClose(o)}>Tasdiqlash</button>
+                        <button onClick={() => setConfirmCloseId(null)}>Yo‘q</button>
+                      </>
+                    ) : (
+                      <button className="danger" onClick={() => setConfirmCloseId(o.id)}>Yopish</button>
+                    )}
                   </td>
                 </tr>
               );
