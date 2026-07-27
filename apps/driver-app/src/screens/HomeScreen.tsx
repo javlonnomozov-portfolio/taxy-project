@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Linking, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import * as Location from 'expo-location';
 import { Socket } from 'socket.io-client';
 import { connectDriver, EV } from '../socket';
@@ -8,12 +8,18 @@ import { registerForPush } from '../push';
 import { startBackgroundLocation, stopBackgroundLocation } from '../location-task';
 import { S, C } from '../theme';
 import { Lang, makeT } from '../i18n';
+import { MiniMap, MapMarker } from '../MapView';
 
+interface LatLng { lat: number; lng: number }
 interface Offer {
   orderId: string;
-  pickup: { lat: number; lng: number };
+  pickup: LatLng;
+  pickupAddress?: string;
+  dest?: LatLng;
+  destAddress?: string;
   distanceM: number;
   note?: string;
+  timeoutSec?: number;
   customer: { phone: string; name?: string };
 }
 interface MeterConfig {
@@ -24,7 +30,10 @@ interface MeterConfig {
 type Stage = 'accepted' | 'arrived' | 'in_progress';
 interface Trip {
   orderId: string;
-  pickup: { lat: number; lng: number };
+  pickup: LatLng;
+  pickupAddress?: string;
+  dest?: LatLng;
+  destAddress?: string;
   customer: { phone: string; name?: string };
   meter: MeterConfig;
   stage: Stage;
@@ -85,20 +94,40 @@ export function HomeScreen({
     s.on(EV.orderOffer, (o: Offer) => {
       if (!tripRef.current) {
         setOffer(o);
-        setCountdown(20);
+        setCountdown(o.timeoutSec ?? 120);
       }
     });
     s.on(EV.orderOfferCancelled, (o: { orderId: string }) => {
       setOffer((cur) => (cur?.orderId === o.orderId ? null : cur));
     });
-    s.on(EV.orderAssigned, (a: { orderId: string; customer: Offer['customer']; meterConfig: MeterConfig }) => {
-      setOffer((cur) => {
-        const pickup = cur?.pickup ?? { lat: 0, lng: 0 };
-        setTrip({ orderId: a.orderId, pickup, customer: a.customer, meter: a.meterConfig, stage: 'accepted' });
-        return null;
-      });
-      setDistanceM(0);
-    });
+    s.on(
+      EV.orderAssigned,
+      (a: {
+        orderId: string;
+        customer: Offer['customer'];
+        meterConfig: MeterConfig;
+        pickup?: LatLng;
+        pickupAddress?: string;
+        dest?: LatLng;
+        destAddress?: string;
+      }) => {
+        setOffer((cur) => {
+          const pickup = a.pickup ?? cur?.pickup ?? { lat: 0, lng: 0 };
+          setTrip({
+            orderId: a.orderId,
+            pickup,
+            pickupAddress: a.pickupAddress ?? cur?.pickupAddress,
+            dest: a.dest ?? cur?.dest,
+            destAddress: a.destAddress ?? cur?.destAddress,
+            customer: a.customer,
+            meter: a.meterConfig,
+            stage: 'accepted',
+          });
+          return null;
+        });
+        setDistanceM(0);
+      },
+    );
     // Safar mijoz/operator tomonidan bekor qilindi — ekranni yopib, yana buyurtma qabul qilamiz.
     s.on(EV.tripEnded, (e: { orderId: string; reason?: string }) => {
       setOffer((cur) => (cur?.orderId === e.orderId ? null : cur));
@@ -226,8 +255,21 @@ export function HomeScreen({
   if (trip) {
     const liveMeter =
       trip.meter.baseFare + (trip.meter.perKm * distanceM) / 1000;
+    const goingToCustomer = trip.stage !== 'in_progress';
+    const me = lastLoc.current
+      ? [{ lat: lastLoc.current.lat, lng: lastLoc.current.lng, color: '#3ddc84', label: t('online') }]
+      : [];
+    const tripMarkers: MapMarker[] = goingToCustomer
+      ? [{ lat: trip.pickup.lat, lng: trip.pickup.lng, color: '#ff4d4f', label: t('customer') }, ...me]
+      : [
+          ...me,
+          trip.dest
+            ? { lat: trip.dest.lat, lng: trip.dest.lng, color: '#4c8dff', label: t('destination') }
+            : { lat: trip.pickup.lat, lng: trip.pickup.lng, color: '#ff4d4f', label: t('customer') },
+        ];
+    const navTarget = !goingToCustomer && trip.dest ? trip.dest : trip.pickup;
     return (
-      <View style={S.screen}>
+      <ScrollView style={S.screen} contentContainerStyle={{ paddingBottom: 24 }}>
         <Text style={S.title}>{trip.stage === 'in_progress' ? t('on_trip') : t('to_customer')}</Text>
         <View style={[S.card, { marginVertical: 14 }]}>
           <Text style={S.label}>{t('customer')}</Text>
@@ -248,9 +290,11 @@ export function HomeScreen({
           )}
         </View>
 
-        <View style={{ gap: 10 }}>
+        <MiniMap height={220} markers={tripMarkers} />
+
+        <View style={{ gap: 10, marginTop: 14 }}>
           <View style={S.row}>
-            <TouchableOpacity style={[S.btnGhost, { flex: 1, marginRight: 8 }]} onPress={() => navigate(trip.pickup)}>
+            <TouchableOpacity style={[S.btnGhost, { flex: 1, marginRight: 8 }]} onPress={() => navigate(navTarget)}>
               <Text style={S.btnGhostText}>🧭 {t('navigate')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[S.btnGhost, { flex: 1 }]} onPress={() => call(trip.customer.phone)}>
@@ -277,7 +321,7 @@ export function HomeScreen({
             <Text style={[S.btnGhostText, { color: C.danger }]}>{t('cancel_trip')}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -338,7 +382,8 @@ export function HomeScreen({
             justifyContent: 'flex-end',
           }}
         >
-          <View style={[S.card, { margin: 12, borderColor: C.accent }]}>
+          <View style={[S.card, { margin: 12, borderColor: C.accent, maxHeight: '90%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
             <View style={[S.row, { justifyContent: 'space-between' }]}>
               <Text style={{ color: C.text, fontSize: 18, fontWeight: '700' }}>{t('new_order')}</Text>
               <Text style={{ color: C.warn, fontSize: 18, fontWeight: '800' }}>{countdown}s</Text>
@@ -347,13 +392,39 @@ export function HomeScreen({
             <Text style={{ color: C.text, fontSize: 16 }}>
               {(offer.distanceM / 1000).toFixed(1)} {t('km')}
             </Text>
+            {offer.pickupAddress ? (
+              <>
+                <Text style={[S.label, { marginTop: 8 }]}>📍 {t('customer_location')}</Text>
+                <Text style={{ color: C.text }}>{offer.pickupAddress}</Text>
+              </>
+            ) : null}
             {offer.note ? (
               <>
                 <Text style={[S.label, { marginTop: 8 }]}>{t('note')}</Text>
                 <Text style={{ color: C.text }}>{offer.note}</Text>
               </>
             ) : null}
-            <View style={[S.row, { marginTop: 16 }]}>
+            {/* Mijoz qayerdaligini ko'rsatuvchi xarita */}
+            <View style={{ marginTop: 12 }}>
+              <MiniMap
+                height={180}
+                markers={
+                  [
+                    { lat: offer.pickup.lat, lng: offer.pickup.lng, color: '#ff4d4f', label: t('customer') },
+                    ...(lastLoc.current
+                      ? [{ lat: lastLoc.current.lat, lng: lastLoc.current.lng, color: '#3ddc84', label: t('online') }]
+                      : []),
+                  ] as MapMarker[]
+                }
+              />
+            </View>
+            <TouchableOpacity
+              style={[S.btnGhost, { marginTop: 10 }]}
+              onPress={() => navigate(offer.pickup)}
+            >
+              <Text style={S.btnGhostText}>🧭 {t('navigate')}</Text>
+            </TouchableOpacity>
+            <View style={[S.row, { marginTop: 12 }]}>
               <TouchableOpacity style={[S.btnGhost, { flex: 1, marginRight: 8 }]} onPress={() => respond(false)}>
                 <Text style={[S.btnGhostText, { color: C.danger }]}>{t('decline')}</Text>
               </TouchableOpacity>
@@ -361,6 +432,7 @@ export function HomeScreen({
                 <Text style={S.btnText}>{t('accept')}</Text>
               </TouchableOpacity>
             </View>
+            </ScrollView>
           </View>
         </View>
       )}
