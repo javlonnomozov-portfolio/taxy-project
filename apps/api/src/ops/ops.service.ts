@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { ActorType, OrderStatus, OrderType, PanelRole, SOCKET_EVENTS, VehicleCategory } from '@tty/shared';
 import { Order } from '../entities/order.entity';
 import { Customer } from '../entities/customer.entity';
@@ -77,7 +77,7 @@ export class OpsService {
       destAddress: order.destAddress ?? undefined,
       customer: {},
       meterConfig: tariff
-        ? { baseFare: Number(tariff.baseFare), perKm: Number(tariff.perKm), waitingPerMin: Number(tariff.waitingPerMin) }
+        ? { baseFare: tariff.baseFare, perKm: tariff.perKm, waitingPerMin: tariff.waitingPerMin }
         : { baseFare: 4000, perKm: 0, waitingPerMin: 0 },
     });
     this.realtime.emitToCustomer(order.customerId, SOCKET_EVENTS.customer.orderStatus, {
@@ -201,5 +201,62 @@ export class OpsService {
   }
   updateTariff(category: VehicleCategory, patch: Partial<Tariff>) {
     return this.settings.updateTariff(category, patch);
+  }
+
+  /**
+   * Dispatch metrikalari — avval bu sonlar faqat log matnida edi, ya'ni
+   * "necha foiz zakazga taksi topilmadi" degan savolga javob yo'q edi.
+   * Manba: `orders` (holatlar) + `order_events` (qabul vaqti).
+   */
+  async metrics(hours = 24): Promise<{
+    windowHours: number;
+    total: number;
+    byStatus: Record<string, number>;
+    noDriverRate: number;
+    completionRate: number;
+    avgAcceptSec: number | null;
+    avgFare: number | null;
+  }> {
+    const since = new Date(Date.now() - hours * 3_600_000);
+
+    const statusRows = await this.orders
+      .createQueryBuilder('o')
+      .select('o.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .where('o.created_at >= :since', { since })
+      .groupBy('o.status')
+      .getRawMany<{ status: string; count: string }>();
+
+    const byStatus: Record<string, number> = {};
+    let total = 0;
+    for (const r of statusRows) {
+      const n = Number(r.count);
+      byStatus[r.status] = n;
+      total += n;
+    }
+
+    // Yaratilgandan qabul qilingangacha o'rtacha vaqt (sekund).
+    const accept = await this.orders
+      .createQueryBuilder('o')
+      .select('AVG(EXTRACT(EPOCH FROM (o.accepted_at - o.created_at)))', 'avg')
+      .where('o.created_at >= :since AND o.accepted_at IS NOT NULL', { since })
+      .getRawOne<{ avg: string | null }>();
+
+    const fare = await this.orders
+      .createQueryBuilder('o')
+      .select('AVG(o.final_price)', 'avg')
+      .where('o.created_at >= :since AND o.status = :st', { since, st: OrderStatus.COMPLETED })
+      .getRawOne<{ avg: string | null }>();
+
+    const pct = (n: number) => (total > 0 ? Math.round((n / total) * 1000) / 10 : 0);
+    return {
+      windowHours: hours,
+      total,
+      byStatus,
+      noDriverRate: pct(byStatus[OrderStatus.NO_DRIVER] ?? 0),
+      completionRate: pct(byStatus[OrderStatus.COMPLETED] ?? 0),
+      avgAcceptSec: accept?.avg ? Math.round(Number(accept.avg)) : null,
+      avgFare: fare?.avg ? Math.round(Number(fare.avg)) : null,
+    };
   }
 }

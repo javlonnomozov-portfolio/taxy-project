@@ -39,6 +39,21 @@ export async function api<T = unknown>(
     location.href = '/login';
   }
   const text = await res.text();
-  if (!res.ok) throw new Error(text || `${res.status}`);
+  if (!res.ok) throw new Error(errorMessage(text, res.status));
   return text ? (JSON.parse(text) as T) : ({} as T);
+}
+
+/**
+ * API bir xil xato shaklini qaytaradi: `{ statusCode, code, message, requestId }`.
+ * Foydalanuvchiga xom JSON emas, o'qiladigan matn ko'rsatamiz.
+ */
+function errorMessage(text: string, status: number): string {
+  if (!text) return `Xatolik (${status})`;
+  try {
+    const body = JSON.parse(text) as { message?: string | string[] };
+    const msg = Array.isArray(body.message) ? body.message.join(', ') : body.message;
+    return msg || `Xatolik (${status})`;
+  } catch {
+    return text;
+  }
 }

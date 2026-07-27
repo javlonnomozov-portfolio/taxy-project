@@ -1,22 +1,18 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { IsOptional, IsString } from 'class-validator';
+import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { CustomersService } from './customers.service';
 import { InternalGuard } from '../auth/internal.guard';
+import { UpsertCustomerDto } from './dto/customer.dto';
 
-class UpsertCustomerDto {
-  @IsString() telegramId!: string;
-  @IsOptional() @IsString() phone?: string;
-  @IsOptional() @IsString() firstName?: string;
-  @IsOptional() @IsString() lastName?: string;
-  @IsOptional() @IsString() language?: string;
-}
-
+@ApiTags('customers')
+@ApiSecurity('internal')
 @Controller('customers')
 @UseGuards(InternalGuard)
 export class CustomersController {
   constructor(private readonly customers: CustomersService) {}
 
   @Post('upsert')
+  @ApiOperation({ summary: 'Telegram foydalanuvchisini yaratish/yangilash (bot)' })
   upsert(@Body() dto: UpsertCustomerDto) {
     return this.customers.upsertByTelegram(dto);
   }

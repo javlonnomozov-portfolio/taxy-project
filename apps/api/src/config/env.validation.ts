@@ -14,6 +14,12 @@ export const envSchema = z.object({
   INTERNAL_API_KEY: z.string().min(8).default('dev_internal_key'),
   ADMIN_LOGIN: z.string().optional(),
   ADMIN_PASSWORD: z.string().optional(),
+  // Prod'da /docs yopiq; ochish uchun aniq 'true' qilish kerak.
+  SWAGGER_ENABLED: z.enum(['true', 'false']).optional(),
+  // Login urinishlari: HAR HISOB uchun daqiqasiga nechta (brute force himoyasi).
+  // Prod'da 5 yetarli; lokal simlar ketma-ket login qilgani uchun ularni
+  // yuqoriroq qiymat bilan ishga tushirish mumkin.
+  LOGIN_RATE_LIMIT: z.coerce.number().default(5),
   // Dispatch sozlamalari (default; keyin DB settings bilan almashtiriladi)
   DISPATCH_WINDOW_SIZE: z.coerce.number().default(6),
   DISPATCH_OFFER_TIMEOUT_SEC: z.coerce.number().default(120), // taklif oynasi — kamida 2 daqiqa

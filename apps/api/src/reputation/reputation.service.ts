@@ -117,6 +117,6 @@ export class ReputationService {
   async isFlagged(driverId: string): Promise<boolean> {
     const d = await this.drivers.findOne({ where: { id: driverId } });
     if (!d) return false;
-    return Number(d.ratingAvg) > 0 && (Number(d.ratingAvg) < 3.5 || Number(d.cancelRate) > 30);
+    return d.ratingAvg > 0 && (d.ratingAvg < 3.5 || d.cancelRate > 30);
   }
 }

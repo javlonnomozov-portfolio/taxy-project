@@ -6,8 +6,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "lint": "echo \"(shared) lint: skip\"",
-    "test": "echo \"(shared) no tests yet\""
+    "lint": "eslint src",
+    "test": "echo \"(shared) no tests yet\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

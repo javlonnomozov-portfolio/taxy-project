@@ -29,6 +29,14 @@ interface DriverPos {
 }
 interface Alert { type: string; orderId?: string; message: string; at: number }
 type Toast = { text: string; kind: 'ok' | 'err' } | null;
+interface Metrics {
+  windowHours: number;
+  total: number;
+  noDriverRate: number;
+  completionRate: number;
+  avgAcceptSec: number | null;
+  avgFare: number | null;
+}
 
 // Xizmat hududi markazi — Bulung'ur (Samarqand viloyati).
 const CENTER: [number, number] = [39.7683, 67.2792];
@@ -63,6 +71,7 @@ export function Dashboard() {
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null); // tanlangan taksi
   const [toast, setToast] = useState<Toast>(null);
   const [confirmCloseId, setConfirmCloseId] = useState<string | null>(null);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
 
   function flash(text: string, kind: 'ok' | 'err' = 'ok') {
     setToast({ text, kind });
@@ -85,10 +94,16 @@ export function Dashboard() {
       });
     } catch { /* ignore */ }
   }
+  async function loadMetrics() {
+    try {
+      setMetrics(await api<Metrics>('GET', '/ops/metrics?hours=24'));
+    } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     load();
     loadDrivers();
+    loadMetrics();
     const s = connectOps();
     s.on('order:update', () => load());
     // Jonli yangilanish — mavjud ism/mashina ma'lumotini saqlab, joylashuvni yangilaymiz.
@@ -102,9 +117,12 @@ export function Dashboard() {
       load();
       loadDrivers();
     }, 10000);
+    // Metrikalar sekin o'zgaradi — kamroq so'raymiz.
+    const mIv = setInterval(loadMetrics, 60000);
     return () => {
       s.close();
       clearInterval(iv);
+      clearInterval(mIv);
     };
   }, []);
 
@@ -189,6 +207,39 @@ export function Dashboard() {
           <div className="lbl">Ogohlantirishlar</div>
         </div>
       </div>
+
+      {/* Oxirgi 24 soat ko'rsatkichlari — avval bu sonlar faqat loglarda edi. */}
+      {metrics && (
+        <div className="stat" style={{ marginBottom: 16 }}>
+          <div className="card">
+            <div className="big">{metrics.total}</div>
+            <div className="lbl">Zakaz (24 soat)</div>
+          </div>
+          <div className="card">
+            <div
+              className="big"
+              style={{ color: metrics.noDriverRate > 15 ? 'var(--danger)' : undefined }}
+            >
+              {metrics.noDriverRate}%
+            </div>
+            <div className="lbl">Taksi topilmadi</div>
+          </div>
+          <div className="card">
+            <div className="big">{metrics.completionRate}%</div>
+            <div className="lbl">Yakunlangan</div>
+          </div>
+          <div className="card">
+            <div className="big">
+              {metrics.avgAcceptSec != null ? `${metrics.avgAcceptSec}s` : '—'}
+            </div>
+            <div className="lbl">O‘rtacha qabul vaqti</div>
+          </div>
+          <div className="card">
+            <div className="big">{metrics.avgFare != null ? money(metrics.avgFare) : '—'}</div>
+            <div className="lbl">O‘rtacha safar narxi</div>
+          </div>
+        </div>
+      )}
 
       {dispatchMode && (
         <div

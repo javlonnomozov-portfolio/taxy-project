@@ -87,9 +87,9 @@ async function main() {
   check('Lokatsiya so\'raldi', anyText('Olib ketish'));
   await feedMsg({ location: { latitude: pickup.lat, longitude: pickup.lng } });
   check('Manzil so\'raldi', anyText('manzilini'));
-  await feedText('⏭ O‘tkazib yuborish'); // dest skip
+  await feedText('Registon ko‘chasi 12'); // manzilni yozamiz (skip emas)
   check('Izoh so\'raldi', anyText('Izoh'));
-  await feedText('⏭ O‘tkazib yuborish'); // note skip
+  await feedText('⏭ O‘tkazib yuborish'); // izohni o'tkazib yuboramiz
   check('Tasdiq so\'raldi', anyText('Tasdiqlaysizmi'));
 
   const before = sent.length;

@@ -7,8 +7,9 @@
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit -p tsconfig.json",
-    "test": "echo \"(admin) no tests yet\""
+    "lint": "eslint src",
+    "test": "echo \"(admin) no tests yet\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@tty/shared": "workspace:*",

@@ -1,40 +1,13 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { TripsService } from '../trips/trips.service';
-import {
-  IsEnum,
-  IsISO8601,
-  IsLatitude,
-  IsLongitude,
-  IsOptional,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import { OrderType, VehicleCategory } from '@tty/shared';
 import { OrdersService } from './orders.service';
 import { InternalGuard } from '../auth/internal.guard';
+import { CancelOrderDto, CreateOrderDto } from './dto/order.dto';
 
-class PointDto {
-  @IsLatitude() lat!: number;
-  @IsLongitude() lng!: number;
-}
-class CreateOrderDto {
-  @IsString() customerId!: string;
-  @IsEnum(VehicleCategory) category!: VehicleCategory;
-  @ValidateNested() @Type(() => PointDto) pickup!: PointDto;
-  @IsOptional() @IsString() pickupAddress?: string;
-  @IsOptional() @ValidateNested() @Type(() => PointDto) destination?: PointDto;
-  @IsOptional() @IsString() destAddress?: string;
-  @IsOptional() @IsString() note?: string;
-  @IsOptional() @IsEnum(OrderType) orderType?: OrderType;
-  @IsOptional() @IsISO8601() scheduledAt?: string;
-}
-
-// Buyurtma yaratish — bot backend orqali (ichki kalit bilan).
-class CancelDto {
-  @IsOptional() @IsString() reason?: string;
-}
-
+// Buyurtmalar — bot backend nomidan chaqiradi (ichki kalit bilan).
+@ApiTags('orders')
+@ApiSecurity('internal')
 @Controller('orders')
 @UseGuards(InternalGuard)
 export class OrdersController {
@@ -44,23 +17,26 @@ export class OrdersController {
   ) {}
 
   @Post()
+  @ApiOperation({ summary: 'Buyurtma yaratish (dispatch avtomatik boshlanadi)' })
   create(@Body() dto: CreateOrderDto) {
     return this.orders.create(dto);
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Buyurtma holati' })
   get(@Param('id') id: string) {
     return this.orders.findById(id);
   }
 
-  // Biriktirilgan taksining oxirgi joylashuvi (bot mijozga ko'rsatadi).
   @Get(':id/driver-location')
+  @ApiOperation({ summary: 'Biriktirilgan taksining oxirgi joylashuvi' })
   driverLocation(@Param('id') id: string) {
     return this.orders.driverLocation(id);
   }
 
   @Post(':id/cancel')
-  cancel(@Param('id') id: string, @Body() dto: CancelDto) {
+  @ApiOperation({ summary: 'Mijoz buyurtmani bekor qiladi (jarimasiz oyna qoidasi)' })
+  cancel(@Param('id') id: string, @Body() dto: CancelOrderDto) {
     return this.trips.cancelByCustomer(id, dto.reason);
   }
 }

@@ -55,13 +55,13 @@ export class PricingService {
       };
     }
 
-    const base = Number(tariff.baseFare);
-    const distance = (Number(tariff.perKm) * distanceM) / 1000;
+    const base = tariff.baseFare;
+    const distance = (tariff.perKm * distanceM) / 1000;
     const billableWait = Math.max(0, waitingMinutes - tariff.freeWaitMin);
-    const waiting = billableWait * Number(tariff.waitingPerMin);
+    const waiting = billableWait * tariff.waitingPerMin;
     const subtotal = base + distance + waiting;
 
-    const nightMultiplier = this.isNight(tariff, when) ? Number(tariff.nightMultiplier) : 1;
+    const nightMultiplier = this.isNight(tariff, when) ? tariff.nightMultiplier : 1;
     const surgeMultiplier = await this.settings.currentSurge();
     const total = Math.round(subtotal * nightMultiplier * surgeMultiplier);
 

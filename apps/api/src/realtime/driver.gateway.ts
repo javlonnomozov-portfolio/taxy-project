@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, UseInterceptors } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   OnGatewayConnection,
@@ -16,8 +16,11 @@ import { DriversService } from '../drivers/drivers.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { TripsService } from '../trips/trips.service';
 import { RealtimeService } from './realtime.service';
+import { WsErrorInterceptor } from '../common/ws-error.interceptor';
 
 @WebSocketGateway({ namespace: '/driver', cors: { origin: '*' } })
+// Har bir handler xatosi ilovaga `{ ok: false, code, message }` ack bo'lib qaytadi.
+@UseInterceptors(WsErrorInterceptor)
 export class DriverGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {

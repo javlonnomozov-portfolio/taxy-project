@@ -3,7 +3,7 @@ import { Alert, AppState, Linking, ScrollView, Text, TouchableOpacity, View } fr
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { Socket } from 'socket.io-client';
-import { connectDriver, EV } from '../socket';
+import { connectDriver, EV, SocketAck } from '../socket';
 import { api } from '../api';
 import { registerForPush, notifyOffer } from '../push';
 import { startBackgroundLocation, stopBackgroundLocation } from '../location-task';
@@ -248,8 +248,15 @@ export function HomeScreen({
 
   function tripAction(ev: string, nextStage?: Stage) {
     if (!trip) return;
-    socketRef.current?.emit(ev, { orderId: trip.orderId });
-    if (nextStage) setTrip({ ...trip, stage: nextStage });
+    // Server javobini KUTAMIZ: avval bosqichni darhol surardik va server rad etsa
+    // ilova bilan server holati bir-biriga to'g'ri kelmay qolardi.
+    socketRef.current?.emit(ev, { orderId: trip.orderId }, (ack?: SocketAck) => {
+      if (ack && ack.ok === false) {
+        Alert.alert(t('error'), ack.message ?? t('error_generic'));
+        return;
+      }
+      if (nextStage) setTrip((cur) => (cur ? { ...cur, stage: nextStage } : cur));
+    });
   }
 
   function complete() {
@@ -257,7 +264,12 @@ export function HomeScreen({
     socketRef.current?.emit(
       EV.tripComplete,
       { orderId: trip.orderId, distanceM: Math.round(distanceM) },
-      (resp: { finalPrice?: number }) => {
+      (resp?: SocketAck & { finalPrice?: number }) => {
+        // Xatoda "0 so'm" ekranini ko'rsatmaymiz — safar hali tugamagan.
+        if (resp && resp.ok === false) {
+          Alert.alert(t('error'), resp.message ?? t('error_generic'));
+          return;
+        }
         setDone({ price: resp?.finalPrice ?? 0 });
         setTrip(null);
       },

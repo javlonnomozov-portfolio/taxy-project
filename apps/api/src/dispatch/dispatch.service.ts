@@ -1,4 +1,12 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
@@ -19,6 +27,7 @@ import { GeoService } from '../geo/geo.service';
 import { DriversService } from '../drivers/drivers.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Candidate, haversineM, sortCandidates } from './dispatch.util';
 
 interface DispatchState {
   orderId: string;
@@ -56,7 +65,7 @@ const RECOVERY_MAX_AGE_MS = 15 * 60_000; // 15 daqiqadan eski yetimlar → NO_DR
 const OPERATOR_WINDOW_MS = 5 * 60_000;
 
 @Injectable()
-export class DispatchService implements OnModuleInit {
+export class DispatchService implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger(DispatchService.name);
   private readonly states = new Map<string, DispatchState>();
   // NO_DRIVER'dan keyin operator hal qilmasa — mijozni xabardor qilish taymeri.
@@ -82,6 +91,33 @@ export class DispatchService implements OnModuleInit {
     } catch (e) {
       this.log.error(`Yetim zakazlarni tiklashda xato: ${(e as Error).message}`);
     }
+  }
+
+  /**
+   * Tartibli o'chish (deploy/restart). Dispatch holati faqat xotirada bo'lgani uchun
+   * jarayon o'lganda faol takliflar "havoda" qolardi — haydovchi ilovasida taklif oynasi
+   * osilib turardi va u javob bersa hech narsa bo'lmasdi. Endi barcha kutilayotgan
+   * takliflarni bekor qilib, taymerlarni tozalaymiz. Zakazlar DISPATCHING'da qoladi va
+   * yangi instansiya `recoverOrphans()` bilan ularni qayta dispatch qiladi.
+   */
+  onModuleDestroy(): void {
+    for (const t of this.operatorFallback.values()) clearTimeout(t);
+    this.operatorFallback.clear();
+
+    const count = this.states.size;
+    for (const state of this.states.values()) {
+      state.active = false;
+      if (state.noDriverTimer) clearTimeout(state.noDriverTimer);
+      for (const [driverId, offer] of state.offered) {
+        clearTimeout(offer.timer);
+        this.realtime.emitToDriver(driverId, SOCKET_EVENTS.driver.orderOfferCancelled, {
+          orderId: state.orderId,
+        });
+      }
+      state.offered.clear();
+    }
+    this.states.clear();
+    if (count > 0) this.log.warn(`O'chish: ${count} ta faol dispatch to'xtatildi`);
   }
 
   /**
@@ -204,15 +240,17 @@ export class DispatchService implements OnModuleInit {
    */
   async offerToDriver(orderId: string, driverId: string): Promise<void> {
     const order = await this.orders.findOne({ where: { id: orderId } });
-    if (!order) throw new Error('Buyurtma topilmadi');
+    if (!order) throw new NotFoundException('Buyurtma topilmadi');
     if (
       ![OrderStatus.NO_DRIVER, OrderStatus.DISPATCHING, OrderStatus.CREATED].includes(order.status)
     ) {
-      throw new Error('Bu holatda taklif yuborib bo‘lmaydi');
+      throw new BadRequestException('Bu holatda taklif yuborib bo‘lmaydi');
     }
     const driver = await this.driverRepo.findOne({ where: { id: driverId } });
-    if (!driver) throw new Error('Haydovchi topilmadi');
-    if (driver.status !== DriverStatus.ONLINE_IDLE) throw new Error('Haydovchi hozir bo‘sh emas');
+    if (!driver) throw new NotFoundException('Haydovchi topilmadi');
+    if (driver.status !== DriverStatus.ONLINE_IDLE) {
+      throw new ConflictException('Haydovchi hozir bo‘sh emas');
+    }
 
     this.abort(orderId); // avvalgi holatni tozalaymiz
     this.cancelOperatorFallback(orderId); // operator harakat qildi — fallback shart emas
@@ -235,7 +273,7 @@ export class DispatchService implements OnModuleInit {
 
     const distanceM =
       driver.lastLat != null && driver.lastLng != null
-        ? this.haversineM(order.pickupLat, order.pickupLng, driver.lastLat, driver.lastLng)
+        ? haversineM(order.pickupLat, order.pickupLng, driver.lastLat, driver.lastLng)
         : 0;
     await this.offer(state, driverId, distanceM);
   }
@@ -249,20 +287,10 @@ export class DispatchService implements OnModuleInit {
     const tariff = await this.tariffRepo.findOne({ where: { category } });
     if (!tariff) return DEFAULT_METER;
     return {
-      baseFare: Number(tariff.baseFare),
-      perKm: Number(tariff.perKm),
-      waitingPerMin: Number(tariff.waitingPerMin),
+      baseFare: tariff.baseFare,
+      perKm: tariff.perKm,
+      waitingPerMin: tariff.waitingPerMin,
     };
-  }
-
-  private haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
-    const R = 6371000;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLng = ((lng2 - lng1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-    return Math.round(2 * R * Math.asin(Math.sqrt(a)));
   }
 
   /** Dispatch'ni to'xtatish (operator qo'lda biriktirganda). */
@@ -313,25 +341,16 @@ export class DispatchService implements OnModuleInit {
   }
 
   /**
-   * Reyting tie-break (2.4): masofa asosiy, lekin ~200m bucket ichida yuqori reyting
-   * oldinroq. Nomzodlar shu tartibda taklif oladi.
+   * Reyting tie-break (2.4): reytinglarni DB'dan olib, tartiblashni sof
+   * `sortCandidates()` ga topshiradi (u alohida unit test bilan qoplangan).
    */
-  private async applyRatingTieBreak(
-    candidates: Array<{ driverId: string; distanceM: number }>,
-  ): Promise<void> {
+  private async applyRatingTieBreak(candidates: Candidate[]): Promise<void> {
     if (candidates.length < 2) return;
     const drivers = await this.driverRepo.find({
       where: { id: In(candidates.map((c) => c.driverId)) },
     });
-    const rating = new Map(drivers.map((d) => [d.id, Number(d.ratingAvg)]));
-    const bucket = (m: number) => Math.round(m / 200);
-    candidates.sort((a, b) => {
-      const bd = bucket(a.distanceM) - bucket(b.distanceM);
-      if (bd !== 0) return bd;
-      const rd = (rating.get(b.driverId) ?? 0) - (rating.get(a.driverId) ?? 0);
-      if (rd !== 0) return rd;
-      return a.distanceM - b.distanceM;
-    });
+    const rating = new Map(drivers.map((d) => [d.id, d.ratingAvg]));
+    sortCandidates(candidates, (id) => rating.get(id) ?? 0);
   }
 
   private async offer(state: DispatchState, driverId: string, distanceM: number): Promise<void> {
@@ -401,7 +420,7 @@ export class DispatchService implements OnModuleInit {
       if (state.active && state.offered.has(driverId)) {
         const distanceM =
           driver?.lastLat != null && driver.lastLng != null
-            ? this.haversineM(state.lat, state.lng, driver.lastLat, driver.lastLng)
+            ? haversineM(state.lat, state.lng, driver.lastLat, driver.lastLng)
             : 0;
         this.emitOfferPayload(state, driverId, distanceM);
       }
@@ -507,7 +526,7 @@ export class DispatchService implements OnModuleInit {
             .filter(Boolean)
             .join(' '),
           plate: info.vehicle?.plate ?? '',
-          ratingAvg: Number(info.driver.ratingAvg),
+          ratingAvg: info.driver.ratingAvg,
         }
       : undefined;
 

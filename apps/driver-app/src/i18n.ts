@@ -48,6 +48,8 @@ const dict: Record<Lang, Record<string, string>> = {
     cancel_trip: 'Bekor qilish',
     trip_cancelled_title: 'Safar bekor qilindi',
     trip_cancelled_msg: 'Buyurtma mijoz yoki operator tomonidan bekor qilindi.',
+    error: 'Xatolik',
+    error_generic: 'Amalni bajarib bo‘lmadi. Qaytadan urinib ko‘ring.',
     lang_switch: 'Rus tili',
   },
   ru: {
@@ -97,6 +99,8 @@ const dict: Record<Lang, Record<string, string>> = {
     cancel_trip: 'Отменить',
     trip_cancelled_title: 'Поездка отменена',
     trip_cancelled_msg: 'Заказ отменён клиентом или оператором.',
+    error: 'Ошибка',
+    error_generic: 'Не удалось выполнить действие. Попробуйте ещё раз.',
     lang_switch: 'O‘zbekcha',
   },
 };

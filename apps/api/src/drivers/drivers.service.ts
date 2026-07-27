@@ -179,7 +179,7 @@ export class DriversService {
         phone: d.phone,
         plate: v?.plate ?? '',
         car: [v?.color, v?.make, v?.model].filter(Boolean).join(' '),
-        ratingAvg: Number(d.ratingAvg),
+        ratingAvg: d.ratingAvg,
         lat: d.lastLat!,
         lng: d.lastLng!,
         status: d.status,
@@ -203,9 +203,24 @@ export class DriversService {
     await this.geo.removeFromAll(driverId);
   }
 
-  /** Safar tugagach yoki bekor bo'lgach — yana bo'sh. */
+  /**
+   * Safar tugagach yoki bekor bo'lgach — yana bo'sh.
+   *
+   * MUHIM: `markOnTrip()` haydovchini Redis geo-indeksidan o'chirgan edi, shuning uchun
+   * bu yerda uni QAYTARAMIZ. Aks holda haydovchi safardan keyin ilovaning keyingi GPS
+   * yangilanishigacha dispatch uchun ko'rinmay turadi (GPS to'xtab qolsa — umuman).
+   */
   async markIdle(driverId: string): Promise<void> {
+    const driver = await this.drivers.findOne({ where: { id: driverId } });
+    if (!driver) return;
+    // Oflayn haydovchini "bo'sh" qilib qo'ymaymiz — ilovasi yopiq bo'lsa taklif javobsiz qoladi.
+    if (driver.status === DriverStatus.OFFLINE) return;
+
     await this.drivers.update(driverId, { status: DriverStatus.ONLINE_IDLE });
+    if (driver.lastLat != null && driver.lastLng != null) {
+      const category = await this.getCategory(driverId);
+      await this.geo.setDriverLocation(driverId, category, driver.lastLng, driver.lastLat);
+    }
   }
 
   async setPushToken(driverId: string, token: string): Promise<void> {

@@ -43,10 +43,27 @@ Redis: "Add Service → Database → Redis".
   DISPATCH_RADIUS_STEPS_M=2000,4000,6000
   DISPATCH_NO_DRIVER_TIMEOUT_SEC=60
   FCM_SERVER_KEY=            # ixtiyoriy
+  SWAGGER_ENABLED=false      # 'true' bo'lsa /docs prod'da ochiladi
+  LOGIN_RATE_LIMIT=5         # login urinishlari / daqiqa / hisob
   ```
   > `PORT` — Railway avtomatik beradi. Migratsiyalar start'dan oldin avtomatik ishlaydi
   > (`run-migrations.js`).
-- **Healthcheck:** `/health` (railway.json'da sozlangan).
+- **Healthcheck:** `/health` (railway.json'da sozlangan). Nosozlikda **503** qaytadi
+  (`@nestjs/terminus`), ya'ni DB yoki Redis yiqilgan deploy o'tmaydi.
+
+### ⚠️ API FAQAT BITTA INSTANSIYADA ishlashi SHART
+
+`numReplicas` ni **1** dan oshirmang. Dispatch holati butunlay xotirada saqlanadi
+(`DispatchService.states` — `Map` + `setTimeout` taymerlari), bot sessiyasi ham
+(`apps/bot/src/session.ts`), va Socket.IO Redis adapter'siz ishlaydi. Ikkinchi instansiya
+qo'shilsa jimgina buziladi:
+
+- ikkala instansiya bir zakazni parallel dispatch qiladi (haydovchi ikki marta taklif oladi);
+- haydovchining javobi taklifni yuborgan instansiyaga tushmasa — e'tiborsiz qoladi;
+- `realtime.emitToDriver(...)` boshqa instansiyadagi socketga yetmaydi.
+
+Replica qo'shishdan **oldin** kerak: `@socket.io/redis-adapter`, dispatch taymerlarini
+Redis/BullMQ delayed job'larga ko'chirish, bot sessiyasini Redis'ga o'tkazish.
 - Domen: "Settings → Networking → Generate Domain" → `https://<api>.up.railway.app`.
 
 ## 3. Bot servisi
@@ -77,10 +94,18 @@ Redis: "Add Service → Database → Redis".
 
 - **JWT_SECRET / INTERNAL_API_KEY** — kuchli, tasodifiy; api va bot'da `INTERNAL_API_KEY`
   bir xil bo'lishi shart.
-- **Admin parol:** hozircha oddiy matn (`admin_users.password_hash`). Productionda bcrypt
-  qo'shing va admin'ni yangi parol bilan yarating (SQL orqali yoki keyingi seed).
+- **Admin parol:** bcrypt (`bcryptjs`). Bootstrap super-admin `ADMIN_LOGIN`/`ADMIN_PASSWORD`
+  env'laridan yaratiladi (create-if-missing).
 - **DATABASE_SSL=true** — Railway Postgres uchun.
+- **Replica: 1 ta** — yuqoridagi ogohlantirishga qarang.
+- **Loglar:** `Authorization`, `x-internal-key` va parol maydonlari pino `redact` bilan
+  yashiriladi. Har so'rovda `x-request-id` bor — nosozlikni kuzatishda shu id bo'yicha qidiring.
 - **CORS:** api hozir hammaga ochiq (`enableCors()`); productionda admin domeniga cheklang.
+- **Rate limiting:** `/auth/*/login` da `@nestjs/throttler` — `LOGIN_RATE_LIMIT` (default 5)
+  urinish/daqiqa. Hisoblagich **IP + hisob** bo'yicha kalitlanadi (`LoginThrottlerGuard`),
+  shuning uchun bitta NAT ortidagi ko'p haydovchi bir-birini bloklamaydi.
+  `main.ts` da `trust proxy` yoqilgan — busiz Railway edge ortida hamma bitta IP bo'lib
+  ko'rinardi va limit barchani bloklardi.
 - **Xarita xizmatlari** (OSRM/Nominatim) — og'ir, alohida bosqichda (hozir MVP ularsiz
   ishlaydi; admin xaritasi to'g'ridan OSM tile'laridan foydalanadi).
 

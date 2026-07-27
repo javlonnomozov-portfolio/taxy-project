@@ -22,14 +22,22 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # @tty/shared boshqa paketlarga `dist` sifatida kerak.
       - name: Build shared
         run: pnpm --filter @tty/shared build
 
-      - name: Lint (typecheck)
-        run: pnpm -r lint
+      # ESLint — HAQIQIY lint. Avval bu qadam faqat `tsc --noEmit` edi (tip tekshiruvi),
+      # ya'ni ishlatilmagan o'zgaruvchi/import kabi narsalar CI'dan o'tib ketardi.
+      - name: Lint
+        run: pnpm lint
+
+      # Tip tekshiruvi endi lint'dan alohida qadam.
+      - name: Typecheck
+        run: pnpm typecheck
 
       - name: Build
         run: pnpm -r build
 
+      # Unit testlar (pricing / billing / dispatch tie-break).
       - name: Test
         run: pnpm -r test

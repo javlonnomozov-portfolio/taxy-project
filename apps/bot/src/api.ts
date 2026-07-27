@@ -34,6 +34,7 @@ export const apiClient = {
     category: string;
     pickup: { lat: number; lng: number };
     destination?: { lat: number; lng: number };
+    destAddress?: string;
     note?: string;
   }) {
     return req<{ id: string; status: string }>('POST', '/orders', data);
