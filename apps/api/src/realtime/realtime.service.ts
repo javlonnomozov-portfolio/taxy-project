@@ -30,4 +30,19 @@ export class RealtimeService {
   emitToOps(event: string, payload: unknown) {
     this.opsServer?.to('ops').emit(event, payload);
   }
+
+  /**
+   * Haydovchining barcha socketlarini majburan uzish (bloklanganda).
+   * Faqat HTTP guard'ini tekshirish yetarli emas — allaqachon ochilgan socket
+   * ulanish tekshiruvdan o'tib bo'lgan va zakaz qabul qilishda davom etardi.
+   */
+  async disconnectDriver(driverId: string, reason = 'blocked'): Promise<void> {
+    const server = this.driverServer;
+    if (!server) return;
+    const sockets = await server.in(`driver:${driverId}`).fetchSockets();
+    for (const s of sockets) {
+      s.emit('session:revoked', { reason });
+      s.disconnect(true);
+    }
+  }
 }

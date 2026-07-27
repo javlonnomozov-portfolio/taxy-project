@@ -6,7 +6,10 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import helmet from 'helmet';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
+import { corsOptions, parseOrigins } from './config/cors';
+import { CorsSocketAdapter } from './realtime/cors-socket.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
@@ -18,13 +21,31 @@ async function bootstrap() {
   app.set('trust proxy', 1);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.enableCors();
+
+  // Standart himoya sarlavhalari. API JSON qaytaradi va brauzerda sahifa
+  // ko'rsatmaydi, shuning uchun CSP shart emas; `crossOriginResourcePolicy`
+  // esa Swagger UI statikasiga xalaqit bermasligi uchun yumshatilgan.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
+
+  const config = app.get(ConfigService);
+  // CORS: prod'da faqat ro'yxatdagi origin'lar (admin domeni). Busiz istalgan
+  // sayt brauzerdan admin tokeni bilan API'ga so'rov yubora olardi.
+  const origins = parseOrigins(config.get<string>('CORS_ORIGINS'));
+  app.enableCors(corsOptions(origins));
+  // Socket.IO ham xuddi shu qoidani ishlatadi (gateway dekoratorlari env o'qiy olmaydi).
+  app.useWebSocketAdapter(new CorsSocketAdapter(app, origins));
+  app.get(Logger).log(
+    origins ? `CORS ruxsat etilgan: ${origins.join(', ')}` : 'CORS: hammaga ochiq (dev)',
+  );
 
   // Deploy/qayta ishga tushishda dispatch taymerlarini tartibli yopish uchun
   // (DispatchService.onModuleDestroy) — busiz haydovchi ilovasida osilgan taklif qolardi.
   app.enableShutdownHooks();
-
-  const config = app.get(ConfigService);
 
   // OpenAPI — 3 ta klient (bot, admin, driver-app) shu shartnomaga tayanadi.
   // Prod'da yopiq: SWAGGER_ENABLED=true bo'lsagina ochiladi.

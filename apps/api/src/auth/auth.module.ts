@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { AdminSeedService } from './admin-seed.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { InternalGuard } from './internal.guard';
+import { AccountStatusService } from './account-status.service';
 import { Driver } from '../entities/driver.entity';
 import { AdminUser } from '../entities/admin-user.entity';
 
@@ -23,7 +24,7 @@ import { AdminUser } from '../entities/admin-user.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AdminSeedService, JwtAuthGuard, InternalGuard],
-  exports: [AuthService, JwtAuthGuard, InternalGuard, JwtModule],
+  providers: [AuthService, AdminSeedService, JwtAuthGuard, InternalGuard, AccountStatusService],
+  exports: [AuthService, JwtAuthGuard, InternalGuard, AccountStatusService, JwtModule],
 })
 export class AuthModule {}

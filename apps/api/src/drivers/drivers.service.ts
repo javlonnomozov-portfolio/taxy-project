@@ -11,6 +11,7 @@ import { GeoService } from '../geo/geo.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { Driver } from '../entities/driver.entity';
 import { Vehicle } from '../entities/vehicle.entity';
+import { AccountStatusService } from '../auth/account-status.service';
 
 @Injectable()
 export class DriversService {
@@ -21,6 +22,7 @@ export class DriversService {
     private readonly geo: GeoService,
     private readonly realtime: RealtimeService,
     private readonly config: ConfigService,
+    private readonly accounts: AccountStatusService,
   ) {}
 
   private catKey(driverId: string): string {
@@ -66,7 +68,9 @@ export class DriversService {
   async approve(driverId: string): Promise<Driver> {
     const driver = await this.mustFind(driverId);
     driver.approvalStatus = ApprovalStatus.APPROVED;
-    return this.drivers.save(driver);
+    const saved = await this.drivers.save(driver);
+    await this.accounts.invalidate('driver', driverId); // yana kira olsin
+    return saved;
   }
 
   async block(driverId: string): Promise<Driver> {
@@ -74,7 +78,13 @@ export class DriversService {
     driver.approvalStatus = ApprovalStatus.BLOCKED;
     driver.status = DriverStatus.OFFLINE;
     await this.geo.removeFromAll(driverId);
-    return this.drivers.save(driver);
+    const saved = await this.drivers.save(driver);
+    // Blok DARHOL kuchga kirsin: hisob keshini tozalaymiz (aks holda TTL tugagunча
+    // eski token ishlardi) va ochiq socketlarni uzamiz (ular guard'dan allaqachon
+    // o'tib bo'lgan va zakaz qabul qilishda davom etardi).
+    await this.accounts.invalidate('driver', driverId);
+    await this.realtime.disconnectDriver(driverId, 'blocked');
+    return saved;
   }
 
   listAll(): Promise<Driver[]> {

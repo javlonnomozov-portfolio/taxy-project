@@ -12,7 +12,8 @@ import { RealtimeService } from './realtime.service';
 
 const PANEL_ROLES: string[] = [PanelRole.SUPER_ADMIN, PanelRole.ADMIN, PanelRole.OPERATOR];
 
-@WebSocketGateway({ namespace: '/ops', cors: { origin: '*' } })
+// CORS markazlashgan: main.ts dagi CorsSocketAdapter (CORS_ORIGINS env).
+@WebSocketGateway({ namespace: '/ops' })
 export class OpsGateway implements OnGatewayInit, OnGatewayConnection {
   @WebSocketServer() server!: Server;
 

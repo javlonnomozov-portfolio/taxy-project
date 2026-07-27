@@ -1,4 +1,4 @@
-import { Logger, UseInterceptors } from '@nestjs/common';
+import { Logger, UnauthorizedException, UseInterceptors } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   OnGatewayConnection,
@@ -16,9 +16,11 @@ import { DriversService } from '../drivers/drivers.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { TripsService } from '../trips/trips.service';
 import { RealtimeService } from './realtime.service';
+import { AccountStatusService } from '../auth/account-status.service';
 import { WsErrorInterceptor } from '../common/ws-error.interceptor';
 
-@WebSocketGateway({ namespace: '/driver', cors: { origin: '*' } })
+// CORS markazlashgan: main.ts dagi CorsSocketAdapter (CORS_ORIGINS env).
+@WebSocketGateway({ namespace: '/driver' })
 // Har bir handler xatosi ilovaga `{ ok: false, code, message }` ack bo'lib qaytadi.
 @UseInterceptors(WsErrorInterceptor)
 export class DriverGateway
@@ -38,6 +40,7 @@ export class DriverGateway
     private readonly dispatch: DispatchService,
     private readonly trips: TripsService,
     private readonly realtime: RealtimeService,
+    private readonly accounts: AccountStatusService,
   ) {}
 
   afterInit(server: Server) {
@@ -49,8 +52,18 @@ export class DriverGateway
       const token = client.handshake.auth?.token as string | undefined;
       const payload = await this.jwt.verifyAsync<JwtPayload>(token ?? '');
       if (payload.role !== 'driver') throw new Error('rol');
+      // MUHIM — TARTIB: `driverId` ni I/O'dan OLDIN o'rnatamiz. Socket.IO mijozga
+      // `connect` ni transport ulanishi bilanoq beradi, ya'ni mijoz `driver:online`
+      // ni shu yerdagi await'lar tugashidan oldin yuborishi mumkin. Agar `driverId`
+      // hali o'rnatilmagan bo'lsa, handler bo'sh id bilan ishlab DB xatosi berardi.
       client.data.driverId = payload.sub;
       await client.join(`driver:${payload.sub}`);
+
+      // Token 7 kun yashaydi — hisob orada bloklangan bo'lishi mumkin.
+      if (!(await this.accounts.isActive('driver', payload.sub))) {
+        client.emit('session:revoked', { reason: 'blocked' });
+        throw new Error('bloklangan');
+      }
       // Qayta ulandi — kutilayotgan oflayn taymerini bekor qilamiz.
       const pending = this.offlineTimers.get(payload.sub);
       if (pending) {
@@ -59,7 +72,9 @@ export class DriverGateway
       }
       // Fondan qaytган bo'lsa — hali kutilayotgan taklifni qayta ko'rsatamiz.
       await this.dispatch.resendActiveOffer(payload.sub);
-    } catch {
+    } catch (e) {
+      // Avval xato jimgina yutilardi — ulanish nega rad etilgani umuman ko'rinmasdi.
+      this.log.warn(`Haydovchi socket ulanishi rad etildi: ${(e as Error).message}`);
       client.disconnect(true);
     }
   }
@@ -82,8 +97,15 @@ export class DriverGateway
     );
   }
 
+  /**
+   * Handler'lar uchun haydovchi id'si. Bo'sh bo'lsa DARHOL to'xtaymiz — avval
+   * `undefined` shundayligicha servislarga o'tib, TypeORM'da tushunarsiz
+   * "Empty criteria" xatosiga aylanardi.
+   */
   private driverId(client: Socket): string {
-    return client.data.driverId as string;
+    const id = client.data.driverId as string | undefined;
+    if (!id) throw new UnauthorizedException('Sessiya tayyor emas — qayta ulaning');
+    return id;
   }
 
   @SubscribeMessage(SOCKET_EVENTS.driver.online)

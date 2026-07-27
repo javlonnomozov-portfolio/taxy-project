@@ -10,7 +10,8 @@ import { RealtimeService } from './realtime.service';
 
 // Mijoz kanali. Ishlab chiqarishda bot backend proksi qiladi; Sprint 1'da
 // mijoz customerId + ichki kalit bilan ulanadi (jonli status olish uchun).
-@WebSocketGateway({ namespace: '/customer', cors: { origin: '*' } })
+// CORS markazlashgan: main.ts dagi CorsSocketAdapter (CORS_ORIGINS env).
+@WebSocketGateway({ namespace: '/customer' })
 export class CustomerGateway implements OnGatewayInit, OnGatewayConnection {
   @WebSocketServer() server!: Server;
 

@@ -23,7 +23,8 @@
     "sim:bot": "node scripts/bot-flow-sim.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "sim:race": "node scripts/race-sim.mjs",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "sim:security": "node scripts/security-sim.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
