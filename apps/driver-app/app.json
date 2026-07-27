@@ -30,6 +30,7 @@
     },
     "android": {
       "package": "uz.toytaxy.driver",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#B40496"
