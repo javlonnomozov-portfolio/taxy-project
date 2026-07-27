@@ -11,6 +11,7 @@ import { CustomersModule } from './customers/customers.module';
 import { DriversModule } from './drivers/drivers.module';
 import { OrdersModule } from './orders/orders.module';
 import { DispatchModule } from './dispatch/dispatch.module';
+import { OffersModule } from './offers/offers.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { SettingsModule } from './settings/settings.module';
 import { PricingModule } from './pricing/pricing.module';
@@ -55,6 +56,7 @@ import { OpsModule } from './ops/ops.module';
     ReputationModule,
     OrdersModule,
     DispatchModule,
+    OffersModule,
     OpsModule,
     RealtimeModule,
   ],

@@ -37,7 +37,7 @@ interface DispatchState {
   offerTimeoutMs: number;
   radiusSteps: number[];
   radiusIdx: number;
-  offered: Map<string, NodeJS.Timeout>;
+  offered: Map<string, { timer: NodeJS.Timeout; at: number; distanceM: number }>;
   declined: Set<string>;
   active: boolean;
   noDriverTimer?: NodeJS.Timeout;
@@ -272,7 +272,7 @@ export class DispatchService implements OnModuleInit {
     state.active = false;
     if (state.noDriverTimer) clearTimeout(state.noDriverTimer);
     for (const [id, t] of state.offered) {
-      clearTimeout(t);
+      clearTimeout(t.timer);
       this.realtime.emitToDriver(id, SOCKET_EVENTS.driver.orderOfferCancelled, { orderId });
     }
     state.offered.clear();
@@ -339,7 +339,7 @@ export class DispatchService implements OnModuleInit {
       () => this.decline(state, driverId, 'timeout').catch((e) => this.log.error(`decline xato: ${(e as Error).message}`)),
       state.offerTimeoutMs,
     );
-    state.offered.set(driverId, timeout);
+    state.offered.set(driverId, { timer: timeout, at: Date.now(), distanceM });
 
     this.emitOfferPayload(state, driverId, distanceM);
     await this.events.record(state.orderId, 'offered', ActorType.SYSTEM, {
@@ -371,6 +371,30 @@ export class DispatchService implements OnModuleInit {
    * Qayta ulangan haydovchiga hali kutilayotgan taklifni qayta yuboramiz
    * (ilova fondan qaytганда taklif ko'rinmay qolmasin).
    */
+  /** Haydovchi uchun hozir kutilayotgan barcha takliflar (ilova ro'yxat + fon uchun). */
+  pendingOffersFor(driverId: string): Array<Record<string, unknown>> {
+    const out: Array<Record<string, unknown>> = [];
+    for (const state of this.states.values()) {
+      if (!state.active) continue;
+      const o = state.offered.get(driverId);
+      if (!o) continue;
+      const remainingSec = Math.max(0, Math.round((o.at + state.offerTimeoutMs - Date.now()) / 1000));
+      out.push({
+        orderId: state.orderId,
+        pickup: { lat: state.lat, lng: state.lng },
+        pickupAddress: state.pickupAddress ?? undefined,
+        dest: state.destLat != null ? { lat: state.destLat, lng: state.destLng } : undefined,
+        destAddress: state.destAddress ?? undefined,
+        distanceM: o.distanceM,
+        category: state.category,
+        note: state.note ?? undefined,
+        timeoutSec: remainingSec,
+        customer: { phone: state.customerPhone ?? '', name: state.customerName ?? undefined },
+      });
+    }
+    return out;
+  }
+
   async resendActiveOffer(driverId: string): Promise<void> {
     const driver = await this.driverRepo.findOne({ where: { id: driverId } });
     for (const state of this.states.values()) {
@@ -386,7 +410,7 @@ export class DispatchService implements OnModuleInit {
 
   private async decline(state: DispatchState, driverId: string, reason: string): Promise<void> {
     const t = state.offered.get(driverId);
-    if (t) clearTimeout(t);
+    if (t) clearTimeout(t.timer);
     if (!state.offered.delete(driverId)) return;
     state.declined.add(driverId);
     this.realtime.emitToDriver(driverId, SOCKET_EVENTS.driver.orderOfferCancelled, {
@@ -443,8 +467,15 @@ export class DispatchService implements OnModuleInit {
     state.active = false;
     if (state.noDriverTimer) clearTimeout(state.noDriverTimer);
 
+    // Haydovchi endi band — boshqa buyurtmalarning unga bo'lgan takliflarini bekor qilamiz.
+    for (const other of this.states.values()) {
+      if (other.orderId !== state.orderId && other.active && other.offered.has(driverId)) {
+        void this.decline(other, driverId, 'assigned_elsewhere');
+      }
+    }
+
     for (const [otherId, t] of state.offered) {
-      clearTimeout(t);
+      clearTimeout(t.timer);
       if (otherId !== driverId) {
         this.realtime.emitToDriver(otherId, SOCKET_EVENTS.driver.orderOfferCancelled, {
           orderId: state.orderId,
@@ -508,7 +539,7 @@ export class DispatchService implements OnModuleInit {
     state.active = false;
     if (state.noDriverTimer) clearTimeout(state.noDriverTimer);
     for (const [id, t] of state.offered) {
-      clearTimeout(t);
+      clearTimeout(t.timer);
       this.realtime.emitToDriver(id, SOCKET_EVENTS.driver.orderOfferCancelled, {
         orderId: state.orderId,
       });

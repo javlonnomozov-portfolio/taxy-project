@@ -132,8 +132,9 @@ async function main() {
   check('Mijoz ACCEPTED statusini oldi', !!accStatus);
   check('Mijozga haydovchi kartasi keldi (raqam bilan)', !!accStatus?.driver?.phone);
 
-  // 7) NO_DRIVER (cargo toifasida haydovchi yo'q)
-  console.log('\n--- Test 4: haydovchi topilmasa NO_DRIVER ---');
+  // 7) Haydovchi topilmasa: backendda NO_DRIVER, LEKIN mijozga avto xabar yubormaydi
+  //    (dispatcher/operator hal qiladi — mijozlarni yo'qotmaslik uchun).
+  console.log('\n--- Test 4: haydovchi topilmasa NO_DRIVER (dispatcher nazorati) ---');
   const customer2 = await j(
     'POST',
     '/customers/upsert',
@@ -149,8 +150,10 @@ async function main() {
     { 'x-internal-key': KEY },
   );
   await sleep(800);
-  const noDriver = cust2.statuses.find((s) => s.orderId === order2.id && s.status === 'NO_DRIVER');
-  check('Cargo buyurtma NO_DRIVER bo\'ldi', !!noDriver);
+  const ord2 = await j('GET', '/orders/' + order2.id, undefined, { 'x-internal-key': KEY });
+  check('Cargo buyurtma backendda NO_DRIVER bo\'ldi', ord2.status === 'NO_DRIVER');
+  const custGotNoDriver = cust2.statuses.some((s) => s.orderId === order2.id && s.status === 'NO_DRIVER');
+  check('Mijozga avto NO_DRIVER YUBORILMADI (dispatcher hal qiladi)', !custGotNoDriver);
 
   // Yakun
   console.log(`\n=== Natija: ${passed} ✅ / ${failed} ❌ ===\n`);
