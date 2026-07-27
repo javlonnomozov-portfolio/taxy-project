@@ -51,11 +51,16 @@ const DEFAULT_METER = { baseFare: 4000, perKm: 0, waitingPerMin: 0 };
 // ularni tiklaydigan timer yo'q, mijozning keyingi zakazlari bloklanadi.
 // Boot'da: yaqinda yaratilganlarni qayta dispatch qilamiz, eskirganlarni NO_DRIVER.
 const RECOVERY_MAX_AGE_MS = 15 * 60_000; // 15 daqiqadan eski yetimlar → NO_DRIVER
+// Avto-dispatch haydovchi topolmasa — mijozga darhol "taksi yo'q" demaymiz.
+// Operator (dispatcher) shu oyna ichida qo'lda taksi topishga urinadi.
+const OPERATOR_WINDOW_MS = 5 * 60_000;
 
 @Injectable()
 export class DispatchService implements OnModuleInit {
   private readonly log = new Logger(DispatchService.name);
   private readonly states = new Map<string, DispatchState>();
+  // NO_DRIVER'dan keyin operator hal qilmasa — mijozni xabardor qilish taymeri.
+  private readonly operatorFallback = new Map<string, NodeJS.Timeout>();
 
   constructor(
     @InjectRepository(Order) private readonly orders: Repository<Order>,
@@ -210,6 +215,7 @@ export class DispatchService implements OnModuleInit {
     if (driver.status !== DriverStatus.ONLINE_IDLE) throw new Error('Haydovchi hozir bo‘sh emas');
 
     this.abort(orderId); // avvalgi holatni tozalaymiz
+    this.cancelOperatorFallback(orderId); // operator harakat qildi — fallback shart emas
     await this.orders.update(orderId, { status: OrderStatus.DISPATCHING });
     await this.events.record(orderId, 'dispatching', ActorType.OPERATOR, {
       actorId: driverId,
@@ -522,13 +528,50 @@ export class DispatchService implements OnModuleInit {
     if (!res.affected) return;
 
     await this.events.record(state.orderId, 'no_driver', ActorType.SYSTEM);
-    this.notifyCustomer(state.customerId, state.orderId, OrderStatus.NO_DRIVER);
+    // MIJOZGA "taksi yo'q" demaymiz — operator (dispatcher) hal qilsin.
+    // Operatorga ko'rsatamiz (admin ro'yxatida qizil zakaz + ogohlantirish).
+    this.realtime.emitToOps(SOCKET_EVENTS.ops.orderUpdate, {
+      orderId: state.orderId,
+      status: OrderStatus.NO_DRIVER,
+      driverId: null,
+    });
     this.realtime.emitToOps(SOCKET_EVENTS.ops.alert, {
       type: 'NO_DRIVER',
       orderId: state.orderId,
-      message: 'Haydovchi topilmadi',
+      message: 'Avto-dispatch taksi topmadi — qo‘lda biriktiring',
     });
-    this.log.warn(`Buyurtma ${state.orderId} → NO_DRIVER`);
+    // Operator oynasi: shu vaqt ichida biriktirmasa, mijozni xabardor qilamiz.
+    this.scheduleOperatorFallback(state.orderId, state.customerId);
+    this.log.warn(`Buyurtma ${state.orderId} → NO_DRIVER (operator hal qiladi)`);
+  }
+
+  /** Operator oynasi tugagach mijozga "taksi yo'q" (agar hali NO_DRIVER bo'lsa). */
+  private scheduleOperatorFallback(orderId: string, customerId: string): void {
+    const existing = this.operatorFallback.get(orderId);
+    if (existing) clearTimeout(existing);
+    this.operatorFallback.set(
+      orderId,
+      setTimeout(() => {
+        this.operatorFallback.delete(orderId);
+        void this.expireNoDriverToCustomer(orderId, customerId);
+      }, OPERATOR_WINDOW_MS),
+    );
+  }
+
+  /** Operator biriktirgan/yopgan bo'lsa — fallback taymerini bekor qilamiz. */
+  cancelOperatorFallback(orderId: string): void {
+    const t = this.operatorFallback.get(orderId);
+    if (t) {
+      clearTimeout(t);
+      this.operatorFallback.delete(orderId);
+    }
+  }
+
+  private async expireNoDriverToCustomer(orderId: string, customerId: string): Promise<void> {
+    const order = await this.orders.findOne({ where: { id: orderId } });
+    if (!order || order.status !== OrderStatus.NO_DRIVER) return; // operator allaqachon hal qilgan
+    this.notifyCustomer(customerId, orderId, OrderStatus.NO_DRIVER);
+    this.log.warn(`Buyurtma ${orderId} → operator oynasi tugadi, mijozga xabar berildi`);
   }
 
   private notifyCustomer(customerId: string, orderId: string, status: OrderStatus): void {

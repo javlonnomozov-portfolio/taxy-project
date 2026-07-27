@@ -5,6 +5,8 @@ import { Dashboard } from './pages/Dashboard';
 import { Drivers } from './pages/Drivers';
 import { Settings } from './pages/Settings';
 import { Scheduled } from './pages/Scheduled';
+import { Customers } from './pages/Customers';
+import { Orders } from './pages/Orders';
 
 function Layout({ children }: { children: React.ReactNode }) {
   const nav = useNavigate();
@@ -18,6 +20,8 @@ function Layout({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="nav">
           <NavLink to="/" end>Panel</NavLink>
+          <NavLink to="/orders">Zakazlar</NavLink>
+          <NavLink to="/customers">Foydalanuvchilar</NavLink>
           <NavLink to="/scheduled">Oldindan buyurtmalar</NavLink>
           {isAdmin && <NavLink to="/drivers">Haydovchilar</NavLink>}
           {isAdmin && <NavLink to="/settings">Sozlamalar</NavLink>}
@@ -47,6 +51,8 @@ export function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Protected><Dashboard /></Protected>} />
+      <Route path="/orders" element={<Protected><Orders /></Protected>} />
+      <Route path="/customers" element={<Protected><Customers /></Protected>} />
       <Route path="/scheduled" element={<Protected><Scheduled /></Protected>} />
       <Route path="/drivers" element={<Protected><Drivers /></Protected>} />
       <Route path="/settings" element={<Protected><Settings /></Protected>} />

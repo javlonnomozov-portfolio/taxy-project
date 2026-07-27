@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { ActorType, OrderStatus, OrderType, PanelRole, SOCKET_EVENTS, VehicleCategory } from '@tty/shared';
 import { Order } from '../entities/order.entity';
+import { Customer } from '../entities/customer.entity';
 import { ACTIVE_STATUSES } from '../orders/orders.constants';
 import { OrderEventsService } from '../orders/order-events.service';
 import { DriversService } from '../drivers/drivers.service';
@@ -18,6 +19,7 @@ import { Tariff } from '../entities/tariff.entity';
 export class OpsService {
   constructor(
     @InjectRepository(Order) private readonly orders: Repository<Order>,
+    @InjectRepository(Customer) private readonly customers: Repository<Customer>,
     private readonly events: OrderEventsService,
     private readonly drivers: DriversService,
     private readonly dispatch: DispatchService,
@@ -54,6 +56,7 @@ export class OpsService {
       throw new BadRequestException('Bu holatda qo‘lda biriktirib bo‘lmaydi');
     }
     this.dispatch.abort(orderId);
+    this.dispatch.cancelOperatorFallback(orderId);
     await this.orders.update(orderId, {
       driverId,
       status: OrderStatus.ACCEPTED,
@@ -88,6 +91,20 @@ export class OpsService {
     return (await this.orders.findOne({ where: { id: orderId } }))!;
   }
 
+  /** Foydalanuvchilar (mijozlar) ro'yxati. */
+  listCustomers() {
+    return this.customers.find({ order: { createdAt: 'DESC' }, take: 500 });
+  }
+
+  /** Zakazlar tarixi — joriy + tugagan (so'nggilar). Ixtiyoriy status filtri. */
+  ordersHistory(status?: OrderStatus) {
+    return this.orders.find({
+      where: status ? { status } : {},
+      order: { createdAt: 'DESC' },
+      take: 300,
+    });
+  }
+
   /** Operator xaritadan tanlagan haydovchiga yo'naltirilgan taklif yuboradi. */
   async offerToDriver(orderId: string, driverId: string): Promise<{ ok: true }> {
     await this.dispatch.offerToDriver(orderId, driverId);
@@ -118,7 +135,9 @@ export class OpsService {
   async close(orderId: string, reason?: string): Promise<void> {
     const order = await this.orders.findOne({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Buyurtma topilmadi');
+    const wasNoDriver = order.status === OrderStatus.NO_DRIVER;
     this.dispatch.abort(orderId);
+    this.dispatch.cancelOperatorFallback(orderId);
     await this.orders.update(orderId, { status: OrderStatus.CLOSED_BY_OPERATOR });
     if (order.driverId) {
       await this.drivers.markIdle(order.driverId);
@@ -128,9 +147,11 @@ export class OpsService {
       });
     }
     await this.events.record(orderId, 'closed', ActorType.OPERATOR, { reason });
+    // NO_DRIVER zakazni operator yopsa — mijozga "taksi yo'q" (dispatcher qarori);
+    // aks holda oddiy bekor qilish xabari.
     this.realtime.emitToCustomer(order.customerId, SOCKET_EVENTS.customer.orderStatus, {
       orderId,
-      status: OrderStatus.CLOSED_BY_OPERATOR,
+      status: wasNoDriver ? OrderStatus.NO_DRIVER : OrderStatus.CLOSED_BY_OPERATOR,
     });
     this.realtime.emitToOps(SOCKET_EVENTS.ops.orderUpdate, {
       orderId,

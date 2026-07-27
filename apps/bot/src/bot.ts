@@ -11,7 +11,6 @@ import {
   mainMenu,
   phoneKeyboard,
   pickupKeyboard,
-  skipKeyboard,
 } from './keyboards';
 import { getSession, resetDraft } from './session';
 import { trackOrder, stopTracking } from './tracker';
@@ -161,19 +160,8 @@ export function createBot(): Telegraf {
       return ctx.reply(t(s.lang, 'choose_category'), categoryKeyboard(s.lang));
     }
 
-    // 3) Oqim qadamlari — matn qabul qilinadigan bosqichlar
-    if (s.step === 'dest') {
-      if (text !== t(s.lang, 'skip')) s.draft.destAddress = text;
-      s.step = 'note';
-      return ctx.reply(t(s.lang, 'ask_note'), skipKeyboard(s.lang));
-    }
-    if (s.step === 'note') {
-      if (text !== t(s.lang, 'skip')) s.draft.note = text;
-      s.step = 'confirm';
-      return ctx.reply(t(s.lang, 'confirm_order', s.draft.category ?? ''), confirmKeyboard(s.lang));
-    }
-
-    // 4) Noto'g'ri kiritish — tegishli tugmadan foydalanishni so'raymiz
+    // 3) Noto'g'ri kiritish — tegishli tugmadan foydalanishni so'raymiz
+    // (Zakaz oqimi soddalashtirildi: faqat toifa + lokatsiya → tasdiqlash.)
     if (s.step === 'category') return ctx.reply(t(s.lang, 'use_category_btn'), categoryKeyboard(s.lang));
     if (s.step === 'pickup') return ctx.reply(t(s.lang, 'use_location_btn'), pickupKeyboard(s.lang));
     if (s.step === 'confirm') return ctx.reply(t(s.lang, 'use_confirm_btn'), confirmKeyboard(s.lang));
@@ -190,14 +178,14 @@ export function createBot(): Telegraf {
     await ctx.reply(t(s.lang, 'ask_pickup'), pickupKeyboard(s.lang));
   });
 
-  // Lokatsiya (olib ketish nuqtasi)
+  // Lokatsiya (olib ketish nuqtasi) → to'g'ridan tasdiqlashga (manzil/izoh so'ralmaydi)
   bot.on(message('location'), async (ctx) => {
     const s = getSession(ctx.chat.id);
     if (s.step !== 'pickup') return;
     const { latitude, longitude } = ctx.message.location;
     s.draft.pickup = { lat: latitude, lng: longitude };
-    s.step = 'dest';
-    await ctx.reply(t(s.lang, 'ask_dest'), skipKeyboard(s.lang));
+    s.step = 'confirm';
+    await ctx.reply(t(s.lang, 'confirm_order', s.draft.category ?? ''), confirmKeyboard(s.lang));
   });
 
   // Tasdiqlash → buyurtma yaratish

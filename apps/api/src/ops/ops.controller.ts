@@ -56,6 +56,20 @@ export class OpsController {
     return this.ops.listOrders(status);
   }
 
+  // Zakazlar tarixi (joriy + tugagan).
+  @Roles(PanelRole.OPERATOR, PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Get('orders/history')
+  ordersHistory(@Query('status') status?: OrderStatus) {
+    return this.ops.ordersHistory(status);
+  }
+
+  // Foydalanuvchilar (mijozlar).
+  @Roles(PanelRole.OPERATOR, PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Get('customers')
+  customers() {
+    return this.ops.listCustomers();
+  }
+
   @Roles(PanelRole.OPERATOR, PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
   @Post('orders/:id/assign')
   assign(@Param('id') id: string, @Body() dto: AssignDto) {
