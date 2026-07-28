@@ -72,6 +72,13 @@ export class DriverGateway
       }
       // Fondan qaytган bo'lsa — hali kutilayotgan taklifni qayta ko'rsatamiz.
       await this.dispatch.resendActiveOffer(payload.sub);
+
+      // Muvaffaqiyatli ulanishni ham loglaymiz: avval faqat rad etish yozilardi,
+      // shuning uchun "ilova ulanmayapti" shikoyatlarida server tomonda umuman
+      // ko'rinmasdi — ulanish kelganmi yoki yo'qmi, ajratib bo'lmasdi.
+      this.log.log(
+        `Haydovchi ulandi: ${payload.sub} (transport=${client.conn.transport.name}, ip=${client.handshake.address})`,
+      );
     } catch (e) {
       // Avval xato jimgina yutilardi — ulanish nega rad etilgani umuman ko'rinmasdi.
       this.log.warn(`Haydovchi socket ulanishi rad etildi: ${(e as Error).message}`);
@@ -81,6 +88,8 @@ export class DriverGateway
 
   async handleDisconnect(client: Socket) {
     const driverId = client.data.driverId as string | undefined;
+    // Uzilish sababi diagnostika uchun muhim (transport close / ping timeout / …).
+    this.log.log(`Haydovchi socketi uzildi: ${driverId ?? '(auth yo‘q)'}`);
     if (!driverId) return;
     // Shu haydovchining boshqa (yangi) ulanishi bormi? Bo'lsa — oflayn qilmaymiz.
     const sockets = await this.server.in(`driver:${driverId}`).fetchSockets();
