@@ -161,6 +161,17 @@ const dict: Record<Lang, Record<string, string>> = {
   },
 };
 
-export function makeT(lang: Lang) {
-  return (key: string) => dict[lang][key] ?? dict.uz[key] ?? key;
+// Har til uchun BITTA tarjimon saqlanadi. Avval har chaqiruvda yangi funksiya
+// qaytarardi, ya'ni `t` har renderda o'zgarardi — uni `useCallback`/`useEffect`
+// bog'liqligiga qo'ygan komponent cheksiz qayta render tsikliga tushib qolardi
+// (CabinetScreen aynan shunday yiqilgan edi).
+const translators = new Map<Lang, (key: string) => string>();
+
+export function makeT(lang: Lang): (key: string) => string {
+  let fn = translators.get(lang);
+  if (!fn) {
+    fn = (key: string) => dict[lang][key] ?? dict.uz[key] ?? key;
+    translators.set(lang, fn);
+  }
+  return fn;
 }
