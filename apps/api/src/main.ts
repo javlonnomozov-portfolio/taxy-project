@@ -37,8 +37,10 @@ async function bootstrap() {
   // sayt brauzerdan admin tokeni bilan API'ga so'rov yubora olardi.
   const origins = parseOrigins(config.get<string>('CORS_ORIGINS'));
   app.enableCors(corsOptions(origins));
-  // Socket.IO ham xuddi shu qoidani ishlatadi (gateway dekoratorlari env o'qiy olmaydi).
-  app.useWebSocketAdapter(new CorsSocketAdapter(app, origins));
+  // Socket.IO: bir xil CORS qoidasi + Redis adapter (ko'p instansiya uchun).
+  const wsAdapter = new CorsSocketAdapter(app, origins);
+  await wsAdapter.connectToRedis(config.get<string>('REDIS_URL')!);
+  app.useWebSocketAdapter(wsAdapter);
   app.get(Logger).log(
     origins ? `CORS ruxsat etilgan: ${origins.join(', ')}` : 'CORS: hammaga ochiq (dev)',
   );

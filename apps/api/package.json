@@ -26,6 +26,7 @@
     "@nestjs/throttler": "^6",
     "@nestjs/typeorm": "^10.0.2",
     "@nestjs/websockets": "^10.4.4",
+    "@socket.io/redis-adapter": "^8.3.0",
     "@tty/shared": "workspace:*",
     "bcryptjs": "^2.4.3",
     "class-transformer": "^0.5.1",

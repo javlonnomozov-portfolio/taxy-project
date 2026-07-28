@@ -47,7 +47,7 @@ export async function api<T = unknown>(
  * API bir xil xato shaklini qaytaradi: `{ statusCode, code, message, requestId }`.
  * Foydalanuvchiga xom JSON emas, o'qiladigan matn ko'rsatamiz.
  */
-function errorMessage(text: string, status: number): string {
+export function errorMessage(text: string, status: number): string {
   if (!text) return `Xatolik (${status})`;
   try {
     const body = JSON.parse(text) as { message?: string | string[] };
