@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaf
 import { api } from '../api';
 import { connectOps } from '../socket';
 import { StatusBadge, money, time } from '../ui';
+import { useI18n } from '../i18n';
 
 interface Order {
   id: string;
@@ -29,6 +30,14 @@ interface DriverPos {
 }
 interface Alert { type: string; orderId?: string; message: string; at: number }
 type Toast = { text: string; kind: 'ok' | 'err' } | null;
+interface Metrics {
+  windowHours: number;
+  total: number;
+  noDriverRate: number;
+  completionRate: number;
+  avgAcceptSec: number | null;
+  avgFare: number | null;
+}
 
 // Xizmat hududi markazi — Bulung'ur (Samarqand viloyati).
 const CENTER: [number, number] = [39.7683, 67.2792];
@@ -56,6 +65,7 @@ function FlyTo({ pos }: { pos: [number, number] | null }) {
 }
 
 export function Dashboard() {
+  const { t, lang } = useI18n();
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Record<string, DriverPos>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -63,6 +73,7 @@ export function Dashboard() {
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null); // tanlangan taksi
   const [toast, setToast] = useState<Toast>(null);
   const [confirmCloseId, setConfirmCloseId] = useState<string | null>(null);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
 
   function flash(text: string, kind: 'ok' | 'err' = 'ok') {
     setToast({ text, kind });
@@ -85,10 +96,16 @@ export function Dashboard() {
       });
     } catch { /* ignore */ }
   }
+  async function loadMetrics() {
+    try {
+      setMetrics(await api<Metrics>('GET', '/ops/metrics?hours=24'));
+    } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     load();
     loadDrivers();
+    loadMetrics();
     const s = connectOps();
     s.on('order:update', () => load());
     // Jonli yangilanish — mavjud ism/mashina ma'lumotini saqlab, joylashuvni yangilaymiz.
@@ -102,9 +119,12 @@ export function Dashboard() {
       load();
       loadDrivers();
     }, 10000);
+    // Metrikalar sekin o'zgaradi — kamroq so'raymiz.
+    const mIv = setInterval(loadMetrics, 60000);
     return () => {
       s.close();
       clearInterval(iv);
+      clearInterval(mIv);
     };
   }, []);
 
@@ -122,7 +142,7 @@ export function Dashboard() {
 
   async function sendOffer(driverId: string) {
     if (!selectedOrder) {
-      flash('Avval quyidan zakazni tanlang', 'err');
+      flash(t('select_order_first'), 'err');
       return;
     }
     try {
@@ -130,9 +150,9 @@ export function Dashboard() {
       setSelectedId(null);
       setSelectedDriverId(null);
       load();
-      flash('So‘rov yuborildi — haydovchi qabul qilishini kuting.');
+      flash(t('offer_sent'));
     } catch (e) {
-      flash('Xato: ' + (e as Error).message, 'err');
+      flash(t('error') + ': ' + (e as Error).message, 'err');
     }
   }
 
@@ -142,9 +162,9 @@ export function Dashboard() {
       if (selectedId === o.id) setSelectedId(null);
       setConfirmCloseId(null);
       load();
-      flash('Buyurtma yopildi.');
+      flash(t('order_closed'));
     } catch (e) {
-      flash('Xato: ' + (e as Error).message, 'err');
+      flash(t('error') + ': ' + (e as Error).message, 'err');
     }
   }
 
@@ -156,7 +176,7 @@ export function Dashboard() {
   return (
     <>
       <div className="topbar">
-        <h1>Boshqaruv paneli</h1>
+        <h1>{t('dashboard_title')}</h1>
       </div>
 
       {toast && (
@@ -176,19 +196,52 @@ export function Dashboard() {
       <div className="stat" style={{ marginBottom: 16 }}>
         <div className="card">
           <div className="big">{orders.length}</div>
-          <div className="lbl">Faol buyurtmalar</div>
+          <div className="lbl">{t('stat_active_orders')}</div>
         </div>
         <div className="card">
           <div className="big">{activeDrivers.length}</div>
-          <div className="lbl">Onlayn haydovchilar</div>
+          <div className="lbl">{t('stat_online_drivers')}</div>
         </div>
         <div className="card">
           <div className="big" style={{ color: alerts.length ? 'var(--danger)' : undefined }}>
             {alerts.length}
           </div>
-          <div className="lbl">Ogohlantirishlar</div>
+          <div className="lbl">{t('stat_alerts')}</div>
         </div>
       </div>
+
+      {/* Oxirgi 24 soat ko'rsatkichlari — avval bu sonlar faqat loglarda edi. */}
+      {metrics && (
+        <div className="stat" style={{ marginBottom: 16 }}>
+          <div className="card">
+            <div className="big">{metrics.total}</div>
+            <div className="lbl">{t('m_total_24h')}</div>
+          </div>
+          <div className="card">
+            <div
+              className="big"
+              style={{ color: metrics.noDriverRate > 15 ? 'var(--danger)' : undefined }}
+            >
+              {metrics.noDriverRate}%
+            </div>
+            <div className="lbl">{t('m_no_driver')}</div>
+          </div>
+          <div className="card">
+            <div className="big">{metrics.completionRate}%</div>
+            <div className="lbl">{t('m_completed')}</div>
+          </div>
+          <div className="card">
+            <div className="big">
+              {metrics.avgAcceptSec != null ? `${metrics.avgAcceptSec}s` : '—'}
+            </div>
+            <div className="lbl">{t('m_accept_time')}</div>
+          </div>
+          <div className="card">
+            <div className="big">{metrics.avgFare != null ? money(metrics.avgFare) : '—'}</div>
+            <div className="lbl">{t('m_avg_fare')}</div>
+          </div>
+        </div>
+      )}
 
       {dispatchMode && (
         <div
@@ -203,11 +256,10 @@ export function Dashboard() {
           }}
         >
           <span>
-            🚕 <b>Buyurtma tanlandi.</b> Xaritadan yoki o‘ng paneldan bo‘sh taksini tanlab
-            <b> so‘rov yuboring</b>.
+            <b>{t('dispatch_hint_1')}</b> {t('dispatch_hint_2')} <b>{t('dispatch_hint_3')}</b>.
           </span>
           <button className="danger" onClick={() => { setSelectedId(null); setSelectedDriverId(null); }}>
-            Bekor qilish
+            {t('cancel')}
           </button>
         </div>
       )}
@@ -256,7 +308,7 @@ export function Dashboard() {
                   }}
                   eventHandlers={{ click: () => ASSIGNABLE.includes(o.status) && setSelectedId(o.id) }}
                 >
-                  <Popup>Buyurtma · {o.status}</Popup>
+                  <Popup>{t('order_word')} · {o.status}</Popup>
                 </CircleMarker>
               );
             })}
@@ -288,17 +340,17 @@ export function Dashboard() {
           {selectedDriver ? (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ margin: 0 }}>🚖 Taksi</h2>
+                <h2 style={{ margin: 0 }}>{t('taxi_panel')}</h2>
                 <button className="danger" onClick={() => setSelectedDriverId(null)}>✕</button>
               </div>
               <div style={{ marginTop: 12, lineHeight: 1.9 }}>
-                <div style={{ fontSize: 18, fontWeight: 700 }}>{selectedDriver.name || 'Haydovchi'}</div>
-                <div className="lbl">Holat: {selectedDriver.status === 'ONLINE_IDLE' ? '🟢 Bo‘sh' : '⚪ Safarda'}</div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{selectedDriver.name || t('driver_word')}</div>
+                <div className="lbl">{t('status_label')}: {selectedDriver.status === 'ONLINE_IDLE' ? t('free_now') : t('on_trip')}</div>
                 <div>📞 {selectedDriver.phone || '—'}</div>
                 <div>🚗 {selectedDriver.car || '—'}</div>
-                <div>🔢 Davlat raqami: <b>{selectedDriver.plate || '—'}</b></div>
-                <div>⭐ Reyting: {selectedDriver.ratingAvg ?? 0}</div>
-                <div className="lbl">Toifa: {selectedDriver.category}</div>
+                <div>🔢 {t('plate_label')}: <b>{selectedDriver.plate || '—'}</b></div>
+                <div>⭐ {t('rating_label')}: {selectedDriver.ratingAvg ?? 0}</div>
+                <div className="lbl">{t('category_label')}: {selectedDriver.category}</div>
               </div>
               {dispatchMode ? (
                 selectedDriver.status === 'ONLINE_IDLE' ? (
@@ -307,26 +359,26 @@ export function Dashboard() {
                     style={{ marginTop: 14, width: '100%' }}
                     onClick={() => sendOffer(selectedDriver.driverId)}
                   >
-                    📨 Shu taksiga so‘rov yuborish
+                    {t('send_offer_btn')}
                   </button>
                 ) : (
-                  <div className="lbl" style={{ marginTop: 14 }}>Bu taksi safarda — so‘rov yuborib bo‘lmaydi.</div>
+                  <div className="lbl" style={{ marginTop: 14 }}>{t('taxi_busy')}</div>
                 )
               ) : (
                 <div className="lbl" style={{ marginTop: 14 }}>
-                  So‘rov yuborish uchun avval quyidan zakazni tanlang.
+                  {t('pick_order_hint')}
                 </div>
               )}
             </>
           ) : (
             <>
-              <h2>Ogohlantirishlar</h2>
+              <h2>{t('stat_alerts')}</h2>
               <div className="alerts">
-                {alerts.length === 0 && <div className="lbl">Hozircha yo‘q</div>}
+                {alerts.length === 0 && <div className="lbl">{t('alerts_none')}</div>}
                 {alerts.map((a, i) => (
                   <div key={i} className={`alert ${a.type}`}>
                     <b>{a.type}</b> — {a.message}
-                    <div className="lbl">{new Date(a.at).toLocaleTimeString('uz-UZ')}</div>
+                    <div className="lbl">{new Date(a.at).toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'uz-UZ')}</div>
                   </div>
                 ))}
               </div>
@@ -336,15 +388,15 @@ export function Dashboard() {
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>
-        <h2>Faol buyurtmalar</h2>
+        <h2>{t('stat_active_orders')}</h2>
         <table>
           <thead>
             <tr>
-              <th>Holat</th>
-              <th>Toifa</th>
-              <th>Narx</th>
-              <th>Yaratilgan</th>
-              <th>Amallar</th>
+              <th>{t('th_status')}</th>
+              <th>{t('th_category')}</th>
+              <th>{t('th_price')}</th>
+              <th>{t('th_created')}</th>
+              <th>{t('th_actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -368,16 +420,16 @@ export function Dashboard() {
                   <td className="flex" onClick={(e) => e.stopPropagation()}>
                     {assignable && (
                       <button className="primary" onClick={() => setSelectedId(sel ? null : o.id)}>
-                        {sel ? 'Tanlangan ✓' : 'Taksi tanlash'}
+                        {sel ? t('selected') : t('select_taxi')}
                       </button>
                     )}
                     {confirmCloseId === o.id ? (
                       <>
-                        <button className="danger" onClick={() => doClose(o)}>Tasdiqlash</button>
-                        <button onClick={() => setConfirmCloseId(null)}>Yo‘q</button>
+                        <button className="danger" onClick={() => doClose(o)}>{t('confirm')}</button>
+                        <button onClick={() => setConfirmCloseId(null)}>{t('no')}</button>
                       </>
                     ) : (
-                      <button className="danger" onClick={() => setConfirmCloseId(o.id)}>Yopish</button>
+                      <button className="danger" onClick={() => setConfirmCloseId(o.id)}>{t('close')}</button>
                     )}
                   </td>
                 </tr>
@@ -385,7 +437,7 @@ export function Dashboard() {
             })}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={5} className="lbl">Faol buyurtma yo‘q</td>
+                <td colSpan={5} className="lbl">{t('no_active_orders')}</td>
               </tr>
             )}
           </tbody>

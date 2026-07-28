@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'nestjs-pino';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
@@ -26,11 +28,40 @@ import { OpsModule } from './ops/ops.module';
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     LoggerModule.forRoot({
       pinoHttp: {
+        // Har so'rovga id — zakaz oqimini (HTTP → dispatch → socket) loglardan yig'ish uchun.
+        genReqId: (req, res) => {
+          const id = (req.headers['x-request-id'] as string) ?? randomUUID();
+          res.setHeader('x-request-id', id);
+          return id;
+        },
+        // MUHIM: busiz pino-http Authorization sarlavhasi va parollarni loglarga yozadi.
+        redact: {
+          paths: [
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'req.headers["x-internal-key"]',
+            'req.body.password',
+            'req.body.newPassword',
+            'res.headers["set-cookie"]',
+          ],
+          censor: '[REDACTED]',
+        },
         transport:
           process.env.NODE_ENV === 'development'
             ? { target: 'pino-pretty', options: { singleLine: true } }
             : undefined,
       },
+    }),
+    // Rate limiting. ATAYLAB GLOBAL GUARD SIFATIDA QO'YILMAGAN — bot va haydovchi
+    // ilovasi yuqori chastotada chaqiradi (joylashuv, holat pollingi) va global chek
+    // ularni sindirishi mumkin. Faqat login endpointlariga qo'llanadi (AuthController),
+    // ya'ni parolni brute force qilishning oldi olinadi.
+    // Saqlash xotirada — bu 1 instansiya cheklovimizga mos (docs/deploy-railway.md).
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        { name: 'default', ttl: 60_000, limit: config.get<number>('LOGIN_RATE_LIMIT')! },
+      ],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],

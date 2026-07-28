@@ -1,53 +1,33 @@
 import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsEnum, IsNumber, IsObject, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrderStatus, PanelRole, VehicleCategory } from '@tty/shared';
 import { OpsService } from './ops.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles';
+import {
+  AssignDto,
+  BillingDto,
+  CloseDto,
+  CreateAdminDto,
+  CreateDriverDto,
+  SettingsDto,
+  TopUpDto,
+} from './dto/ops.dto';
 
-class AssignDto {
-  @IsString() driverId!: string;
-}
-class CloseDto {
-  @IsOptional() @IsString() reason?: string;
-}
-class SettingsDto {
-  @IsOptional() @IsNumber() surgeMultiplier?: number;
-  @IsOptional() @IsBoolean() surgeActive?: boolean;
-  @IsOptional() @IsNumber() freeCancelSec?: number;
-}
-class TopUpDto {
-  @IsNumber() amount!: number;
-  @IsOptional() @IsString() note?: string;
-}
-class BillingDto {
-  @IsString() mode!: string;
-  @IsOptional() @IsObject() config?: Record<string, unknown>;
-}
-class NewVehicleDto {
-  @IsOptional() @IsString() make?: string;
-  @IsOptional() @IsString() model?: string;
-  @IsOptional() @IsString() color?: string;
-  @IsOptional() @IsString() plate?: string;
-  @IsEnum(VehicleCategory) category!: VehicleCategory;
-}
-class CreateDriverDto {
-  @IsString() phone!: string;
-  @IsOptional() @IsString() firstName?: string;
-  @IsOptional() @IsString() lastName?: string;
-  @ValidateNested() @Type(() => NewVehicleDto) vehicle!: NewVehicleDto;
-}
-class CreateAdminDto {
-  @IsString() login!: string;
-  @IsString() @MinLength(6) password!: string;
-  @IsEnum(PanelRole) role!: PanelRole;
-}
-
+@ApiTags('ops')
+@ApiBearerAuth('jwt')
 @Controller('ops')
 @UseGuards(JwtAuthGuard)
 export class OpsController {
   constructor(private readonly ops: OpsService) {}
+
+  // --- Metrikalar (operator+) ---
+  @Roles(PanelRole.OPERATOR, PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Get('metrics')
+  @ApiOperation({ summary: 'Dispatch metrikalari (oxirgi N soat)' })
+  metrics(@Query('hours') hours?: string) {
+    return this.ops.metrics(Number(hours) || 24);
+  }
 
   // --- Buyurtmalar (operator+) ---
   @Roles(PanelRole.OPERATOR, PanelRole.ADMIN, PanelRole.SUPER_ADMIN)

@@ -1,13 +1,14 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { ActorType, OrderStatus, SOCKET_EVENTS } from '@tty/shared';
 import { REDIS } from '../redis/redis.module';
@@ -32,6 +33,7 @@ export class TripsService {
     @InjectRepository(TripTrack) private readonly tracks: Repository<TripTrack>,
     @InjectRepository(SosEvent) private readonly sosRepo: Repository<SosEvent>,
     @Inject(REDIS) private readonly redis: Redis,
+    @InjectDataSource() private readonly dataSource: DataSource,
     private readonly events: OrderEventsService,
     private readonly drivers: DriversService,
     private readonly pricing: PricingService,
@@ -47,17 +49,23 @@ export class TripsService {
     return order;
   }
 
+  /**
+   * Holatni ATOMIK o'zgartirish: `WHERE status IN (from)` shartsiz hech qachon
+   * yozmaymiz — aks holda parallel oqimlar (mijoz bekor qiladi / haydovchi yakunlaydi)
+   * bir-birining yozuvini bosib ketadi. `false` — holat allaqachon o'zgargan.
+   */
   private async transition(
     orderId: string,
-    from: OrderStatus,
+    from: OrderStatus | OrderStatus[],
     to: OrderStatus,
     extra: Partial<Order> = {},
   ): Promise<boolean> {
+    const list = Array.isArray(from) ? from : [from];
     const res = await this.orders
       .createQueryBuilder()
       .update(Order)
       .set({ status: to, ...extra })
-      .where('id = :id AND status = :from', { id: orderId, from })
+      .where('id = :id AND status IN (:...from)', { id: orderId, from: list })
       .execute();
     return !!res.affected;
   }
@@ -89,10 +97,11 @@ export class TripsService {
   async arrived(orderId: string, driverId: string): Promise<void> {
     const order = await this.mustOwn(orderId, driverId);
     // confirm — yumshoq qadam; ACCEPTED'dan ham to'g'ridan yetib kelish mumkin.
-    const ok =
-      (await this.transition(orderId, OrderStatus.CONFIRMED, OrderStatus.ARRIVED)) ||
-      (await this.transition(orderId, OrderStatus.ARRIVING, OrderStatus.ARRIVED)) ||
-      (await this.transition(orderId, OrderStatus.ACCEPTED, OrderStatus.ARRIVED));
+    const ok = await this.transition(
+      orderId,
+      [OrderStatus.CONFIRMED, OrderStatus.ARRIVING, OrderStatus.ACCEPTED],
+      OrderStatus.ARRIVED,
+    );
     if (!ok) throw new BadRequestException('Holat ARRIVED ga o‘tmadi');
     await this.redis.set(`order:arrived:${orderId}`, new Date().toISOString(), 'EX', 7200);
     await this.events.record(orderId, 'arrived', ActorType.DRIVER, { actorId: driverId });
@@ -137,15 +146,33 @@ export class TripsService {
       order.waitingMinutes,
       new Date(),
     );
-    const commission = await this.billing.applyCommission(driverId, fare.total, orderId);
-    await this.transition(orderId, OrderStatus.IN_PROGRESS, OrderStatus.COMPLETED, {
-      distanceM,
-      finalPrice: fare.total,
-      commissionAmount: commission,
-      surgeMultiplier: fare.surgeMultiplier,
-      nightMultiplier: fare.nightMultiplier,
-      completedAt: new Date(),
+
+    // Holat o'tishi va komissiya BITTA tranzaksiyada, shu tartibda:
+    // avval guard'li o'tish (zakaz shu oniyada bekor qilingan bo'lsa — 0 qator),
+    // keyingina pul yechiladi. Aks holda bekor qilingan zakaz uchun ham
+    // haydovchidan komissiya yechilib qolardi.
+    const commission = await this.dataSource.transaction(async (manager) => {
+      const res = await manager
+        .createQueryBuilder()
+        .update(Order)
+        .set({
+          status: OrderStatus.COMPLETED,
+          distanceM,
+          finalPrice: fare.total,
+          surgeMultiplier: fare.surgeMultiplier,
+          nightMultiplier: fare.nightMultiplier,
+          completedAt: new Date(),
+        })
+        .where('id = :id AND status = :from', { id: orderId, from: OrderStatus.IN_PROGRESS })
+        .execute();
+      if (!res.affected) throw new ConflictException('Buyurtma holati o‘zgardi — yakunlab bo‘lmadi');
+
+      const commission = await this.billing.applyCommission(manager, driverId, fare.total, orderId);
+      await manager.update(Order, orderId, { commissionAmount: commission });
+      return commission;
     });
+
+    // Yon ta'sirlar tranzaksiyadan TASHQARIDA — Redis/socket rollback qilinmaydi.
     await this.drivers.markIdle(driverId);
     await this.redis.del(`order:arrived:${orderId}`);
     await this.events.record(orderId, 'completed', ActorType.DRIVER, {
@@ -165,13 +192,15 @@ export class TripsService {
     const waiting = await this.waitingMinutes(orderId);
     const tariff = await this.settings.getTariff(order.vehicleCategory);
     const billableWait = Math.max(0, waiting - (tariff?.freeWaitMin ?? 0));
-    const waitingFee = Math.round(billableWait * Number(tariff?.waitingPerMin ?? 0));
+    const waitingFee = Math.round(billableWait * (tariff?.waitingPerMin ?? 0));
 
-    await this.transition(orderId, OrderStatus.ARRIVED, OrderStatus.CUSTOMER_NO_SHOW, {
+    const ok = await this.transition(orderId, OrderStatus.ARRIVED, OrderStatus.CUSTOMER_NO_SHOW, {
       waitingMinutes: waiting,
       finalPrice: waitingFee,
       completedAt: new Date(),
     });
+    // Guard: aks holda o'tish bo'lmasa ham mijozga no-show hisoblanardi.
+    if (!ok) throw new ConflictException('Buyurtma holati o‘zgardi');
     await this.drivers.markIdle(driverId);
     await this.customers.increment({ id: order.customerId }, 'noShowCount', 1);
     await this.events.record(orderId, 'no_show', ActorType.DRIVER, {
@@ -192,7 +221,10 @@ export class TripsService {
       OrderStatus.ARRIVED,
     ];
     if (!cancellable.includes(order.status)) throw new BadRequestException('Bu holatda bekor qilib bo‘lmaydi');
-    await this.orders.update(orderId, { status: OrderStatus.CANCELLED_BY_DRIVER });
+    // Guard aynan o'qilgan holatga — orada haydovchi yakunlagan bo'lsa, bekor o'tmaydi.
+    if (!(await this.transition(orderId, order.status, OrderStatus.CANCELLED_BY_DRIVER))) {
+      throw new ConflictException('Buyurtma holati o‘zgardi — bekor qilib bo‘lmadi');
+    }
     await this.drivers.markIdle(driverId);
     // Haydovchi qabul qilib keyin tashlab ketsa — har doim bekor darajasiga (2.9).
     await this.events.record(orderId, 'cancelled', ActorType.DRIVER, {
@@ -223,7 +255,11 @@ export class TripsService {
     // Haydovchi biriktirilgan bo'lsa yoki jarimasiz oynadan chiqqan bo'lsa — jarima.
     const penalized = !withinFreeWindow || !preAccept.includes(order.status);
 
-    await this.orders.update(orderId, { status: OrderStatus.CANCELLED_BY_CUSTOMER });
+    // Guard aynan o'qilgan holatga — `penalized` shu holatdan hisoblangani uchun,
+    // orada holat o'zgargan bo'lsa yozmaymiz (aks holda flag noto'g'ri bo'lardi).
+    if (!(await this.transition(orderId, order.status, OrderStatus.CANCELLED_BY_CUSTOMER))) {
+      throw new ConflictException('Buyurtma holati o‘zgardi — bekor qilib bo‘lmadi');
+    }
     if (order.driverId) {
       await this.drivers.markIdle(order.driverId);
       // Haydovchi ilovasiga xabar beramiz — safar ekrani yopilib, yana buyurtma qabul qilsin.
@@ -245,12 +281,20 @@ export class TripsService {
 
   // ---- Trek va SOS ----
 
+  /**
+   * Trek nuqtalarini ATOMIK qo'shish (`points || $2`). Avval qator o'qib, massivni
+   * xotirada birlashtirib qayta yozardik — ilova fon buferini sinxronlaganda parallel
+   * `trackSync` kelsa nuqtalar yo'qolardi. UNIQUE(order_id) migratsiya 7 da.
+   */
   async addTrack(orderId: string, driverId: string, points: TrackPoint[]): Promise<void> {
     await this.mustOwn(orderId, driverId);
-    let track = await this.tracks.findOne({ where: { orderId } });
-    if (!track) track = this.tracks.create({ orderId, points: [] });
-    track.points = [...track.points, ...points];
-    await this.tracks.save(track);
+    if (points.length === 0) return;
+    await this.tracks.query(
+      `INSERT INTO trip_tracks (order_id, points) VALUES ($1, $2::jsonb)
+       ON CONFLICT (order_id) DO UPDATE
+         SET points = trip_tracks.points || EXCLUDED.points, updated_at = now()`,
+      [orderId, JSON.stringify(points)],
+    );
   }
 
   async sos(orderId: string | null, actor: ActorType, actorId: string | null): Promise<void> {

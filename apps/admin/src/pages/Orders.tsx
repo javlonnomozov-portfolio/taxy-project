@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
+import { useI18n } from '../i18n';
 import { StatusBadge, money, time } from '../ui';
 
 interface Order {
@@ -21,14 +22,15 @@ const TERMINAL = new Set([
   'CLOSED_BY_OPERATOR',
 ]);
 type Tab = 'all' | 'active' | 'done' | 'cancelled';
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'all', label: 'Hammasi' },
-  { key: 'active', label: 'Joriy' },
-  { key: 'done', label: 'Bajarilgan' },
-  { key: 'cancelled', label: 'Bekor/Topilmadi' },
+const TAB_KEYS: { key: Tab; i18n: string }[] = [
+  { key: 'all', i18n: 'tab_all' },
+  { key: 'active', i18n: 'tab_active' },
+  { key: 'done', i18n: 'tab_done' },
+  { key: 'cancelled', i18n: 'tab_cancelled' },
 ];
 
 export function Orders() {
+  const { t } = useI18n();
   const [rows, setRows] = useState<Order[]>([]);
   const [tab, setTab] = useState<Tab>('all');
   const load = () => api<Order[]>('GET', '/ops/orders/history').then(setRows).catch(() => {});
@@ -49,28 +51,28 @@ export function Orders() {
 
   return (
     <>
-      <div className="topbar"><h1>Zakazlar</h1></div>
+      <div className="topbar"><h1>{t('orders_title')}</h1></div>
       <div className="card">
         <div className="flex" style={{ gap: 8, marginBottom: 12 }}>
-          {TABS.map((tb) => (
+          {TAB_KEYS.map((tb) => (
             <button
               key={tb.key}
               className={tab === tb.key ? 'primary' : ''}
               onClick={() => setTab(tb.key)}
             >
-              {tb.label}
+              {t(tb.i18n)}
             </button>
           ))}
-          <div className="lbl" style={{ marginLeft: 'auto' }}>Ko‘rsatilmoqda: {filtered.length}</div>
+          <div className="lbl" style={{ marginLeft: 'auto' }}>{t('showing')}: {filtered.length}</div>
         </div>
         <table>
           <thead>
             <tr>
-              <th>Holat</th>
-              <th>Toifa</th>
-              <th>Narx</th>
-              <th>Yaratilgan</th>
-              <th>Tugagan</th>
+              <th>{t('th_status')}</th>
+              <th>{t('th_category')}</th>
+              <th>{t('th_price')}</th>
+              <th>{t('th_created')}</th>
+              <th>{t('th_finished')}</th>
             </tr>
           </thead>
           <tbody>
@@ -84,7 +86,7 @@ export function Orders() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="lbl">Zakaz yo‘q</td></tr>
+              <tr><td colSpan={5} className="lbl">{t('no_orders')}</td></tr>
             )}
           </tbody>
         </table>

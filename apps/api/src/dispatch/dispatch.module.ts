@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DispatchService } from './dispatch.service';
+import { DispatchOwnershipService } from './dispatch-ownership.service';
 import { Order } from '../entities/order.entity';
 import { Customer } from '../entities/customer.entity';
 import { Driver } from '../entities/driver.entity';
@@ -18,7 +19,7 @@ import { RealtimeCoreModule } from '../realtime/realtime-core.module';
     DriversModule,
     RealtimeCoreModule,
   ],
-  providers: [DispatchService],
+  providers: [DispatchService, DispatchOwnershipService],
   exports: [DispatchService],
 })
 export class DispatchModule {}

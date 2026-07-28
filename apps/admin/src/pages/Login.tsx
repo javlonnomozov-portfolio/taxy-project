@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, auth } from '../api';
+import { useI18n } from '../i18n';
 
 export function Login() {
+  const { t, lang, setLang } = useI18n();
   const [login, setLogin] = useState('admin');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
@@ -18,8 +20,10 @@ export function Login() {
       });
       auth.set(res.token, res.role);
       nav('/');
-    } catch {
-      setErr('Login yoki parol noto‘g‘ri');
+    } catch (e) {
+      // API endi tushunarli xabar qaytaradi (masalan 429 — juda ko'p urinish),
+      // shuning uchun uni ko'rsatamiz; bo'lmasa umumiy matn.
+      setErr((e as Error).message || t('login_err'));
     }
   }
 
@@ -27,18 +31,25 @@ export function Login() {
     <div className="login-wrap">
       <form className="card login-card" onSubmit={submit}>
         <div className="brand">
-          Toy TaxY <small>Operator / Admin panel</small>
+          Toy TaxY <small>{t('brand_sub')}</small>
         </div>
-        <input placeholder="Login" value={login} onChange={(e) => setLogin(e.target.value)} />
+        <input placeholder={t('login')} value={login} onChange={(e) => setLogin(e.target.value)} />
         <input
-          placeholder="Parol"
+          placeholder={t('password')}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
         {err && <div className="err">{err}</div>}
         <button className="primary" style={{ width: '100%' }} type="submit">
-          Kirish
+          {t('sign_in')}
+        </button>
+        <button
+          type="button"
+          style={{ width: '100%', marginTop: 8 }}
+          onClick={() => setLang(lang === 'uz' ? 'ru' : 'uz')}
+        >
+          {t('lang_switch')}
         </button>
       </form>
     </div>

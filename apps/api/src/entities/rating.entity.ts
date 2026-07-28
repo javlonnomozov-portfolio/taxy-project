@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { numericTransformer } from '../database/numeric.transformer';
 
 export type RatingDirection = 'customer_to_driver' | 'driver_to_customer';
 
@@ -24,7 +25,7 @@ export class Rating {
   @Column({ type: 'jsonb', default: {} })
   scores!: Record<string, number>;
 
-  @Column({ type: 'numeric', precision: 3, scale: 2 })
+  @Column({ type: 'numeric', precision: 3, scale: 2, transformer: numericTransformer })
   overall!: number;
 
   @Column({ type: 'text', nullable: true })

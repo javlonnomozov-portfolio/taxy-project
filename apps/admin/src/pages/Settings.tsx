@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useI18n } from '../i18n';
 
 interface Config { surgeMultiplier: number; surgeActive: boolean; freeCancelSec: number }
 interface Tariff {
@@ -12,6 +13,7 @@ interface Tariff {
 }
 
 export function Settings() {
+  const { t } = useI18n();
   const [cfg, setCfg] = useState<Config | null>(null);
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [saved, setSaved] = useState('');
@@ -27,32 +29,32 @@ export function Settings() {
   async function saveCfg() {
     if (!cfg) return;
     await api('PUT', '/ops/settings', cfg);
-    setSaved('Sozlamalar saqlandi');
+    setSaved(t('settings_saved'));
     setTimeout(() => setSaved(''), 2000);
   }
-  async function saveTariff(t: Tariff) {
-    await api('PUT', `/ops/tariffs/${t.category}`, {
-      baseFare: Number(t.baseFare),
-      perKm: Number(t.perKm),
-      waitingPerMin: Number(t.waitingPerMin),
-      freeWaitMin: Number(t.freeWaitMin),
-      nightMultiplier: Number(t.nightMultiplier),
+  async function saveTariff(tf: Tariff) {
+    await api('PUT', `/ops/tariffs/${tf.category}`, {
+      baseFare: Number(tf.baseFare),
+      perKm: Number(tf.perKm),
+      waitingPerMin: Number(tf.waitingPerMin),
+      freeWaitMin: Number(tf.freeWaitMin),
+      nightMultiplier: Number(tf.nightMultiplier),
     });
-    setSaved(`${t.category} tarifi saqlandi`);
+    setSaved(`${tf.category} ${t('tariff_saved')}`);
     setTimeout(() => setSaved(''), 2000);
   }
 
-  if (!cfg) return <div className="lbl">Yuklanmoqda…</div>;
+  if (!cfg) return <div className="lbl">{t('loading')}</div>;
 
   return (
     <>
       <div className="topbar">
-        <h1>Sozlamalar</h1>
+        <h1>{t('settings_title')}</h1>
         {saved && <span className="badge ok">{saved}</span>}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <h2>Surge va bekor qilish</h2>
+        <h2>{t('surge_section')}</h2>
         <div className="flex" style={{ flexWrap: 'wrap', gap: 16 }}>
           <label className="flex">
             <input
@@ -60,10 +62,10 @@ export function Settings() {
               checked={cfg.surgeActive}
               onChange={(e) => setCfg({ ...cfg, surgeActive: e.target.checked })}
             />
-            Surge faol
+            {t('surge_active')}
           </label>
           <label className="flex">
-            Koeffitsient:
+            {t('surge_coef')}
             <input
               type="number"
               step="0.1"
@@ -73,7 +75,7 @@ export function Settings() {
             />
           </label>
           <label className="flex">
-            Jarimasiz bekor (sek):
+            {t('free_cancel')}
             <input
               type="number"
               style={{ width: 90 }}
@@ -81,36 +83,36 @@ export function Settings() {
               onChange={(e) => setCfg({ ...cfg, freeCancelSec: Number(e.target.value) })}
             />
           </label>
-          <button className="primary" onClick={saveCfg}>Saqlash</button>
+          <button className="primary" onClick={saveCfg}>{t('save')}</button>
         </div>
       </div>
 
       <div className="card">
-        <h2>Tariflar (toifa bo‘yicha)</h2>
+        <h2>{t('tariffs_section')}</h2>
         <table>
           <thead>
             <tr>
-              <th>Toifa</th><th>Baza</th><th>Km narx</th><th>Kutish/daq</th><th>Bepul kutish</th><th>Tungi ×</th><th></th>
+              <th>{t('th_category')}</th><th>{t('th_base')}</th><th>{t('th_per_km')}</th><th>{t('th_wait_min')}</th><th>{t('th_free_wait')}</th><th>{t('th_night')}</th><th></th>
             </tr>
           </thead>
           <tbody>
-            {tariffs.map((t, i) => (
-              <tr key={t.category}>
-                <td>{t.category}</td>
+            {tariffs.map((tf, i) => (
+              <tr key={tf.category}>
+                <td>{tf.category}</td>
                 {(['baseFare', 'perKm', 'waitingPerMin', 'freeWaitMin', 'nightMultiplier'] as const).map((f) => (
                   <td key={f}>
                     <input
                       style={{ width: 80 }}
-                      value={t[f]}
+                      value={tf[f]}
                       onChange={(e) => {
                         const next = [...tariffs];
-                        next[i] = { ...t, [f]: e.target.value } as Tariff;
+                        next[i] = { ...tf, [f]: e.target.value } as Tariff;
                         setTariffs(next);
                       }}
                     />
                   </td>
                 ))}
-                <td><button className="primary" onClick={() => saveTariff(t)}>Saqlash</button></td>
+                <td><button className="primary" onClick={() => saveTariff(tf)}>{t('save')}</button></td>
               </tr>
             ))}
           </tbody>

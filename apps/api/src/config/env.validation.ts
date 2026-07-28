@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+/**
+ * `.env` fayllarida va Railway'da ixtiyoriy o'zgaruvchi ko'pincha BO'SH SATR
+ * bo'lib qoladi (`OSRM_URL=`), `undefined` emas. Bo'sh satrni "berilmagan" deb
+ * qabul qilamiz — aks holda `.url()` tekshiruvi yiqilib, servis umuman ishga
+ * tushmasdi.
+ */
+const emptyAsUndefined = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema);
+
+const optionalUrl = emptyAsUndefined(z.string().url().optional());
+
 // ENV validatsiya sxemasi (best practice: ishga tushishdan oldin tekshirish).
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -14,14 +25,31 @@ export const envSchema = z.object({
   INTERNAL_API_KEY: z.string().min(8).default('dev_internal_key'),
   ADMIN_LOGIN: z.string().optional(),
   ADMIN_PASSWORD: z.string().optional(),
+  // Prod'da /docs yopiq; ochish uchun aniq 'true' qilish kerak.
+  SWAGGER_ENABLED: z.enum(['true', 'false']).optional(),
+  // Login urinishlari: HAR HISOB uchun daqiqasiga nechta (brute force himoyasi).
+  // Prod'da 5 yetarli; lokal simlar ketma-ket login qilgani uchun ularni
+  // yuqoriroq qiymat bilan ishga tushirish mumkin.
+  LOGIN_RATE_LIMIT: z.coerce.number().default(5),
   // Dispatch sozlamalari (default; keyin DB settings bilan almashtiriladi)
   DISPATCH_WINDOW_SIZE: z.coerce.number().default(6),
   DISPATCH_OFFER_TIMEOUT_SEC: z.coerce.number().default(120), // taklif oynasi — kamida 2 daqiqa
   DISPATCH_RADIUS_STEPS_M: z.string().default('2000,4000,6000'),
   DISPATCH_NO_DRIVER_TIMEOUT_SEC: z.coerce.number().default(180), // taklif oynasidan uzunroq
+  // Xarita xizmatlari (ixtiyoriy). Berilmasa manzil qidirish/marshrut o'chiq bo'ladi
+  // va 503 qaytaradi — manzil MVP'da ixtiyoriy, taksometr haqiqiy km bo'yicha hisoblaydi.
+  NOMINATIM_URL: optionalUrl,
+  OSRM_URL: optionalUrl,
+  // Nominatim foydalanish shartlari o'zini tanitadigan User-Agent'ni TALAB qiladi.
+  GEO_USER_AGENT: emptyAsUndefined(z.string().optional()),
+  // CORS: ruxsat etilgan origin'lar, vergul bilan (masalan admin domeni).
+  // Bo'sh bo'lsa — dev'da hammaga ochiq, PROD'da esa ishga tushmaydi (pastga qarang).
+  CORS_ORIGINS: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+const DEV_INTERNAL_KEY = 'dev_internal_key';
 
 export function validateEnv(config: Record<string, unknown>): Env {
   const parsed = envSchema.safeParse(config);
@@ -31,5 +59,32 @@ export function validateEnv(config: Record<string, unknown>): Env {
       .join('\n');
     throw new Error(`Noto'g'ri ENV konfiguratsiya:\n${issues}`);
   }
-  return parsed.data;
+
+  // Production uchun qo'shimcha talablar. Bularni sxemaga qo'shib bo'lmaydi, chunki
+  // dev'da qulay default'lar kerak — shuning uchun faqat NODE_ENV=production'da tekshiramiz.
+  // Maqsad: xavfsizlik sozlamasi UNUTILGANDA servis jimgina zaif holatda ishlab
+  // ketmasin, balki DARHOL va tushunarli xato bilan to'xtasin.
+  const env = parsed.data;
+  if (env.NODE_ENV === 'production') {
+    const errors: string[] = [];
+    if (env.INTERNAL_API_KEY === DEV_INTERNAL_KEY) {
+      errors.push(
+        `INTERNAL_API_KEY: production'da '${DEV_INTERNAL_KEY}' default qiymati taqiqlanadi — ` +
+          'kuchli tasodifiy kalit qo\'ying (api va bot\'da bir xil)',
+      );
+    }
+    if (env.JWT_SECRET.length < 32) {
+      errors.push('JWT_SECRET: production\'da kamida 32 belgi bo\'lishi kerak');
+    }
+    if (!env.CORS_ORIGINS?.trim()) {
+      errors.push(
+        'CORS_ORIGINS: production\'da aniq ko\'rsatilishi shart (masalan ' +
+          'https://admin-xxx.up.railway.app). Hammaga ochiq CORS admin tokenini xavf ostiga qo\'yadi',
+      );
+    }
+    if (errors.length > 0) {
+      throw new Error(`Production ENV xavfsizlik talablari bajarilmadi:\n  - ${errors.join('\n  - ')}`);
+    }
+  }
+  return env;
 }

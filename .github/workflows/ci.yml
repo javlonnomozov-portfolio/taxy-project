@@ -11,9 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Versiya `package.json` dagi `packageManager` maydonidan olinadi.
+      # Bu yerda `version:` ni ham yozish `ERR_PNPM_BAD_PM_VERSION` beradi —
+      # aynan shu sabab CI 2026-07-25 dan beri har safar yiqilib kelgan.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -22,14 +23,142 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # @tty/shared boshqa paketlarga `dist` sifatida kerak.
       - name: Build shared
         run: pnpm --filter @tty/shared build
 
-      - name: Lint (typecheck)
-        run: pnpm -r lint
+      # ESLint — HAQIQIY lint. Avval bu qadam faqat `tsc --noEmit` edi (tip tekshiruvi),
+      # ya'ni ishlatilmagan o'zgaruvchi/import kabi narsalar CI'dan o'tib ketardi.
+      - name: Lint
+        run: pnpm lint
+
+      # Tip tekshiruvi endi lint'dan alohida qadam.
+      - name: Typecheck
+        run: pnpm typecheck
 
       - name: Build
         run: pnpm -r build
 
+      # Unit testlar: api (pricing/billing/dispatch/cors+env), bot (session/i18n/telefon),
+      # admin (xato shakli/formatlash).
       - name: Test
         run: pnpm -r test
+
+  # Integratsiya: haqiqiy Postgres + Redis bilan to'liq oqimlarni haydaydi.
+  # Sim skriptlari eng qimmatli qamrov edi, lekin CI'da hech qachon ishlamagan —
+  # ular DB va Redis talab qiladi.
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tty
+          POSTGRES_PASSWORD: tty_pass
+          POSTGRES_DB: tty
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U tty -d tty"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://tty:tty_pass@localhost:5432/tty
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci_test_secret_kamida_32_belgi_bolsin_xx
+      INTERNAL_API_KEY: ci_internal_key
+      ADMIN_LOGIN: admin
+      ADMIN_PASSWORD: admin123
+      NODE_ENV: development
+      # Simlar ketma-ket ko'p login qiladi — prod limiti (5/daq) ularni bloklab qo'yardi.
+      LOGIN_RATE_LIMIT: '1000'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # `psql` runner'da bor, `redis-cli` esa yo'q — sim'lar orasida FLUSHALL uchun kerak.
+      - name: redis-tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq redis-tools
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @tty/shared build
+      - run: pnpm --filter @tty/api build
+      - run: pnpm --filter @tty/bot build   # sim:bot `dist` dan import qiladi
+
+      - name: Migratsiyalar
+        run: pnpm --filter @tty/api migration:run
+
+      - name: API'ni ishga tushirish
+        run: |
+          node apps/api/dist/main.js > /tmp/api.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf localhost:3000/health >/dev/null && break
+            sleep 1
+          done
+          curl -sf localhost:3000/health || { echo '--- API ishga tushmadi ---'; cat /tmp/api.log; exit 1; }
+
+      # Simlar FIXED telefon raqamlardan foydalanadi → har biridan oldin DB tozalash.
+      - name: Simlar (dispatch, trip, bot, race, security)
+        run: |
+          reset_db() {
+            PGPASSWORD=tty_pass psql -h localhost -U tty -d tty -q -c \
+              "TRUNCATE orders, order_events, drivers, vehicles, customers,
+               trip_tracks, sos_events, transactions, ratings RESTART IDENTITY CASCADE;"
+            redis-cli -h localhost FLUSHALL > /dev/null
+          }
+          for s in dispatch trip bot race security; do
+            reset_db
+            echo "::group::sim:$s"
+            pnpm sim:$s || { echo "--- API loglari ---"; tail -50 /tmp/api.log; exit 1; }
+            echo "::endgroup::"
+          done
+
+      # sprint3 tie-break testi API `DISPATCH_WINDOW_SIZE=1` bilan ishlashini talab
+      # qiladi (aks holda ikkinchi haydovchiga ham taklif ketib, test ma'nosini yo'qotadi).
+      - name: Sim sprint3 (window=1)
+        run: |
+          pkill -f 'apps/api/dist/main.js' || true
+          sleep 1
+          PGPASSWORD=tty_pass psql -h localhost -U tty -d tty -q -c \
+            "TRUNCATE orders, order_events, drivers, vehicles, customers,
+             trip_tracks, sos_events, transactions, ratings RESTART IDENTITY CASCADE;"
+          redis-cli -h localhost FLUSHALL > /dev/null
+          DISPATCH_WINDOW_SIZE=1 node apps/api/dist/main.js > /tmp/api-w1.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf localhost:3000/health >/dev/null && break; sleep 1; done
+          pnpm sim:sprint3 || { tail -50 /tmp/api-w1.log; exit 1; }
+
+      # Ko'p instansiya: zakaz A da, haydovchi B da. Redis adapter (taklif A→B) va
+      # dispatch egaligi (javob B→A) shu yerda tekshiriladi.
+      - name: Sim cluster (2 instansiya)
+        run: |
+          pkill -f 'apps/api/dist/main.js' || true
+          sleep 1
+          PGPASSWORD=tty_pass psql -h localhost -U tty -d tty -q -c \
+            "TRUNCATE orders, order_events, drivers, vehicles, customers,
+             trip_tracks, sos_events, transactions, ratings RESTART IDENTITY CASCADE;"
+          redis-cli -h localhost FLUSHALL > /dev/null
+          API_PORT=3000 node apps/api/dist/main.js > /tmp/api-A.log 2>&1 &
+          API_PORT=3001 node apps/api/dist/main.js > /tmp/api-B.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf localhost:3000/health >/dev/null && curl -sf localhost:3001/health >/dev/null && break
+            sleep 1
+          done
+          pnpm sim:cluster || { tail -50 /tmp/api-A.log; tail -50 /tmp/api-B.log; exit 1; }
+
+      - name: API loglari (nosozlikda)
+        if: failure()
+        run: |
+          tail -100 /tmp/api.log || true
+          tail -50 /tmp/api-w1.log || true
+          tail -50 /tmp/api-A.log || true
+          tail -50 /tmp/api-B.log || true

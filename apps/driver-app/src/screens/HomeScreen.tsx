@@ -3,13 +3,14 @@ import { Alert, AppState, Linking, ScrollView, Text, TouchableOpacity, View } fr
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { Socket } from 'socket.io-client';
-import { connectDriver, EV } from '../socket';
+import { connectDriver, EV, SocketAck } from '../socket';
 import { api } from '../api';
 import { registerForPush, notifyOffer } from '../push';
 import { startBackgroundLocation, stopBackgroundLocation } from '../location-task';
 import { S, C } from '../theme';
 import { Lang, makeT } from '../i18n';
 import { MiniMap, MapMarker } from '../MapView';
+import { CabinetScreen } from './CabinetScreen';
 
 interface LatLng { lat: number; lng: number }
 interface Offer {
@@ -69,6 +70,7 @@ export function HomeScreen({
   const [trip, setTrip] = useState<Trip | null>(null);
   const [distanceM, setDistanceM] = useState(0);
   const [done, setDone] = useState<{ price: number } | null>(null);
+  const [showCabinet, setShowCabinet] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
@@ -248,8 +250,15 @@ export function HomeScreen({
 
   function tripAction(ev: string, nextStage?: Stage) {
     if (!trip) return;
-    socketRef.current?.emit(ev, { orderId: trip.orderId });
-    if (nextStage) setTrip({ ...trip, stage: nextStage });
+    // Server javobini KUTAMIZ: avval bosqichni darhol surardik va server rad etsa
+    // ilova bilan server holati bir-biriga to'g'ri kelmay qolardi.
+    socketRef.current?.emit(ev, { orderId: trip.orderId }, (ack?: SocketAck) => {
+      if (ack && ack.ok === false) {
+        Alert.alert(t('error'), ack.message ?? t('error_generic'));
+        return;
+      }
+      if (nextStage) setTrip((cur) => (cur ? { ...cur, stage: nextStage } : cur));
+    });
   }
 
   function complete() {
@@ -257,11 +266,35 @@ export function HomeScreen({
     socketRef.current?.emit(
       EV.tripComplete,
       { orderId: trip.orderId, distanceM: Math.round(distanceM) },
-      (resp: { finalPrice?: number }) => {
+      (resp?: SocketAck & { finalPrice?: number }) => {
+        // Xatoda "0 so'm" ekranini ko'rsatmaymiz — safar hali tugamagan.
+        if (resp && resp.ok === false) {
+          Alert.alert(t('error'), resp.message ?? t('error_generic'));
+          return;
+        }
         setDone({ price: resp?.finalPrice ?? 0 });
         setTrip(null);
       },
     );
+  }
+
+  function sendSos() {
+    Alert.alert(t('sos_confirm_title'), t('sos_confirm_msg'), [
+      { text: t('cancel_trip'), style: 'cancel' },
+      {
+        text: t('sos'),
+        style: 'destructive',
+        onPress: () => {
+          socketRef.current?.emit(EV.sos, { orderId: trip?.orderId }, (ack?: SocketAck) => {
+            if (ack && ack.ok === false) {
+              Alert.alert(t('error'), ack.message ?? t('error_generic'));
+              return;
+            }
+            Alert.alert(t('sos'), t('sos_sent'));
+          });
+        },
+      },
+    ]);
   }
 
   function cancelTrip() {
@@ -273,6 +306,10 @@ export function HomeScreen({
   const navigate = (p: { lat: number; lng: number }) =>
     Linking.openURL(`https://yandex.uz/maps/?rtext=~${p.lat},${p.lng}&rtt=auto`);
   const call = (phone: string) => Linking.openURL('tel:' + phone);
+
+  if (showCabinet) {
+    return <CabinetScreen lang={lang} token={token} onClose={() => setShowCabinet(false)} />;
+  }
 
   // Yakuniy narx ekrani
   if (done) {
@@ -358,6 +395,17 @@ export function HomeScreen({
           <TouchableOpacity style={[S.btnGhost]} onPress={cancelTrip}>
             <Text style={[S.btnGhostText, { color: C.danger }]}>{t('cancel_trip')}</Text>
           </TouchableOpacity>
+
+          {/* SOS — safar davomida doim qo'l ostida. Tasodifan bosilmasligi
+              uchun tasdiq so'raladi (sendSos). */}
+          <TouchableOpacity
+            style={[S.btnGhost, { borderColor: C.danger }]}
+            onPress={sendSos}
+          >
+            <Text style={[S.btnGhostText, { color: C.danger, fontWeight: '800' }]}>
+              🆘 {t('sos')}
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     );
@@ -368,9 +416,14 @@ export function HomeScreen({
     <ScrollView style={S.screen} contentContainerStyle={{ paddingBottom: 24 }}>
       <View style={[S.row, { justifyContent: 'space-between', marginBottom: 20 }]}>
         <Text style={S.title}>{t('app_name')}</Text>
-        <TouchableOpacity onPress={onLogout}>
-          <Text style={{ color: C.muted }}>{t('logout')}</Text>
-        </TouchableOpacity>
+        <View style={[S.row, { gap: 16 }]}>
+          <TouchableOpacity onPress={() => setShowCabinet(true)}>
+            <Text style={{ color: C.accent, fontWeight: '700' }}>{t('cabinet')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onLogout}>
+            <Text style={{ color: C.muted }}>{t('logout')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={[S.card, { alignItems: 'center', paddingVertical: 24 }]}>

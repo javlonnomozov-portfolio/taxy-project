@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useI18n } from '../i18n';
 import { time } from '../ui';
 
 interface Customer {
@@ -15,6 +16,7 @@ interface Customer {
 }
 
 export function Customers() {
+  const { t } = useI18n();
   const [rows, setRows] = useState<Customer[]>([]);
   const [q, setQ] = useState('');
   const load = () => api<Customer[]>('GET', '/ops/customers').then(setRows).catch(() => {});
@@ -32,12 +34,12 @@ export function Customers() {
 
   return (
     <>
-      <div className="topbar"><h1>Foydalanuvchilar</h1></div>
+      <div className="topbar"><h1>{t('customers_title')}</h1></div>
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-          <div className="lbl">Jami: {rows.length}</div>
+          <div className="lbl">{t('total')}: {rows.length}</div>
           <input
-            placeholder="Qidirish (ism yoki telefon)"
+            placeholder={t('search_customer')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             style={{ maxWidth: 260 }}
@@ -46,13 +48,13 @@ export function Customers() {
         <table style={{ marginTop: 10 }}>
           <thead>
             <tr>
-              <th>Ism</th>
-              <th>Telefon</th>
-              <th>Til</th>
-              <th>Reyting</th>
-              <th>No-show</th>
-              <th>Holat</th>
-              <th>Ro‘yxatdan</th>
+              <th>{t('th_name')}</th>
+              <th>{t('th_phone')}</th>
+              <th>{t('th_lang')}</th>
+              <th>{t('th_rating')}</th>
+              <th>{t('th_noshow')}</th>
+              <th>{t('th_status')}</th>
+              <th>{t('th_registered')}</th>
             </tr>
           </thead>
           <tbody>
@@ -63,12 +65,12 @@ export function Customers() {
                 <td>{c.language}</td>
                 <td>{c.ratingAvg ?? 0}</td>
                 <td>{c.noShowCount ?? 0}</td>
-                <td>{c.isBlocked ? '🚫 Bloklangan' : '✅ Faol'}</td>
+                <td>{c.isBlocked ? t('blocked') : t('active')}</td>
                 <td>{time(c.createdAt)}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="lbl">Foydalanuvchi topilmadi</td></tr>
+              <tr><td colSpan={7} className="lbl">{t('no_customers')}</td></tr>
             )}
           </tbody>
         </table>

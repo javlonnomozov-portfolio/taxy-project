@@ -1,5 +1,6 @@
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import { auth } from './api';
+import { useI18n } from './i18n';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Drivers } from './pages/Drivers';
@@ -10,6 +11,7 @@ import { Orders } from './pages/Orders';
 
 function Layout({ children }: { children: React.ReactNode }) {
   const nav = useNavigate();
+  const { t, lang, setLang } = useI18n();
   const role = auth.role;
   const isAdmin = role === 'admin' || role === 'super_admin';
   return (
@@ -19,21 +21,24 @@ function Layout({ children }: { children: React.ReactNode }) {
           Toy TaxY <small>{role}</small>
         </div>
         <nav className="nav">
-          <NavLink to="/" end>Panel</NavLink>
-          <NavLink to="/orders">Zakazlar</NavLink>
-          <NavLink to="/customers">Foydalanuvchilar</NavLink>
-          <NavLink to="/scheduled">Oldindan buyurtmalar</NavLink>
-          {isAdmin && <NavLink to="/drivers">Haydovchilar</NavLink>}
-          {isAdmin && <NavLink to="/settings">Sozlamalar</NavLink>}
+          <NavLink to="/" end>{t('nav_dashboard')}</NavLink>
+          <NavLink to="/orders">{t('nav_orders')}</NavLink>
+          <NavLink to="/customers">{t('nav_customers')}</NavLink>
+          <NavLink to="/scheduled">{t('nav_scheduled')}</NavLink>
+          {isAdmin && <NavLink to="/drivers">{t('nav_drivers')}</NavLink>}
+          {isAdmin && <NavLink to="/settings">{t('nav_settings')}</NavLink>}
         </nav>
         <div className="spacer" style={{ flex: 1 }} />
+        <button onClick={() => setLang(lang === 'uz' ? 'ru' : 'uz')} style={{ marginBottom: 8 }}>
+          {t('lang_switch')}
+        </button>
         <button
           onClick={() => {
             auth.clear();
             nav('/login');
           }}
         >
-          Chiqish
+          {t('logout')}
         </button>
       </aside>
       <main className="main">{children}</main>

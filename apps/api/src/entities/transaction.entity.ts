@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { numericTransformer } from '../database/numeric.transformer';
 
 export type TransactionType = 'commission' | 'topup' | 'subscription' | 'adjustment';
 
@@ -14,10 +15,10 @@ export class Transaction {
   @Column({ type: 'text' })
   type!: TransactionType;
 
-  @Column({ type: 'numeric', precision: 12, scale: 2 })
+  @Column({ type: 'numeric', precision: 12, scale: 2, transformer: numericTransformer })
   amount!: number;
 
-  @Column({ type: 'numeric', name: 'balance_after', precision: 12, scale: 2 })
+  @Column({ type: 'numeric', name: 'balance_after', precision: 12, scale: 2, transformer: numericTransformer })
   balanceAfter!: number;
 
   @Column({ type: 'uuid', name: 'order_id', nullable: true })

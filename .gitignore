@@ -31,6 +31,12 @@ apps/driver-app/.expo/
 apps/driver-app/dist/
 apps/driver-app/google-services.json
 apps/driver-app/GoogleService-Info.plist
+# Firebase service account kalitlari — HECH QACHON repo'ga tushmasin.
+# Bu fayl FCM'ga to'liq server huquqini beradi; u Expo credential do'konida
+# saqlanadi (`eas credentials`), repoda emas.
+*firebase-adminsdk*.json
+*service-account*.json
+*serviceAccountKey*.json
 *.apk
 *.keystore
 

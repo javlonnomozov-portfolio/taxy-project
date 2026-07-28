@@ -43,10 +43,35 @@ Redis: "Add Service → Database → Redis".
   DISPATCH_RADIUS_STEPS_M=2000,4000,6000
   DISPATCH_NO_DRIVER_TIMEOUT_SEC=60
   FCM_SERVER_KEY=            # ixtiyoriy
+  SWAGGER_ENABLED=false      # 'true' bo'lsa /docs prod'da ochiladi
+  LOGIN_RATE_LIMIT=5         # login urinishlari / daqiqa / hisob
   ```
   > `PORT` — Railway avtomatik beradi. Migratsiyalar start'dan oldin avtomatik ishlaydi
   > (`run-migrations.js`).
-- **Healthcheck:** `/health` (railway.json'da sozlangan).
+- **Healthcheck:** `/health` (railway.json'da sozlangan). Nosozlikda **503** qaytadi
+  (`@nestjs/terminus`), ya'ni DB yoki Redis yiqilgan deploy o'tmaydi.
+
+### Ko'p instansiya (replica) — qo'llab-quvvatlanadi
+
+`numReplicas` ni oshirsa bo'ladi. Buning uchun uchta mexanizm bor:
+
+1. **Socket.IO Redis adapter** — `emitToDriver(...)` va `fetchSockets()` barcha
+   instansiyalarda ishlaydi. Busiz 1-instansiyaga ulangan haydovchi 2-instansiya
+   yuborgan taklifni umuman olmasdi.
+2. **Dispatch egaligi** — har zakazni aynan bitta instansiya boshqaradi
+   (`dispatch:owner:<orderId>`, Redis `SET NX` + TTL 90s, heartbeat 30s). Boshqa
+   instansiyaga tushgan haydovchi javobi pub/sub orqali egasiga uzatiladi.
+   Instansiya o'lsa, egalik TTL bilan bo'shaydi va zakazni boshqasi
+   `recoverOrphans()` orqali oladi.
+3. **Bot sessiyasi Redis'da** (TTL 7 kun) — foydalanuvchi qaysi instansiyaga
+   tushishidan qat'i nazar bir xil sessiyani ko'radi.
+
+Tekshirish: `pnpm sim:cluster` — ikkita API instansiyasi (3000/3001) ko'tarilgan
+holda haydaydi va zakaz A da, haydovchi B da bo'lgan holatni sinaydi.
+
+> **Bot servisi esa bitta instansiyada qolishi kerak** — Telegram polling
+> (`bot.launch()`) bir vaqtda faqat bitta iste'molchiga ruxsat beradi. Bot uchun
+> replica kerak bo'lsa, avval webhook rejimiga o'tish lozim.
 - Domen: "Settings → Networking → Generate Domain" → `https://<api>.up.railway.app`.
 
 ## 3. Bot servisi
@@ -77,12 +102,48 @@ Redis: "Add Service → Database → Redis".
 
 - **JWT_SECRET / INTERNAL_API_KEY** — kuchli, tasodifiy; api va bot'da `INTERNAL_API_KEY`
   bir xil bo'lishi shart.
-- **Admin parol:** hozircha oddiy matn (`admin_users.password_hash`). Productionda bcrypt
-  qo'shing va admin'ni yangi parol bilan yarating (SQL orqali yoki keyingi seed).
+- **Admin parol:** bcrypt (`bcryptjs`). Bootstrap super-admin `ADMIN_LOGIN`/`ADMIN_PASSWORD`
+  env'laridan yaratiladi (create-if-missing).
 - **DATABASE_SSL=true** — Railway Postgres uchun.
+- **Replica: 1 ta** — yuqoridagi ogohlantirishga qarang.
+- **Loglar:** `Authorization`, `x-internal-key` va parol maydonlari pino `redact` bilan
+  yashiriladi. Har so'rovda `x-request-id` bor — nosozlikni kuzatishda shu id bo'yicha qidiring.
 - **CORS:** api hozir hammaga ochiq (`enableCors()`); productionda admin domeniga cheklang.
-- **Xarita xizmatlari** (OSRM/Nominatim) — og'ir, alohida bosqichda (hozir MVP ularsiz
-  ishlaydi; admin xaritasi to'g'ridan OSM tile'laridan foydalanadi).
+- **Rate limiting:** `/auth/*/login` da `@nestjs/throttler` — `LOGIN_RATE_LIMIT` (default 5)
+  urinish/daqiqa. Hisoblagich **IP + hisob** bo'yicha kalitlanadi (`LoginThrottlerGuard`),
+  shuning uchun bitta NAT ortidagi ko'p haydovchi bir-birini bloklamaydi.
+  `main.ts` da `trust proxy` yoqilgan — busiz Railway edge ortida hamma bitta IP bo'lib
+  ko'rinardi va limit barchani bloklardi.
+## Xarita xizmatlari (Nominatim / OSRM)
+
+Manzil qidirish va marshrut **backend proksi** orqali ishlaydi (`GET /geo/search`,
+`/geo/reverse`, `/geo/route` — ichki kalit bilan). Nega proksi:
+
+- Nominatim shartlari aniq `User-Agent` va soniyasiga 1 so'rov chegarasini talab
+  qiladi — har bir foydalanuvchi o'zi so'rasa umumiy IP tez bloklanadi;
+- javoblar Redis'da 24 soat keshlanadi (bir xil so'rov bir marta ketadi);
+- self-host servis manzilini klientlarga tarqatish shart emas.
+
+**Sozlash (ixtiyoriy).** Env berilmasa xizmat o'chiq bo'ladi va 503 qaytaradi —
+bot manzilsiz davom etadi (manzil MVP'da ixtiyoriy, taksometr haqiqiy km bo'yicha
+hisoblaydi). API servisiga:
+
+```
+NOMINATIM_URL=https://nominatim.openstreetmap.org
+OSRM_URL=https://router.project-osrm.org
+GEO_USER_AGENT=ToyTaxY/1.0 (aloqa@sizning-domen.uz)
+```
+
+> ⚠️ Yuqoridagi **ommaviy demo serverlar** — ular ishlab chiqarish yuki uchun
+> mo'ljallanmagan va shartlari tijoriy foydalanishni cheklaydi. Jonli xizmat uchun
+> o'zingiznikini ko'taring:
+> - **OSRM:** alohida Railway servisi + volume, O'zbekiston OSM ekstrakti
+>   (Geofabrik) bilan oldindan `osrm-extract/partition/customize` qilingan image.
+>   Nisbatan yengil — MVP uchun maqbul.
+> - **Nominatim:** ancha og'ir (RAM + import vaqti). Muqobil — pullik hosted
+>   geokodlash provayderi; yuk past, chunki manzil ixtiyoriy.
+
+Tekshirish: `GET /geo/status` → `{ "geocoding": true, "routing": true }`.
 
 ## 6. Lokal build tekshirish (deploy'dan oldin)
 

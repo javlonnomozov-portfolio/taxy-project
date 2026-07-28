@@ -14,10 +14,11 @@ const check = (name, cond, extra = '') => {
   else (failed++, console.log(`  ❌ ${name} ${extra}`));
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// `await fn()` — predikat async bo'lishi mumkin (Promise doim truthy bo'lib qolmasin).
 async function waitFor(fn, ms = 3000, step = 50) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
-    if (fn()) return true;
+    if (await fn()) return true;
     await sleep(step);
   }
   return false;
@@ -127,7 +128,18 @@ async function main() {
     const H = { authorization: 'Bearer ' + admin.token };
     await ping();
     const o5 = await j('POST', '/orders', { customerId: customer.id, category: 'cargo', pickup }, { 'x-internal-key': KEY });
-    check('Cargo buyurtma NO_DRIVER bo\'ldi', await waitFor(() => statusesFor(o5.id).includes('NO_DRIVER'), 4000));
+    // MUHIM: NO_DRIVER mijozga DARHOL yuborilmaydi — operator (dispatcher) hal qiladi
+    // (qarang DispatchService.onNoDriver). Shuning uchun mijoz socketini emas,
+    // backend holatini tekshiramiz. Avval bu test mijoz statusini kutardi va
+    // dispatcher nazorati qo'shilgandan beri (08721a9) doim yiqilardi.
+    check(
+      'Cargo buyurtma backendda NO_DRIVER bo\'ldi',
+      await waitFor(async () => (await j('GET', `/orders/${o5.id}`, null, { 'x-internal-key': KEY })).status === 'NO_DRIVER', 4000),
+    );
+    check(
+      'Mijozga avto NO_DRIVER YUBORILMADI (dispatcher hal qiladi)',
+      !statusesFor(o5.id).includes('NO_DRIVER'),
+    );
     const assigned = await j('POST', `/ops/orders/${o5.id}/assign`, { driverId: v.driverId }, H);
     check('Operator haydovchiga biriktirdi (ACCEPTED)', assigned.status === 'ACCEPTED', `(status=${assigned.status})`);
     // tozalash

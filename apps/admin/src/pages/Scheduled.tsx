@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useI18n } from '../i18n';
 import { time } from '../ui';
 
 interface Order {
@@ -11,6 +12,7 @@ interface Order {
 }
 
 export function Scheduled() {
+  const { t } = useI18n();
   const [orders, setOrders] = useState<Order[]>([]);
   const load = () => api<Order[]>('GET', '/ops/scheduled').then(setOrders).catch(() => {});
   useEffect(() => {
@@ -20,21 +22,21 @@ export function Scheduled() {
   }, []);
 
   async function confirm(id: string) {
-    if (!window.confirm('Mijoz bilan tasdiqlandi — dispatch boshlansinmi?')) return;
+    if (!window.confirm(t('scheduled_confirm_q'))) return;
     await api('POST', `/ops/orders/${id}/confirm-scheduled`, {});
     load();
   }
 
   return (
     <>
-      <div className="topbar"><h1>Oldindan buyurtmalar</h1></div>
+      <div className="topbar"><h1>{t('scheduled_title')}</h1></div>
       <div className="card">
         <p className="lbl" style={{ marginTop: 0 }}>
-          Operator ~2 soat oldin mijoz bilan bog‘lanib tasdiqlaydi; tasdiqdan keyin dispatch boshlanadi.
+          {t('scheduled_hint')}
         </p>
         <table>
           <thead>
-            <tr><th>Toifa</th><th>Belgilangan vaqt</th><th>Izoh</th><th>Yaratilgan</th><th></th></tr>
+            <tr><th>{t('th_category')}</th><th>{t('th_scheduled_at')}</th><th>{t('th_note')}</th><th>{t('th_created')}</th><th></th></tr>
           </thead>
           <tbody>
             {orders.map((o) => (
@@ -43,10 +45,10 @@ export function Scheduled() {
                 <td><b>{time(o.scheduledAt)}</b></td>
                 <td>{o.note || '—'}</td>
                 <td>{time(o.createdAt)}</td>
-                <td><button className="primary" onClick={() => confirm(o.id)}>Tasdiqlash</button></td>
+                <td><button className="primary" onClick={() => confirm(o.id)}>{t('confirm')}</button></td>
               </tr>
             ))}
-            {orders.length === 0 && <tr><td colSpan={5} className="lbl">Oldindan buyurtma yo‘q</td></tr>}
+            {orders.length === 0 && <tr><td colSpan={5} className="lbl">{t('no_scheduled')}</td></tr>}
           </tbody>
         </table>
       </div>

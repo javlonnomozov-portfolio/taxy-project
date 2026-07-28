@@ -11,8 +11,9 @@ import {
   mainMenu,
   phoneKeyboard,
   pickupKeyboard,
+  skipKeyboard,
 } from './keyboards';
-import { getSession, resetDraft } from './session';
+import { createSessionStore, resetDraft, Session, SessionStore } from './session';
 import { trackOrder, stopTracking } from './tracker';
 
 // Yakuniy (terminal) holatlar — bulardan keyin zakaz faol emas.
@@ -38,7 +39,8 @@ async function stillActive(orderId: string): Promise<boolean> {
 }
 
 // Telefon raqamni normallashtirish: +998XXXXXXXXX yoki null (noto'g'ri).
-function normalizePhone(raw: string): string | null {
+// Eksport qilingan — test uchun (O'zbekiston raqam formatlari).
+export function normalizePhone(raw: string): string | null {
   const d = raw.replace(/\D/g, '');
   if (/^998\d{9}$/.test(d)) return '+' + d;
   if (/^\d{9}$/.test(d)) return '+998' + d;
@@ -66,16 +68,38 @@ function agoText(lang: Lang, iso: string | null): string {
   return t(lang, 'ago_min', String(Math.floor(sec / 60)));
 }
 
-export function createBot(): Telegraf {
+export function createBot(store: SessionStore = createSessionStore(CONFIG.redisUrl)): Telegraf {
   const bot = new Telegraf(CONFIG.botToken);
+
+  // Sessiyani har update boshida yuklab, oxirida saqlaymiz. Handler'lar sinxron
+  // `getSession(ctx)` bilan ishlaydi — 16 ta chaqiruv joyini async qilish shart emas.
+  bot.use(async (ctx, next) => {
+    const chatId = ctx.chat?.id;
+    if (chatId == null) return next();
+    const s = await store.get(chatId);
+    (ctx.state as { session?: Session }).session = s;
+    try {
+      await next();
+    } finally {
+      await store.set(chatId, s); // xato bo'lsa ham holatni yo'qotmaymiz
+    }
+  });
+
+  const getSession = (ctx: { state: object }): Session =>
+    (ctx.state as { session: Session }).session;
 
   // Mijozni ro'yxatdan o'tkazish (contact yoki qo'lda yozilgan raqam).
   async function register(
-    ctx: { chat?: { id: number }; from?: { id: number; first_name?: string; last_name?: string }; reply: (t: string, e?: object) => Promise<unknown> },
+    ctx: {
+      chat?: { id: number };
+      from?: { id: number; first_name?: string; last_name?: string };
+      reply: (t: string, e?: object) => Promise<unknown>;
+      state: object;
+    },
     lang: Lang,
     phone: string,
   ) {
-    const s = getSession(ctx.chat!.id);
+    const s = getSession(ctx);
     try {
       const customer = await apiClient.upsertCustomer({
         telegramId: String(ctx.from!.id),
@@ -95,14 +119,14 @@ export function createBot(): Telegraf {
 
   // /start → til tanlash
   bot.start(async (ctx) => {
-    const s = getSession(ctx.chat.id);
+    const s = getSession(ctx);
     await ctx.reply(t(s.lang, 'welcome'));
     await ctx.reply(t(s.lang, 'choose_lang'), langKeyboard);
   });
 
   // Til tanlash
   bot.action(/^lang:(uz|ru)$/, async (ctx) => {
-    const s = getSession(ctx.chat!.id);
+    const s = getSession(ctx);
     s.lang = ctx.match[1] as Lang;
     await ctx.answerCbQuery();
     if (!s.customerId || !s.phone) {
@@ -114,13 +138,13 @@ export function createBot(): Telegraf {
 
   // Telefon ulashish (tugma) → ro'yxatdan o'tish
   bot.on(message('contact'), async (ctx) => {
-    const s = getSession(ctx.chat.id);
+    const s = getSession(ctx);
     await register(ctx, s.lang, ctx.message.contact.phone_number);
   });
 
   // Matnli xabarlar (registratsiya / menyu / oqim qadamlari)
   bot.on(message('text'), async (ctx) => {
-    const s = getSession(ctx.chat.id);
+    const s = getSession(ctx);
     const text = ctx.message.text.trim();
 
     // 1) Hali ro'yxatdan o'tmagan bo'lsa — matnni telefon raqam deb qabul qilamiz
@@ -160,8 +184,29 @@ export function createBot(): Telegraf {
       return ctx.reply(t(s.lang, 'choose_category'), categoryKeyboard(s.lang));
     }
 
-    // 3) Noto'g'ri kiritish — tegishli tugmadan foydalanishni so'raymiz
-    // (Zakaz oqimi soddalashtirildi: faqat toifa + lokatsiya → tasdiqlash.)
+    // 3) Oqim qadamlari: manzil va izoh (ikkalasi ham ixtiyoriy — o'tkazib yuborsa bo'ladi).
+    if (s.step === 'dest') {
+      if (text !== t(s.lang, 'skip')) {
+        s.draft.destAddress = text;
+        // Manzilni koordinataga o'girishga urinamiz — bo'lsa haydovchi taklifida
+        // borish nuqtasi ko'rinadi. Xizmat sozlanmagan/topilmagan bo'lsa, matn
+        // shundayligicha qoladi (manzil ixtiyoriy).
+        const [place] = await apiClient.searchPlace(text);
+        if (place) {
+          s.draft.destination = { lat: place.lat, lng: place.lng };
+          s.draft.destAddress = place.label;
+        }
+      }
+      s.step = 'note';
+      return ctx.reply(t(s.lang, 'ask_note'), skipKeyboard(s.lang));
+    }
+    if (s.step === 'note') {
+      if (text !== t(s.lang, 'skip')) s.draft.note = text;
+      s.step = 'confirm';
+      return ctx.reply(t(s.lang, 'confirm_order', s.draft.category ?? ''), confirmKeyboard(s.lang));
+    }
+
+    // 4) Noto'g'ri kiritish — tegishli tugmadan foydalanishni so'raymiz
     if (s.step === 'category') return ctx.reply(t(s.lang, 'use_category_btn'), categoryKeyboard(s.lang));
     if (s.step === 'pickup') return ctx.reply(t(s.lang, 'use_location_btn'), pickupKeyboard(s.lang));
     if (s.step === 'confirm') return ctx.reply(t(s.lang, 'use_confirm_btn'), confirmKeyboard(s.lang));
@@ -171,26 +216,26 @@ export function createBot(): Telegraf {
 
   // Toifa tanlash
   bot.action(/^cat:(standard|comfort|cargo)$/, async (ctx) => {
-    const s = getSession(ctx.chat!.id);
+    const s = getSession(ctx);
     s.draft.category = ctx.match[1];
     s.step = 'pickup';
     await ctx.answerCbQuery();
     await ctx.reply(t(s.lang, 'ask_pickup'), pickupKeyboard(s.lang));
   });
 
-  // Lokatsiya (olib ketish nuqtasi) → to'g'ridan tasdiqlashga (manzil/izoh so'ralmaydi)
+  // Lokatsiya (olib ketish nuqtasi) → manzil so'rash (ixtiyoriy, o'tkazib yuborsa bo'ladi)
   bot.on(message('location'), async (ctx) => {
-    const s = getSession(ctx.chat.id);
+    const s = getSession(ctx);
     if (s.step !== 'pickup') return;
     const { latitude, longitude } = ctx.message.location;
     s.draft.pickup = { lat: latitude, lng: longitude };
-    s.step = 'confirm';
-    await ctx.reply(t(s.lang, 'confirm_order', s.draft.category ?? ''), confirmKeyboard(s.lang));
+    s.step = 'dest';
+    await ctx.reply(t(s.lang, 'ask_dest'), skipKeyboard(s.lang));
   });
 
   // Tasdiqlash → buyurtma yaratish
   bot.action('order:confirm', async (ctx) => {
-    const s = getSession(ctx.chat!.id);
+    const s = getSession(ctx);
     await ctx.answerCbQuery();
     if (s.step !== 'confirm' || !s.customerId || !s.draft.pickup || !s.draft.category) return;
     try {
@@ -198,6 +243,8 @@ export function createBot(): Telegraf {
         customerId: s.customerId,
         category: s.draft.category,
         pickup: s.draft.pickup,
+        // Mijoz manzilni MATN sifatida yozadi (koordinata emas) → destAddress.
+        destAddress: s.draft.destAddress,
         note: s.draft.note,
       });
       s.activeOrderId = order.id;
@@ -211,10 +258,15 @@ export function createBot(): Telegraf {
         customerId: s.customerId,
         lang: s.lang,
         telegram: ctx.telegram,
+        // DIQQAT: bu socket callback'i update tugagandan KEYIN ishlaydi, ya'ni
+        // middleware sessiyani allaqachon saqlab bo'lgan. Shuning uchun `ctx.state`
+        // dagi nusxani o'zgartirish yetarli emas — store orqali qayta yozamiz.
         onTerminal: (oid, status) => {
-          const ss = getSession(ctx.chat!.id);
-          if (ss.activeOrderId === oid) ss.activeOrderId = undefined;
-          if (status === 'COMPLETED') ss.ratingOrderId = oid;
+          const chatId = ctx.chat!.id;
+          void store.update(chatId, (ss) => {
+            if (ss.activeOrderId === oid) ss.activeOrderId = undefined;
+            if (status === 'COMPLETED') ss.ratingOrderId = oid;
+          });
         },
       });
     } catch (e) {
@@ -224,7 +276,7 @@ export function createBot(): Telegraf {
   });
 
   bot.action('order:abort', async (ctx) => {
-    const s = getSession(ctx.chat!.id);
+    const s = getSession(ctx);
     resetDraft(s);
     await ctx.answerCbQuery();
     await ctx.reply(t(s.lang, 'cancelled'), mainMenu(s.lang));
@@ -232,7 +284,7 @@ export function createBot(): Telegraf {
 
   // Faol buyurtmani bekor qilish
   bot.action('order:cancel', async (ctx) => {
-    const s = getSession(ctx.chat!.id);
+    const s = getSession(ctx);
     await ctx.answerCbQuery();
     if (!s.activeOrderId) return;
     try {
@@ -250,7 +302,7 @@ export function createBot(): Telegraf {
 
   // Taksi joylashuvini ko'rish (10 soniyada bir marta ruxsat).
   bot.action('order:where', async (ctx) => {
-    const s = getSession(ctx.chat!.id);
+    const s = getSession(ctx);
     if (!s.activeOrderId) {
       await ctx.answerCbQuery();
       return;
@@ -280,7 +332,7 @@ export function createBot(): Telegraf {
 
   // Baholash (1-5)
   bot.action(/^rate:([1-5])$/, async (ctx) => {
-    const s = getSession(ctx.chat!.id);
+    const s = getSession(ctx);
     await ctx.answerCbQuery();
     if (!s.ratingOrderId) return;
     try {

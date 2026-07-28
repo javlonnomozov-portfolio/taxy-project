@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
+    "lint": "eslint .",
     "test": "pnpm -r test",
     "dev:api": "pnpm --filter @tty/api start:dev",
     "dev:bot": "pnpm --filter @tty/bot start:dev",
@@ -21,11 +21,20 @@
     "sim:trip": "node scripts/trip-sim.mjs",
     "sim:sprint3": "DISPATCH_WINDOW_SIZE=1 node scripts/sprint3-sim.mjs",
     "sim:bot": "node scripts/bot-flow-sim.mjs",
-    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "sim:race": "node scripts/race-sim.mjs",
+    "typecheck": "pnpm -r typecheck",
+    "sim:security": "node scripts/security-sim.mjs",
+    "sim:cluster": "node scripts/cluster-sim.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.8.0",
     "prettier": "^3.3.3",
     "socket.io-client": "^4.8.0",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.65.0"
   }
 }

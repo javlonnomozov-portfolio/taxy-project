@@ -48,6 +48,36 @@ const dict: Record<Lang, Record<string, string>> = {
     cancel_trip: 'Bekor qilish',
     trip_cancelled_title: 'Safar bekor qilindi',
     trip_cancelled_msg: 'Buyurtma mijoz yoki operator tomonidan bekor qilindi.',
+    cabinet: 'Kabinet',
+    tab_balance: 'Balans',
+    tab_trips: 'Safarlar',
+    tab_stats: 'Ko‘rsatkichlar',
+    billing_mode: 'Billing',
+    balance_negative: 'Balans manfiy — ofisda to‘ldiring, aks holda buyurtma kelmasligi mumkin.',
+    transactions: 'Balans harakati',
+    no_transactions: 'Hozircha yozuv yo‘q',
+    no_trips: 'Hozircha safar yo‘q',
+    commission: 'Komissiya',
+    rating: 'Reyting',
+    total_trips: 'Jami safarlar',
+    earned_total: 'Jami tushum',
+    acceptance_rate: 'Qabul qilish',
+    completion_rate: 'Yakunlash',
+    cancel_rate: 'Bekor qilish',
+    txn_commission: 'Safar komissiyasi',
+    txn_topup: 'Ofisda to‘ldirish',
+    txn_subscription: 'Obuna',
+    txn_adjustment: 'Tuzatish',
+    status_COMPLETED: 'Yakunlandi',
+    status_CUSTOMER_NO_SHOW: 'Mijoz kelmadi',
+    status_CANCELLED_BY_CUSTOMER: 'Mijoz bekor qildi',
+    status_CANCELLED_BY_DRIVER: 'Siz bekor qildingiz',
+    close: 'Yopish',
+    sos_confirm_title: 'SOS signali',
+    sos_confirm_msg: 'Operatorga favqulodda signal yuborilsinmi?',
+    sos_sent: 'SOS yuborildi — operator bog‘lanadi.',
+    error: 'Xatolik',
+    error_generic: 'Amalni bajarib bo‘lmadi. Qaytadan urinib ko‘ring.',
     lang_switch: 'Rus tili',
   },
   ru: {
@@ -97,10 +127,51 @@ const dict: Record<Lang, Record<string, string>> = {
     cancel_trip: 'Отменить',
     trip_cancelled_title: 'Поездка отменена',
     trip_cancelled_msg: 'Заказ отменён клиентом или оператором.',
+    cabinet: 'Кабинет',
+    tab_balance: 'Баланс',
+    tab_trips: 'Поездки',
+    tab_stats: 'Показатели',
+    billing_mode: 'Биллинг',
+    balance_negative: 'Баланс отрицательный — пополните в офисе, иначе заказы могут не поступать.',
+    transactions: 'Движение баланса',
+    no_transactions: 'Пока нет записей',
+    no_trips: 'Пока нет поездок',
+    commission: 'Комиссия',
+    rating: 'Рейтинг',
+    total_trips: 'Всего поездок',
+    earned_total: 'Общий доход',
+    acceptance_rate: 'Принятие',
+    completion_rate: 'Завершение',
+    cancel_rate: 'Отмены',
+    txn_commission: 'Комиссия за поездку',
+    txn_topup: 'Пополнение в офисе',
+    txn_subscription: 'Подписка',
+    txn_adjustment: 'Корректировка',
+    status_COMPLETED: 'Завершено',
+    status_CUSTOMER_NO_SHOW: 'Клиент не явился',
+    status_CANCELLED_BY_CUSTOMER: 'Отменено клиентом',
+    status_CANCELLED_BY_DRIVER: 'Вы отменили',
+    close: 'Закрыть',
+    sos_confirm_title: 'Сигнал SOS',
+    sos_confirm_msg: 'Отправить экстренный сигнал оператору?',
+    sos_sent: 'SOS отправлен — оператор свяжется.',
+    error: 'Ошибка',
+    error_generic: 'Не удалось выполнить действие. Попробуйте ещё раз.',
     lang_switch: 'O‘zbekcha',
   },
 };
 
-export function makeT(lang: Lang) {
-  return (key: string) => dict[lang][key] ?? dict.uz[key] ?? key;
+// Har til uchun BITTA tarjimon saqlanadi. Avval har chaqiruvda yangi funksiya
+// qaytarardi, ya'ni `t` har renderda o'zgarardi — uni `useCallback`/`useEffect`
+// bog'liqligiga qo'ygan komponent cheksiz qayta render tsikliga tushib qolardi
+// (CabinetScreen aynan shunday yiqilgan edi).
+const translators = new Map<Lang, (key: string) => string>();
+
+export function makeT(lang: Lang): (key: string) => string {
+  let fn = translators.get(lang);
+  if (!fn) {
+    fn = (key: string) => dict[lang][key] ?? dict.uz[key] ?? key;
+    translators.set(lang, fn);
+  }
+  return fn;
 }

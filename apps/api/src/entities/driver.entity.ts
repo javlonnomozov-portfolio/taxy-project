@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { ApprovalStatus, BillingMode, DriverStatus } from '@tty/shared';
 import { Vehicle } from './vehicle.entity';
+import { numericTransformer } from '../database/numeric.transformer';
 
 @Entity('drivers')
 export class Driver {
@@ -56,19 +57,19 @@ export class Driver {
   @Column({ type: 'jsonb', name: 'billing_config', default: {} })
   billingConfig!: Record<string, unknown>;
 
-  @Column({ type: 'numeric', name: 'rating_avg', precision: 3, scale: 2, default: 0 })
+  @Column({ type: 'numeric', name: 'rating_avg', precision: 3, scale: 2, default: 0, transformer: numericTransformer })
   ratingAvg!: number;
 
-  @Column({ type: 'numeric', name: 'cancel_rate', precision: 5, scale: 2, default: 0 })
+  @Column({ type: 'numeric', name: 'cancel_rate', precision: 5, scale: 2, default: 0, transformer: numericTransformer })
   cancelRate!: number;
 
-  @Column({ type: 'numeric', name: 'acceptance_rate', precision: 5, scale: 2, default: 0 })
+  @Column({ type: 'numeric', name: 'acceptance_rate', precision: 5, scale: 2, default: 0, transformer: numericTransformer })
   acceptanceRate!: number;
 
-  @Column({ type: 'numeric', name: 'completion_rate', precision: 5, scale: 2, default: 0 })
+  @Column({ type: 'numeric', name: 'completion_rate', precision: 5, scale: 2, default: 0, transformer: numericTransformer })
   completionRate!: number;
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0 })
+  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0, transformer: numericTransformer })
   balance!: number;
 
   @Column({ type: 'timestamptz', name: 'last_seen_at', nullable: true })

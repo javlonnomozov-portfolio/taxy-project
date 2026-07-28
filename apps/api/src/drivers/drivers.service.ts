@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import Redis from 'ioredis';
-import { ApprovalStatus, DriverStatus, VehicleCategory } from '@tty/shared';
+import { ApprovalStatus, DriverStatus, OrderStatus, VehicleCategory } from '@tty/shared';
 import * as bcrypt from 'bcryptjs';
 import { SOCKET_EVENTS } from '@tty/shared';
 import { REDIS } from '../redis/redis.module';
@@ -11,16 +11,30 @@ import { GeoService } from '../geo/geo.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { Driver } from '../entities/driver.entity';
 import { Vehicle } from '../entities/vehicle.entity';
+import { Order } from '../entities/order.entity';
+import { Transaction } from '../entities/transaction.entity';
+import { AccountStatusService } from '../auth/account-status.service';
+
+// Haydovchi tarixida ko'rinadigan tugagan holatlar.
+const FINISHED_STATUSES = [
+  OrderStatus.COMPLETED,
+  OrderStatus.CUSTOMER_NO_SHOW,
+  OrderStatus.CANCELLED_BY_CUSTOMER,
+  OrderStatus.CANCELLED_BY_DRIVER,
+];
 
 @Injectable()
 export class DriversService {
   constructor(
     @InjectRepository(Driver) private readonly drivers: Repository<Driver>,
     @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
+    @InjectRepository(Order) private readonly orders: Repository<Order>,
+    @InjectRepository(Transaction) private readonly txns: Repository<Transaction>,
     @Inject(REDIS) private readonly redis: Redis,
     private readonly geo: GeoService,
     private readonly realtime: RealtimeService,
     private readonly config: ConfigService,
+    private readonly accounts: AccountStatusService,
   ) {}
 
   private catKey(driverId: string): string {
@@ -66,7 +80,9 @@ export class DriversService {
   async approve(driverId: string): Promise<Driver> {
     const driver = await this.mustFind(driverId);
     driver.approvalStatus = ApprovalStatus.APPROVED;
-    return this.drivers.save(driver);
+    const saved = await this.drivers.save(driver);
+    await this.accounts.invalidate('driver', driverId); // yana kira olsin
+    return saved;
   }
 
   async block(driverId: string): Promise<Driver> {
@@ -74,7 +90,13 @@ export class DriversService {
     driver.approvalStatus = ApprovalStatus.BLOCKED;
     driver.status = DriverStatus.OFFLINE;
     await this.geo.removeFromAll(driverId);
-    return this.drivers.save(driver);
+    const saved = await this.drivers.save(driver);
+    // Blok DARHOL kuchga kirsin: hisob keshini tozalaymiz (aks holda TTL tugagunча
+    // eski token ishlardi) va ochiq socketlarni uzamiz (ular guard'dan allaqachon
+    // o'tib bo'lgan va zakaz qabul qilishda davom etardi).
+    await this.accounts.invalidate('driver', driverId);
+    await this.realtime.disconnectDriver(driverId, 'blocked');
+    return saved;
   }
 
   listAll(): Promise<Driver[]> {
@@ -179,7 +201,7 @@ export class DriversService {
         phone: d.phone,
         plate: v?.plate ?? '',
         car: [v?.color, v?.make, v?.model].filter(Boolean).join(' '),
-        ratingAvg: Number(d.ratingAvg),
+        ratingAvg: d.ratingAvg,
         lat: d.lastLat!,
         lng: d.lastLng!,
         status: d.status,
@@ -203,9 +225,24 @@ export class DriversService {
     await this.geo.removeFromAll(driverId);
   }
 
-  /** Safar tugagach yoki bekor bo'lgach — yana bo'sh. */
+  /**
+   * Safar tugagach yoki bekor bo'lgach — yana bo'sh.
+   *
+   * MUHIM: `markOnTrip()` haydovchini Redis geo-indeksidan o'chirgan edi, shuning uchun
+   * bu yerda uni QAYTARAMIZ. Aks holda haydovchi safardan keyin ilovaning keyingi GPS
+   * yangilanishigacha dispatch uchun ko'rinmay turadi (GPS to'xtab qolsa — umuman).
+   */
   async markIdle(driverId: string): Promise<void> {
+    const driver = await this.drivers.findOne({ where: { id: driverId } });
+    if (!driver) return;
+    // Oflayn haydovchini "bo'sh" qilib qo'ymaymiz — ilovasi yopiq bo'lsa taklif javobsiz qoladi.
+    if (driver.status === DriverStatus.OFFLINE) return;
+
     await this.drivers.update(driverId, { status: DriverStatus.ONLINE_IDLE });
+    if (driver.lastLat != null && driver.lastLng != null) {
+      const category = await this.getCategory(driverId);
+      await this.geo.setDriverLocation(driverId, category, driver.lastLng, driver.lastLat);
+    }
   }
 
   async setPushToken(driverId: string, token: string): Promise<void> {
@@ -221,6 +258,65 @@ export class DriversService {
     if (!driver) return null;
     const vehicle = await this.vehicles.findOne({ where: { driverId: id } });
     return { driver, vehicle };
+  }
+
+  // --- Haydovchining o'z kabineti (ilova ekranlari uchun) ---
+
+  /** Balans + billing rejimi. Manfiy balans ilovada ogohlantirish sifatida ko'rsatiladi. */
+  async balanceInfo(driverId: string): Promise<{
+    balance: number;
+    billingMode: string;
+    billingConfig: Record<string, unknown>;
+  }> {
+    const d = await this.mustFind(driverId);
+    return {
+      balance: d.balance,
+      billingMode: d.billingMode,
+      billingConfig: (d.billingConfig ?? {}) as Record<string, unknown>,
+    };
+  }
+
+  /** Balans harakati — komissiya va ofisda to'ldirish yozuvlari. */
+  transactions(driverId: string): Promise<Transaction[]> {
+    return this.txns.find({ where: { driverId }, order: { createdAt: 'DESC' }, take: 50 });
+  }
+
+  /** Yakunlangan/tugagan safarlar tarixi. */
+  tripHistory(driverId: string): Promise<Order[]> {
+    return this.orders.find({
+      where: { driverId, status: In(FINISHED_STATUSES) },
+      order: { completedAt: 'DESC' },
+      take: 50,
+    });
+  }
+
+  /**
+   * Haydovchi ko'rsatkichlari. Reyting/metrikalar `drivers` jadvalida saqlanadi
+   * (ReputationService har baho va safardan keyin qayta hisoblaydi).
+   */
+  async stats(driverId: string): Promise<{
+    ratingAvg: number;
+    acceptanceRate: number;
+    cancelRate: number;
+    completionRate: number;
+    totalTrips: number;
+    earnedTotal: number;
+  }> {
+    const d = await this.mustFind(driverId);
+    const agg = await this.orders
+      .createQueryBuilder('o')
+      .select('COUNT(*)', 'cnt')
+      .addSelect('COALESCE(SUM(o.final_price), 0)', 'sum')
+      .where('o.driver_id = :id AND o.status = :st', { id: driverId, st: OrderStatus.COMPLETED })
+      .getRawOne<{ cnt: string; sum: string }>();
+    return {
+      ratingAvg: d.ratingAvg,
+      acceptanceRate: d.acceptanceRate,
+      cancelRate: d.cancelRate,
+      completionRate: d.completionRate,
+      totalTrips: Number(agg?.cnt ?? 0),
+      earnedTotal: Number(agg?.sum ?? 0),
+    };
   }
 
   private async mustFind(id: string): Promise<Driver> {

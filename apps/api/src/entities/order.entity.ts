@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { OrderStatus, OrderType, VehicleCategory } from '@tty/shared';
+import { numericTransformer } from '../database/numeric.transformer';
 
 @Entity('orders')
 export class Order {
@@ -58,10 +59,10 @@ export class Order {
   @Column({ type: 'timestamptz', name: 'scheduled_at', nullable: true })
   scheduledAt!: Date | null;
 
-  @Column({ type: 'numeric', name: 'estimated_price', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'numeric', name: 'estimated_price', precision: 10, scale: 2, nullable: true, transformer: numericTransformer })
   estimatedPrice!: number | null;
 
-  @Column({ type: 'numeric', name: 'final_price', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'numeric', name: 'final_price', precision: 10, scale: 2, nullable: true, transformer: numericTransformer })
   finalPrice!: number | null;
 
   @Column({ type: 'int', name: 'distance_m', nullable: true })
@@ -70,13 +71,13 @@ export class Order {
   @Column({ type: 'int', name: 'waiting_minutes', default: 0 })
   waitingMinutes!: number;
 
-  @Column({ type: 'numeric', name: 'surge_multiplier', precision: 4, scale: 2, default: 1.0 })
+  @Column({ type: 'numeric', name: 'surge_multiplier', precision: 4, scale: 2, default: 1.0, transformer: numericTransformer })
   surgeMultiplier!: number;
 
-  @Column({ type: 'numeric', name: 'night_multiplier', precision: 4, scale: 2, default: 1.0 })
+  @Column({ type: 'numeric', name: 'night_multiplier', precision: 4, scale: 2, default: 1.0, transformer: numericTransformer })
   nightMultiplier!: number;
 
-  @Column({ type: 'numeric', name: 'commission_amount', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'numeric', name: 'commission_amount', precision: 10, scale: 2, nullable: true, transformer: numericTransformer })
   commissionAmount!: number | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

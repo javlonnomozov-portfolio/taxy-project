@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { numericTransformer } from '../database/numeric.transformer';
 
 @Entity('customers')
 export class Customer {
@@ -32,10 +33,10 @@ export class Customer {
   @Column({ type: 'boolean', name: 'is_blocked', default: false })
   isBlocked!: boolean;
 
-  @Column({ type: 'numeric', name: 'rating_avg', precision: 3, scale: 2, default: 0 })
+  @Column({ type: 'numeric', name: 'rating_avg', precision: 3, scale: 2, default: 0, transformer: numericTransformer })
   ratingAvg!: number;
 
-  @Column({ type: 'numeric', name: 'cancel_rate', precision: 5, scale: 2, default: 0 })
+  @Column({ type: 'numeric', name: 'cancel_rate', precision: 5, scale: 2, default: 0, transformer: numericTransformer })
   cancelRate!: number;
 
   @Column({ type: 'int', name: 'no_show_count', default: 0 })
