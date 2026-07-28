@@ -33,6 +33,15 @@ export interface SocketAck {
 export function connectDriver(token: string): Socket {
   return io(API_URL + '/driver', {
     auth: { token },
-    transports: ['websocket'],
+    // MUHIM: faqat 'websocket' MAJBURLANMAYDI. Ba'zi mobil tarmoqlar va korporativ
+    // proksilar WS'ni bloklaydi — o'shanda zaxira yo'l bo'lmasa haydovchi umuman
+    // ulana olmaydi va ilova "Ulanmoqda…" holatida qotib qoladi. Polling bilan
+    // ulanib, imkon bo'lsa WS'ga ko'tariladi.
+    transports: ['websocket', 'polling'],
+    // Tarmoq uzilsa o'zi qayta ulansin (haydovchi kun bo'yi harakatda).
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 10_000,
+    timeout: 20_000,
   });
 }
