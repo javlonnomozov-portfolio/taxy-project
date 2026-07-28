@@ -86,11 +86,10 @@ async function main() {
   await feedCb('cat:standard');
   check('Lokatsiya so\'raldi', anyText('Olib ketish'));
   await feedMsg({ location: { latitude: pickup.lat, longitude: pickup.lng } });
-  check('Manzil so\'raldi', anyText('manzilini'));
-  await feedText('Registon ko‘chasi 12'); // manzilni yozamiz (skip emas)
-  check('Izoh so\'raldi', anyText('Izoh'));
-  await feedText('⏭ O‘tkazib yuborish'); // izohni o'tkazib yuboramiz
-  check('Tasdiq so\'raldi', anyText('Tasdiqlaysizmi'));
+  // Oqim QISQA: manzil va izoh so'ralmaydi — lokatsiyadan keyin darhol tasdiq.
+  check('Lokatsiyadan keyin darhol tasdiq so\'raldi', anyText('Tasdiqlaysizmi'));
+  check('Manzil SO\'RALMADI', !anyText('manzilini'));
+  check('Izoh SO\'RALMADI', !anyText('Izoh'));
 
   const before = sent.length;
   await feedCb('order:confirm');

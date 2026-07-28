@@ -12,17 +12,6 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   return text ? (JSON.parse(text) as T) : ({} as T);
 }
 
-export interface Place {
-  label: string;
-  lat: number;
-  lng: number;
-}
-
-export type GeoSearchResult =
-  | { kind: 'found'; places: Place[] }
-  | { kind: 'not_found' }
-  | { kind: 'error'; message: string };
-
 export interface Customer {
   id: string;
   language: string;
@@ -45,7 +34,6 @@ export const apiClient = {
     category: string;
     pickup: { lat: number; lng: number };
     destination?: { lat: number; lng: number };
-    destAddress?: string;
     note?: string;
   }) {
     return req<{ id: string; status: string }>('POST', '/orders', data);
@@ -53,27 +41,6 @@ export const apiClient = {
 
   cancelOrder(orderId: string) {
     return req<{ penalized: boolean }>('POST', `/orders/${orderId}/cancel`, { reason: 'customer' });
-  },
-
-  // Geokodlash yoqilganmi (bot ishga tushganda bir marta so'raladi).
-  geoStatus() {
-    return req<{ geocoding: boolean; routing: boolean }>('GET', '/geo/status');
-  },
-
-  /**
-   * Manzil qidirish. Natijani UCH HOLATGA ajratamiz — avval hammasi bo'sh
-   * ro'yxatga aylanib, "topilmadi" bilan "xizmat ishlamayapti" farqlanmasdi:
-   *   found     — variantlar bor, mijoz tanlaydi
-   *   not_found — qidiruv ishladi, lekin hech narsa topilmadi (mijozga aytamiz)
-   *   error     — xizmat o'chiq yoki nosoz (jimgina matn bilan davom etamiz)
-   */
-  async searchPlace(q: string): Promise<GeoSearchResult> {
-    try {
-      const places = await req<Place[]>('GET', `/geo/search?q=${encodeURIComponent(q)}`);
-      return places.length > 0 ? { kind: 'found', places } : { kind: 'not_found' };
-    } catch (e) {
-      return { kind: 'error', message: (e as Error).message };
-    }
   },
 
   // Zakaz holatini olish (bot stale activeOrderId'ni tekshirishi uchun).

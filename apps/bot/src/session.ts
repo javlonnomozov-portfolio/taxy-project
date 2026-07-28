@@ -1,14 +1,11 @@
 import Redis from 'ioredis';
 import { Lang } from './i18n';
 
-export type Step = 'idle' | 'category' | 'pickup' | 'dest' | 'note' | 'confirm';
+export type Step = 'idle' | 'category' | 'pickup' | 'confirm';
 
 export interface Draft {
   category?: string;
   pickup?: { lat: number; lng: number };
-  destination?: { lat: number; lng: number };
-  destAddress?: string;
-  note?: string;
 }
 
 export interface Session {
@@ -18,8 +15,6 @@ export interface Session {
   step: Step;
   draft: Draft;
   activeOrderId?: string;
-  /** Manzil qidiruvi natijalari — mijoz tugma bosib tanlaguncha saqlanadi. */
-  destCandidates?: Array<{ label: string; lat: number; lng: number }>;
   ratingOrderId?: string;
   lastLocShownAt?: number; // taksi joylashuvini ko'rsatish rate-limit (10s)
 }

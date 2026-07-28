@@ -112,7 +112,7 @@ describe('resetDraft', () => {
     s.customerId = 'c-1';
     s.phone = '+998901234567';
     s.step = 'confirm';
-    s.draft = { category: 'cargo', note: 'izoh' };
+    s.draft = { category: 'cargo', pickup: { lat: 39.7, lng: 67.2 } };
     resetDraft(s);
     expect(s.step).toBe('idle');
     expect(s.draft).toEqual({});

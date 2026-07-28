@@ -50,22 +50,4 @@ export const ratingKeyboard = () =>
     [1, 2, 3, 4, 5].map((n) => Markup.button.callback(`${n}⭐`, `rate:${n}`)),
   ]);
 
-/**
- * Topilgan manzil variantlari. Mijoz TANLAYDI — avval birinchi natija
- * so'ramasdan olinardi va haydovchiga noto'g'ri nuqta ketishi mumkin edi.
- * Oxirgi tugma: qidiruv natijasini rad etib, yozgan matnini qoldirish.
- */
-export const destPickKeyboard = (lang: Lang, labels: string[]) =>
-  Markup.inlineKeyboard([
-    ...labels.map((l, i) => [
-      Markup.button.callback(l.length > 60 ? l.slice(0, 57) + '…' : l, `dest:pick:${i}`),
-    ]),
-    [Markup.button.callback(t(lang, 'dest_keep_text'), 'dest:keep')],
-  ]);
 
-/** Manzil topilmaganda: matnni qoldirish yoki qayta yozish. */
-export const destNotFoundKeyboard = (lang: Lang) =>
-  Markup.inlineKeyboard([
-    [Markup.button.callback(t(lang, 'dest_keep_text'), 'dest:keep')],
-    [Markup.button.callback(t(lang, 'dest_retry'), 'dest:retry')],
-  ]);
