@@ -186,7 +186,17 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
 
     // 3) Oqim qadamlari: manzil va izoh (ikkalasi ham ixtiyoriy — o'tkazib yuborsa bo'ladi).
     if (s.step === 'dest') {
-      if (text !== t(s.lang, 'skip')) s.draft.destAddress = text;
+      if (text !== t(s.lang, 'skip')) {
+        s.draft.destAddress = text;
+        // Manzilni koordinataga o'girishga urinamiz — bo'lsa haydovchi taklifida
+        // borish nuqtasi ko'rinadi. Xizmat sozlanmagan/topilmagan bo'lsa, matn
+        // shundayligicha qoladi (manzil ixtiyoriy).
+        const [place] = await apiClient.searchPlace(text);
+        if (place) {
+          s.draft.destination = { lat: place.lat, lng: place.lng };
+          s.draft.destAddress = place.label;
+        }
+      }
       s.step = 'note';
       return ctx.reply(t(s.lang, 'ask_note'), skipKeyboard(s.lang));
     }

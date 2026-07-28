@@ -114,8 +114,36 @@ holda haydaydi va zakaz A da, haydovchi B da bo'lgan holatni sinaydi.
   shuning uchun bitta NAT ortidagi ko'p haydovchi bir-birini bloklamaydi.
   `main.ts` da `trust proxy` yoqilgan — busiz Railway edge ortida hamma bitta IP bo'lib
   ko'rinardi va limit barchani bloklardi.
-- **Xarita xizmatlari** (OSRM/Nominatim) — og'ir, alohida bosqichda (hozir MVP ularsiz
-  ishlaydi; admin xaritasi to'g'ridan OSM tile'laridan foydalanadi).
+## Xarita xizmatlari (Nominatim / OSRM)
+
+Manzil qidirish va marshrut **backend proksi** orqali ishlaydi (`GET /geo/search`,
+`/geo/reverse`, `/geo/route` — ichki kalit bilan). Nega proksi:
+
+- Nominatim shartlari aniq `User-Agent` va soniyasiga 1 so'rov chegarasini talab
+  qiladi — har bir foydalanuvchi o'zi so'rasa umumiy IP tez bloklanadi;
+- javoblar Redis'da 24 soat keshlanadi (bir xil so'rov bir marta ketadi);
+- self-host servis manzilini klientlarga tarqatish shart emas.
+
+**Sozlash (ixtiyoriy).** Env berilmasa xizmat o'chiq bo'ladi va 503 qaytaradi —
+bot manzilsiz davom etadi (manzil MVP'da ixtiyoriy, taksometr haqiqiy km bo'yicha
+hisoblaydi). API servisiga:
+
+```
+NOMINATIM_URL=https://nominatim.openstreetmap.org
+OSRM_URL=https://router.project-osrm.org
+GEO_USER_AGENT=ToyTaxY/1.0 (aloqa@sizning-domen.uz)
+```
+
+> ⚠️ Yuqoridagi **ommaviy demo serverlar** — ular ishlab chiqarish yuki uchun
+> mo'ljallanmagan va shartlari tijoriy foydalanishni cheklaydi. Jonli xizmat uchun
+> o'zingiznikini ko'taring:
+> - **OSRM:** alohida Railway servisi + volume, O'zbekiston OSM ekstrakti
+>   (Geofabrik) bilan oldindan `osrm-extract/partition/customize` qilingan image.
+>   Nisbatan yengil — MVP uchun maqbul.
+> - **Nominatim:** ancha og'ir (RAM + import vaqti). Muqobil — pullik hosted
+>   geokodlash provayderi; yuk past, chunki manzil ixtiyoriy.
+
+Tekshirish: `GET /geo/status` → `{ "geocoding": true, "routing": true }`.
 
 ## 6. Lokal build tekshirish (deploy'dan oldin)
 

@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+/**
+ * `.env` fayllarida va Railway'da ixtiyoriy o'zgaruvchi ko'pincha BO'SH SATR
+ * bo'lib qoladi (`OSRM_URL=`), `undefined` emas. Bo'sh satrni "berilmagan" deb
+ * qabul qilamiz — aks holda `.url()` tekshiruvi yiqilib, servis umuman ishga
+ * tushmasdi.
+ */
+const emptyAsUndefined = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema);
+
+const optionalUrl = emptyAsUndefined(z.string().url().optional());
+
 // ENV validatsiya sxemasi (best practice: ishga tushishdan oldin tekshirish).
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -25,6 +36,12 @@ export const envSchema = z.object({
   DISPATCH_OFFER_TIMEOUT_SEC: z.coerce.number().default(120), // taklif oynasi — kamida 2 daqiqa
   DISPATCH_RADIUS_STEPS_M: z.string().default('2000,4000,6000'),
   DISPATCH_NO_DRIVER_TIMEOUT_SEC: z.coerce.number().default(180), // taklif oynasidan uzunroq
+  // Xarita xizmatlari (ixtiyoriy). Berilmasa manzil qidirish/marshrut o'chiq bo'ladi
+  // va 503 qaytaradi — manzil MVP'da ixtiyoriy, taksometr haqiqiy km bo'yicha hisoblaydi.
+  NOMINATIM_URL: optionalUrl,
+  OSRM_URL: optionalUrl,
+  // Nominatim foydalanish shartlari o'zini tanitadigan User-Agent'ni TALAB qiladi.
+  GEO_USER_AGENT: emptyAsUndefined(z.string().optional()),
   // CORS: ruxsat etilgan origin'lar, vergul bilan (masalan admin domeni).
   // Bo'sh bo'lsa — dev'da hammaga ochiq, PROD'da esa ishga tushmaydi (pastga qarang).
   CORS_ORIGINS: z.string().optional(),

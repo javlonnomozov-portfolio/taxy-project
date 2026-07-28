@@ -44,6 +44,16 @@ export const apiClient = {
     return req<{ penalized: boolean }>('POST', `/orders/${orderId}/cancel`, { reason: 'customer' });
   },
 
+  // Manzil qidirish (Nominatim proksi). Xizmat sozlanmagan bo'lsa 503 → bo'sh ro'yxat.
+  async searchPlace(q: string) {
+    try {
+      return await req<Array<{ label: string; lat: number; lng: number }>>(
+        'GET', `/geo/search?q=${encodeURIComponent(q)}`);
+    } catch {
+      return [];
+    }
+  },
+
   // Zakaz holatini olish (bot stale activeOrderId'ni tekshirishi uchun).
   getOrder(orderId: string) {
     return req<{ id: string; status: string } | null>('GET', `/orders/${orderId}`);

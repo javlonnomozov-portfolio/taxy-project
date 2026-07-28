@@ -78,6 +78,16 @@ describe('validateEnv — production xavfsizlik talablari', () => {
     expect(() => validateEnv({ ...base, CORS_ORIGINS: '' })).toThrow(/CORS_ORIGINS/);
   });
 
+  it('bo\'sh ixtiyoriy URL (masalan `OSRM_URL=`) ni "berilmagan" deb qabul qiladi', () => {
+    // `.env` da ko'pincha `OSRM_URL=` bo'sh qoladi — avval bu servisni umuman
+    // ishga tushirmasdi ("Invalid url").
+    expect(() => validateEnv({ ...base, OSRM_URL: '', NOMINATIM_URL: '' })).not.toThrow();
+  });
+
+  it('noto\'g\'ri URL berilsa baribir RAD ETADI', () => {
+    expect(() => validateEnv({ ...base, OSRM_URL: 'osrm-server' })).toThrow(/OSRM_URL/);
+  });
+
   it('dev\'da bu talablar qo\'llanmaydi (qulay default\'lar)', () => {
     expect(() =>
       validateEnv({
