@@ -18,6 +18,8 @@ export interface Session {
   step: Step;
   draft: Draft;
   activeOrderId?: string;
+  /** Manzil qidiruvi natijalari — mijoz tugma bosib tanlaguncha saqlanadi. */
+  destCandidates?: Array<{ label: string; lat: number; lng: number }>;
   ratingOrderId?: string;
   lastLocShownAt?: number; // taksi joylashuvini ko'rsatish rate-limit (10s)
 }

@@ -12,6 +12,8 @@ import {
   phoneKeyboard,
   pickupKeyboard,
   skipKeyboard,
+  destPickKeyboard,
+  destNotFoundKeyboard,
 } from './keyboards';
 import { createSessionStore, resetDraft, Session, SessionStore } from './session';
 import { trackOrder, stopTracking } from './tracker';
@@ -66,6 +68,20 @@ function agoText(lang: Lang, iso: string | null): string {
   if (sec < 5) return t(lang, 'ago_now');
   if (sec < 60) return t(lang, 'ago_sec', String(sec));
   return t(lang, 'ago_min', String(Math.floor(sec / 60)));
+}
+
+// Geokodlash yoqilganmi — bir marta so'raymiz va keshlaymiz. Xizmat o'chiq bo'lsa
+// har manzilda bekorga so'rov yubormaymiz (avval har safar urinib, xatoni yutardik).
+let geoEnabled: boolean | null = null;
+async function isGeoEnabled(): Promise<boolean> {
+  if (geoEnabled === null) {
+    try {
+      geoEnabled = (await apiClient.geoStatus()).geocoding;
+    } catch {
+      geoEnabled = false;
+    }
+  }
+  return geoEnabled;
 }
 
 export function createBot(store: SessionStore = createSessionStore(CONFIG.redisUrl)): Telegraf {
@@ -186,17 +202,33 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
 
     // 3) Oqim qadamlari: manzil va izoh (ikkalasi ham ixtiyoriy — o'tkazib yuborsa bo'ladi).
     if (s.step === 'dest') {
-      if (text !== t(s.lang, 'skip')) {
-        s.draft.destAddress = text;
-        // Manzilni koordinataga o'girishga urinamiz — bo'lsa haydovchi taklifida
-        // borish nuqtasi ko'rinadi. Xizmat sozlanmagan/topilmagan bo'lsa, matn
-        // shundayligicha qoladi (manzil ixtiyoriy).
-        const [place] = await apiClient.searchPlace(text);
-        if (place) {
-          s.draft.destination = { lat: place.lat, lng: place.lng };
-          s.draft.destAddress = place.label;
-        }
+      if (text === t(s.lang, 'skip')) {
+        s.step = 'note';
+        return ctx.reply(t(s.lang, 'ask_note'), skipKeyboard(s.lang));
       }
+      // Yozilgan matn har holda saqlanadi — manzil ixtiyoriy va haydovchi uni
+      // matn sifatida ham ko'ra oladi.
+      s.draft.destAddress = text;
+      s.draft.destination = undefined;
+
+      if (!(await isGeoEnabled())) {
+        // Qidiruv o'chiq — mijozdan tasdiq so'rashning ma'nosi yo'q.
+        s.step = 'note';
+        return ctx.reply(t(s.lang, 'ask_note'), skipKeyboard(s.lang));
+      }
+
+      const res = await apiClient.searchPlace(text);
+      if (res.kind === 'found') {
+        // MIJOZ TANLAYDI. Avval birinchi natija so'ramasdan olinardi — bir nechta
+        // "Registon" bo'lsa haydovchiga noto'g'ri nuqta ketishi mumkin edi.
+        s.destCandidates = res.places;
+        return ctx.reply(t(s.lang, 'dest_pick'), destPickKeyboard(s.lang, res.places.map((p) => p.label)));
+      }
+      if (res.kind === 'not_found') {
+        return ctx.reply(t(s.lang, 'dest_not_found'), destNotFoundKeyboard(s.lang));
+      }
+      // error — xizmat nosoz. Mijozni bezovta qilmaymiz, matn bilan davom etamiz.
+      console.warn('[bot] manzil qidirish xatosi:', res.message);
       s.step = 'note';
       return ctx.reply(t(s.lang, 'ask_note'), skipKeyboard(s.lang));
     }
@@ -212,6 +244,41 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
     if (s.step === 'confirm') return ctx.reply(t(s.lang, 'use_confirm_btn'), confirmKeyboard(s.lang));
     // Idle holatda tushunarsiz matn → menyuni ko'rsatamiz
     return ctx.reply(t(s.lang, 'use_menu'), mainMenu(s.lang));
+  });
+
+  // Manzil variantini tanlash
+  bot.action(/^dest:pick:(\d+)$/, async (ctx) => {
+    const s = getSession(ctx);
+    const place = s.destCandidates?.[Number(ctx.match[1])];
+    await ctx.answerCbQuery();
+    if (place) {
+      s.draft.destination = { lat: place.lat, lng: place.lng };
+      s.draft.destAddress = place.label;
+      await ctx.reply(`${t(s.lang, 'dest_selected')} ${place.label}`);
+    }
+    s.destCandidates = undefined;
+    s.step = 'note';
+    await ctx.reply(t(s.lang, 'ask_note'), skipKeyboard(s.lang));
+  });
+
+  // Qidiruv natijasini rad etib, yozilgan matnni qoldirish
+  bot.action('dest:keep', async (ctx) => {
+    const s = getSession(ctx);
+    await ctx.answerCbQuery();
+    s.destCandidates = undefined;
+    s.step = 'note';
+    await ctx.reply(t(s.lang, 'dest_kept'));
+    await ctx.reply(t(s.lang, 'ask_note'), skipKeyboard(s.lang));
+  });
+
+  // Manzilni qaytadan yozish
+  bot.action('dest:retry', async (ctx) => {
+    const s = getSession(ctx);
+    await ctx.answerCbQuery();
+    s.destCandidates = undefined;
+    s.draft.destAddress = undefined;
+    s.step = 'dest';
+    await ctx.reply(t(s.lang, 'dest_ask_again'), skipKeyboard(s.lang));
   });
 
   // Toifa tanlash
