@@ -35,4 +35,34 @@ export class DriversController {
     await this.drivers.updateLocation(user.sub, dto.lat, dto.lng);
     return { ok: true };
   }
+
+  // --- Haydovchining o'z ma'lumotlari (ilovadagi "Kabinet" ekranlari) ---
+
+  @Get('me/balance')
+  @ApiOperation({ summary: 'Balans va billing rejimi' })
+  balance(@Req() req: Request) {
+    const user = (req as Request & { user: JwtPayload }).user;
+    return this.drivers.balanceInfo(user.sub);
+  }
+
+  @Get('me/transactions')
+  @ApiOperation({ summary: 'Balans harakati (komissiya, to‘ldirish)' })
+  transactions(@Req() req: Request) {
+    const user = (req as Request & { user: JwtPayload }).user;
+    return this.drivers.transactions(user.sub);
+  }
+
+  @Get('me/trips')
+  @ApiOperation({ summary: 'Safarlar tarixi (so‘nggi 50 ta)' })
+  trips(@Req() req: Request) {
+    const user = (req as Request & { user: JwtPayload }).user;
+    return this.drivers.tripHistory(user.sub);
+  }
+
+  @Get('me/stats')
+  @ApiOperation({ summary: 'Reyting va metrikalar (qabul/bekor/yakunlash)' })
+  stats(@Req() req: Request) {
+    const user = (req as Request & { user: JwtPayload }).user;
+    return this.drivers.stats(user.sub);
+  }
 }
