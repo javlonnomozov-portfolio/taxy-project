@@ -71,6 +71,9 @@ export function HomeScreen({
   const [distanceM, setDistanceM] = useState(0);
   const [done, setDone] = useState<{ price: number } | null>(null);
   const [showCabinet, setShowCabinet] = useState(false);
+  // Ulanish/ro'yxatdan o'tish xatosi — avval JIMGINA yutilardi va haydovchi
+  // sababsiz "Ulanmoqda…" holatida qolardi.
+  const [connError, setConnError] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
@@ -110,16 +113,28 @@ export function HomeScreen({
     socketRef.current = s;
     // Backend'ga "onlayn" yuborish — faqat ACK (ok) kelganda UI onlayn bo'ladi.
     const registerOnline = () =>
-      s.emit(EV.online, {}, (ack?: { ok?: boolean }) => {
-        if (ack?.ok) setOnline(true);
+      s.emit(EV.online, {}, (ack?: SocketAck) => {
+        if (ack?.ok) {
+          setOnline(true);
+          setConnError(null);
+        } else {
+          // Server rad etdi (masalan hisob tasdiqlanmagan) — sababni ko'rsatamiz.
+          setConnError(ack?.message ?? t('error_generic'));
+        }
       });
     registerOnlineRef.current = registerOnline;
     // Ulanish/qayta ulanish: agar haydovchi ishlashni xohlasa — qayta ro'yxatdan o'tamiz.
     s.on('connect', () => {
+      setConnError(null);
       if (wantOnlineRef.current) registerOnline();
     });
+    // Ulanib bo'lmasa sababni ko'rsatamiz (tarmoq, proksi, token va h.k.).
+    s.on('connect_error', (e: Error) => setConnError(e.message || 'connect_error'));
     // Uzilish: backend grace'dan keyin oflayn qiladi — UI'da halol ko'rsatamiz ("Ulanmoqda…").
-    s.on('disconnect', () => setOnline(false));
+    s.on('disconnect', (reason: string) => {
+      setOnline(false);
+      setConnError(reason);
+    });
     s.on(EV.orderOffer, (o: Offer) => {
       if (tripRef.current) return; // safarda — yangi taklif qo'shmaymiz
       upsertOffer(o);
@@ -439,6 +454,11 @@ export function HomeScreen({
         <Text style={{ color: online ? C.ok : intent ? C.warn : C.muted, fontSize: 18, fontWeight: '700' }}>
           {online ? t('online') : intent ? t('connecting') : t('offline')}
         </Text>
+        {!online && connError && (
+          <Text style={{ color: C.danger, fontSize: 12, marginTop: 8, textAlign: 'center' }}>
+            {connError}
+          </Text>
+        )}
         {online && offers.length === 0 && (
           <Text style={[S.label, { marginTop: 6 }]}>{t('waiting_orders')}</Text>
         )}
