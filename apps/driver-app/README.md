@@ -85,5 +85,27 @@ Endi push (Expo Push API orqali) va fon GPS ishlaydi.
 > yuboradi (ilova yopiq bo'lsa ham). Fon rejimida joylashuv `expo-task-manager` orqali
 > `/drivers/location` ga yuboriladi.
 
+## OTA yangilanish (EAS Update)
+
+Faqat **JS/TS** o'zgarganda (ekran, matn, mantiq) to'liq rebuild shart emas —
+yangilanish ilovaga bir daqiqada yetadi:
+
+```bash
+cd apps/driver-app
+eas update --branch preview --message "nima o'zgardi"
+```
+
+Haydovchi ilovani qayta ochganda yangi versiyani oladi.
+
+**Qachon baribir REBUILD kerak:**
+- yangi native paket qo'shilganda (`expo install <paket>`),
+- `app.json` dagi native sozlama o'zgarganda (permissions, plugins, paket nomi),
+- ilova versiyasi (`version`) o'zgarganda — `runtimeVersion` siyosati `appVersion`,
+  ya'ni OTA faqat **bir xil versiyali** build'larga tushadi.
+
+> Sozlash `eas update:configure` bilan qilingan: `updates.url` va
+> `runtimeVersion: {"policy":"appVersion"}` `app.json` da, kanallar `eas.json` da
+> (`development` / `preview` / `production`).
+
 ## Keyingi bosqich (TODO)
 - In-app xarita (react-native-maps + OSM)
