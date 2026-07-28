@@ -24,7 +24,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "sim:race": "node scripts/race-sim.mjs",
     "typecheck": "pnpm -r typecheck",
-    "sim:security": "node scripts/security-sim.mjs"
+    "sim:security": "node scripts/security-sim.mjs",
+    "sim:cluster": "node scripts/cluster-sim.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

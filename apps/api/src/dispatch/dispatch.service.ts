@@ -27,6 +27,7 @@ import { GeoService } from '../geo/geo.service';
 import { DriversService } from '../drivers/drivers.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { DispatchOwnershipService } from './dispatch-ownership.service';
 import { Candidate, haversineM, sortCandidates } from './dispatch.util';
 
 interface DispatchState {
@@ -82,10 +83,15 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     private readonly realtime: RealtimeService,
     private readonly notifications: NotificationsService,
     private readonly config: ConfigService,
+    private readonly ownership: DispatchOwnershipService,
   ) {}
 
   /** Servis ko'tarilganda xotira yo'qolgani uchun yetim qolgan zakazlarni tiklaymiz. */
   async onModuleInit(): Promise<void> {
+    // Boshqa instansiyalardan yo'naltirilgan haydovchi javoblarini qabul qilamiz.
+    await this.ownership.listen((m) => {
+      void this.applyResponse(m.orderId, m.driverId, m.accept);
+    });
     try {
       await this.recoverOrphans();
     } catch (e) {
@@ -179,6 +185,14 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
   async start(orderId: string): Promise<void> {
     const order = await this.orders.findOne({ where: { id: orderId } });
     if (!order || order.status !== OrderStatus.CREATED) return;
+
+    // Ko'p instansiyada: zakazni AYNAN BITTA instansiya boshqarsin. Busiz ikkala
+    // instansiya ham dispatch qilib, haydovchi bir zakaz uchun ikki taklif olardi.
+    if (!(await this.ownership.acquire(orderId))) {
+      this.log.log(`Buyurtma ${orderId} boshqa instansiya tomonidan dispatch qilinmoqda`);
+      return;
+    }
+
     const customer = await this.customers.findOne({ where: { id: order.customerId } });
 
     await this.orders.update(orderId, { status: OrderStatus.DISPATCHING });
@@ -252,7 +266,12 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       throw new ConflictException('Haydovchi hozir bo‘sh emas');
     }
 
+    // Operator taklifi ham egalikni talab qiladi (abort egalikni bo'shatgani uchun
+    // undan KEYIN olamiz).
     this.abort(orderId); // avvalgi holatni tozalaymiz
+    if (!(await this.ownership.acquire(orderId))) {
+      throw new ConflictException('Bu buyurtma hozir boshqa instansiyada dispatch qilinmoqda');
+    }
     this.cancelOperatorFallback(orderId); // operator harakat qildi — fallback shart emas
     await this.orders.update(orderId, { status: OrderStatus.DISPATCHING });
     await this.events.record(orderId, 'dispatching', ActorType.OPERATOR, {
@@ -305,6 +324,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     }
     state.offered.clear();
     this.states.delete(orderId);
+    void this.ownership.release(orderId); // boshqa instansiya olishi mumkin
   }
 
   /** Oynani nomzodlar bilan to'ldirish; kerak bo'lsa radiusni kengaytirish. */
@@ -449,6 +469,14 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
 
   /** Gateway'dan keladi: haydovchi javobi. */
   async handleResponse(orderId: string, driverId: string, accept: boolean): Promise<void> {
+    // Haydovchining socketi bu instansiyaga ulangan bo'lishi mumkin, lekin zakazni
+    // boshqa instansiya boshqarayotgan bo'lishi mumkin — javobni egasiga uzatamiz.
+    if (await this.ownership.forwardResponse({ orderId, driverId, accept })) return;
+    await this.applyResponse(orderId, driverId, accept);
+  }
+
+  /** Javobni LOKAL qayta ishlash (biz egasimiz — to'g'ridan yoki pub/sub orqali). */
+  private async applyResponse(orderId: string, driverId: string, accept: boolean): Promise<void> {
     const state = this.states.get(orderId);
     if (!state || !state.active) {
       if (accept) {
@@ -503,6 +531,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     }
     state.offered.clear();
     this.states.delete(state.orderId);
+    await this.ownership.release(state.orderId); // dispatch tugadi
 
     await this.drivers.markOnTrip(driverId);
     await this.events.record(state.orderId, 'accepted', ActorType.DRIVER, { actorId: driverId });
@@ -565,6 +594,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     }
     state.offered.clear();
     this.states.delete(state.orderId);
+    await this.ownership.release(state.orderId); // dispatch tugadi — operator hal qiladi
 
     const res = await this.orders
       .createQueryBuilder()

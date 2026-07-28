@@ -137,8 +137,28 @@ jobs:
           for i in $(seq 1 30); do curl -sf localhost:3000/health >/dev/null && break; sleep 1; done
           pnpm sim:sprint3 || { tail -50 /tmp/api-w1.log; exit 1; }
 
+      # Ko'p instansiya: zakaz A da, haydovchi B da. Redis adapter (taklif A→B) va
+      # dispatch egaligi (javob B→A) shu yerda tekshiriladi.
+      - name: Sim cluster (2 instansiya)
+        run: |
+          pkill -f 'apps/api/dist/main.js' || true
+          sleep 1
+          PGPASSWORD=tty_pass psql -h localhost -U tty -d tty -q -c \
+            "TRUNCATE orders, order_events, drivers, vehicles, customers,
+             trip_tracks, sos_events, transactions, ratings RESTART IDENTITY CASCADE;"
+          redis-cli -h localhost FLUSHALL > /dev/null
+          API_PORT=3000 node apps/api/dist/main.js > /tmp/api-A.log 2>&1 &
+          API_PORT=3001 node apps/api/dist/main.js > /tmp/api-B.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf localhost:3000/health >/dev/null && curl -sf localhost:3001/health >/dev/null && break
+            sleep 1
+          done
+          pnpm sim:cluster || { tail -50 /tmp/api-A.log; tail -50 /tmp/api-B.log; exit 1; }
+
       - name: API loglari (nosozlikda)
         if: failure()
         run: |
           tail -100 /tmp/api.log || true
           tail -50 /tmp/api-w1.log || true
+          tail -50 /tmp/api-A.log || true
+          tail -50 /tmp/api-B.log || true

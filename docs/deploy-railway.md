@@ -51,19 +51,27 @@ Redis: "Add Service → Database → Redis".
 - **Healthcheck:** `/health` (railway.json'da sozlangan). Nosozlikda **503** qaytadi
   (`@nestjs/terminus`), ya'ni DB yoki Redis yiqilgan deploy o'tmaydi.
 
-### ⚠️ API FAQAT BITTA INSTANSIYADA ishlashi SHART
+### Ko'p instansiya (replica) — qo'llab-quvvatlanadi
 
-`numReplicas` ni **1** dan oshirmang. Dispatch holati butunlay xotirada saqlanadi
-(`DispatchService.states` — `Map` + `setTimeout` taymerlari), bot sessiyasi ham
-(`apps/bot/src/session.ts`), va Socket.IO Redis adapter'siz ishlaydi. Ikkinchi instansiya
-qo'shilsa jimgina buziladi:
+`numReplicas` ni oshirsa bo'ladi. Buning uchun uchta mexanizm bor:
 
-- ikkala instansiya bir zakazni parallel dispatch qiladi (haydovchi ikki marta taklif oladi);
-- haydovchining javobi taklifni yuborgan instansiyaga tushmasa — e'tiborsiz qoladi;
-- `realtime.emitToDriver(...)` boshqa instansiyadagi socketga yetmaydi.
+1. **Socket.IO Redis adapter** — `emitToDriver(...)` va `fetchSockets()` barcha
+   instansiyalarda ishlaydi. Busiz 1-instansiyaga ulangan haydovchi 2-instansiya
+   yuborgan taklifni umuman olmasdi.
+2. **Dispatch egaligi** — har zakazni aynan bitta instansiya boshqaradi
+   (`dispatch:owner:<orderId>`, Redis `SET NX` + TTL 90s, heartbeat 30s). Boshqa
+   instansiyaga tushgan haydovchi javobi pub/sub orqali egasiga uzatiladi.
+   Instansiya o'lsa, egalik TTL bilan bo'shaydi va zakazni boshqasi
+   `recoverOrphans()` orqali oladi.
+3. **Bot sessiyasi Redis'da** (TTL 7 kun) — foydalanuvchi qaysi instansiyaga
+   tushishidan qat'i nazar bir xil sessiyani ko'radi.
 
-Replica qo'shishdan **oldin** kerak: `@socket.io/redis-adapter`, dispatch taymerlarini
-Redis/BullMQ delayed job'larga ko'chirish, bot sessiyasini Redis'ga o'tkazish.
+Tekshirish: `pnpm sim:cluster` — ikkita API instansiyasi (3000/3001) ko'tarilgan
+holda haydaydi va zakaz A da, haydovchi B da bo'lgan holatni sinaydi.
+
+> **Bot servisi esa bitta instansiyada qolishi kerak** — Telegram polling
+> (`bot.launch()`) bir vaqtda faqat bitta iste'molchiga ruxsat beradi. Bot uchun
+> replica kerak bo'lsa, avval webhook rejimiga o'tish lozim.
 - Domen: "Settings → Networking → Generate Domain" → `https://<api>.up.railway.app`.
 
 ## 3. Bot servisi
