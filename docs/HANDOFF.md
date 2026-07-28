@@ -1,93 +1,200 @@
-# Toy TaxY (TTY) — Yangi chat uchun davom ettirish prompti
+# Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
-> Quyidagi matnni yangi chatga to'liq nusxalab tashlang. U loyihaning holati, stack va
-> keyingi qadamlarni tushuntiradi.
-
----
-
-## PROMPT (nusxalang) ⬇️
-
-Men **Toy TaxY (TTY)** loyihasida ishlayapman va uni davom ettirmoqchiman. Sen avtonom
-ravishda ("davom et" desam keyingi topshiriqlarga ham o't) ishlaysan, best practice qilasan.
-
-**Loyiha nima:** Mahalliy taksilar uchun buyurtma platformasi. Mijoz **Telegram bot**
-orqali taksi chaqiradi → eng yaqin 5–7 haydovchiga (**React Native / Expo ilova**) real
-vaqtda taklif boradi → qulay bo'lgan haydovchi **birinchi "Qabul"** bosib yutadi.
-Operator/admin **veb-panel**dan kuzatadi.
-
-**Repo:** `/home/javlon/Documents/GitHub/taxy-project` (pnpm monorepo, git branch `main`).
-
-### Stack
-- **Backend (`apps/api`):** NestJS + TypeScript, TypeORM, **PostgreSQL (PostGIS EMAS —
-  olib tashlangan)**, **Redis** (GEOSEARCH dispatch), Socket.IO (3 gateway: /driver
-  /customer /ops). JWT + RBAC (super_admin/admin/operator/driver/customer), bcryptjs.
-- **Bot (`apps/bot`):** Telegraf, i18n uz/ru. `.env` da haqiqiy `BOT_TOKEN` bor (gitignore).
-- **Admin (`apps/admin`):** React + Vite + react-leaflet (OSM xarita) + socket.io-client.
-- **Haydovchi ilovasi (`apps/driver-app`):** Expo / React Native. **MUSTAQIL loyiha** —
-  pnpm workspace'dan chiqarilgan (`pnpm-workspace.yaml` da `!apps/driver-app`), o'z
-  `node_modules` (npm), EAS bilan quriladi. Owner: `javl9n`, package: `uz.toytaxy.driver`,
-  EAS projectId: `486e16a1-b012-4256-b121-0ebbfc386cbd`.
-- **Deploy:** Railway (har servis uchun Dockerfile + railway.json, migratsiya start'da
-  avtomatik). Prod API: `https://api-production-13444.up.railway.app`,
-  Admin: `https://admin-production-42e5.up.railway.app`. Bot ham Railway'da.
-
-### Bajarilgan ishlar (hammasi ISHLAYDI, prod'da tekshirilgan)
-- Sprint 0–3 backend: dispatch (siljuvchi oyna Redis GEO, atomik biriktirish, radius
-  eskalatsiya, NO_DRIVER, reyting tie-break), taksometr/pricing (base+km+kutish+tungi+
-  surge), safar lifecycle, no-show, bekor qoidasi, trip_tracks+SOS, billing (obuna/foiz/
-  gibrid, balans, transaksiyalar), ikki tomonlama baho + reputatsiya, oldindan buyurtma,
-  Ops API (RBAC). 5 ta migratsiya (`apps/api/src/database/migrations/`).
-- **Haydovchi auth:** super-admin qo'lda haydovchi qo'shadi (`POST /ops/drivers` → bir
-  martalik temp parol) → haydovchi telefon+parol bilan kiradi → birinchi kirishda
-  majburiy parol almashtirish (`must_change_password`). Self-OTP OLIB TASHLANGAN.
-- **Admin panel:** login (super-admin `ADMIN_LOGIN`/`ADMIN_PASSWORD` env'dan seed),
-  jonli xarita, haydovchilar (qo'shish/approve/block/billing/topup), sozlamalar+tariflar,
-  oldindan buyurtmalar.
-- **Telegram bot:** to'liq oqim (ro'yxatdan o'tish, taksi chaqirish, jonli status,
-  bekor, baholash), noto'g'ri kiritishda qayta so'rash.
-- **Driver-app (Expo):** login, majburiy parol almashtirish, Home (onlayn/oflayn + GPS,
-  taklif oynasi 20s taymer, safar bosqichlari, jonli taksometr, navigatsiya/qo'ng'iroq),
-  Socket.IO /driver, i18n, AsyncStorage.
-- **Push + fon GPS:** backend Expo Push API orqali (migratsiya 5: `drivers.push_token`,
-  `POST /drivers/push-token`, `POST /drivers/location`), driver-app expo-notifications +
-  expo-task-manager fon rejimi.
-- **APK qurildi (EAS preview):** o'rnatiladigan APK tayyor (jonli prod API'ga ulanadi).
-
-### Test skriptlari (`scripts/`, standalone .mjs)
-`pnpm sim:dispatch` (9), `pnpm sim:trip` (14), `pnpm sim:sprint3` (11, API `window=1`
-bilan), `pnpm sim:bot` (11). Lokal Postgres port **5434**, Redis 6379 (docker-compose).
-
-### Muhim eslatmalar / tuzoqlar
-- **PostGIS YO'Q** — geografiya lat/lng double precision, `gen_random_uuid()` ishlatiladi
-  (Railway Postgres'da PostGIS yo'q edi). Redis GEO dispatch'ni bajaradi.
-- **`.env`** gitignore'da, haqiqiy BOT_TOKEN bor — commit qilma.
-- **driver-app** ni buildlashdan oldin `data/` (docker volume, root-egali) EACCES
-  bermasin: `docker-compose down` + volume tozalash kerak bo'lishi mumkin.
-- Docker konteynerlar hozir **o'chirilgan** bo'lishi mumkin — lokal test kerak bo'lsa
-  `docker-compose up -d postgres redis`.
-
-### QOLGAN ISHLAR (keyingi bosqich — hali boshlanmagan)
-1. **Push'ni to'liq ishga tushirish:** hozirgi preview APK'da FCM yo'q → remote push
-   ishlamaydi. `google-services.json` (Firebase) + `eas credentials` kerak, so'ng
-   dev/production build. (Kod tayyor.)
-2. **In-app xarita:** driver-app'ga `react-native-maps` (yoki MapLibre) + OSM.
-3. **Driver-app qo'shimcha ekranlar:** balans, safar tarixi, SOS, reyting/statistika.
-4. **Admin UI i18n:** hozir faqat o'zbek, rus qo'shish.
-5. **OSRM/Nominatim:** marshrut/ETA/geokodlash (hozir tashqi navigatsiya).
-6. **Anti-fraud:** taksometr masofasini OSRM bilan solishtirish.
-
-To'liq reja: `~/.claude/plans/taxi-loyihasini-boshlamoqchiman-local-cryptic-stonebraker.md`.
-Task hujjatlari: `docs/tasks/00-06*.md` (00-ROADMAP, 06 = domain model source-of-truth).
-
-**Hozir men shuni qilmoqchiman:** [BU YERGA KEYINGI ISTAGINGIZNI YOZING — masalan:
-"Push'ni FCM bilan to'liq ishga tushiramiz" yoki "driver-app'ga in-app xarita qo'shamiz"
-yoki "1-punktdan boshla"].
+> **Holat sanasi:** 2026-07-28 · **Branch:** `main` · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
+>
+> Bu faylni yangi chatga tashlang va "davom et" deng.
 
 ---
 
-## Foydali havolalar / ma'lumotlar
-- **APK (preview, 2026-08-08 gacha):**
-  `https://expo.dev/artifacts/eas/wCCOzUlz4k0rGRMFi31wDziNJtDA3nINUld-5XOUv0c.apk`
-- **EAS build sahifasi:** https://expo.dev/accounts/javl9n/projects/tty-driver/builds
-- **Prod API:** https://api-production-13444.up.railway.app
-- **Prod Admin:** https://admin-production-42e5.up.railway.app
+## 1. Loyiha nima
+
+Mahalliy taksilar uchun buyurtma platformasi. Mijoz **Telegram bot** orqali taksi chaqiradi
+→ eng yaqin haydovchilarga (**Expo/React Native ilova**) siljuvchi oyna bilan taklif boradi
+→ birinchi "Qabul" yutadi. Operator **veb-panel**dan kuzatadi.
+
+**Stack:** pnpm monorepo · NestJS + Socket.IO + PostgreSQL + Redis · Telegraf bot ·
+React/Vite admin · Expo driver-app · Railway deploy.
+
+**Paketlar:** `apps/api`, `apps/bot`, `apps/admin`, `apps/driver-app` (workspace'dan
+chiqarilgan — o'z `node_modules`, npm, EAS bilan quriladi), `packages/shared`.
+Driver-app: owner `javl9n`, package `uz.toytaxy.driver`,
+EAS projectId `486e16a1-b012-4256-b121-0ebbfc386cbd`.
+
+---
+
+## 2. ⚠️ HAL QILINMAGAN MUAMMO — asosiy ish shu
+
+**Haydovchi ilovasida "Ishni boshlash" bosilganda "Ulanmoqda…" holatida qotib qoladi.**
+Haydovchi onlayn bo'lmaydi → botdan berilgan zakaz `NO_DRIVER` bo'ladi.
+
+### Chiqarib tashlangan sabablar (tekshirilgan)
+
+| Tekshiruv | Natija | Qanday |
+|---|---|---|
+| Server socket | ✅ Ishlaydi | Node klient bilan prod'ga ulandim (ilova bilan bir xil sozlama): `CONNECT ✅ transport=websocket`, `driver:online → {"ok":true}`, 75s uzilmadi |
+| CORS mobil ilovani bloklaydimi | ✅ Yo'q | `Origin`siz handshake → 200; yomon origin → 400 |
+| Token | ✅ Yaroqli | Bugun 11:58 da ilovadan `POST /drivers/location` → **201** (okhttp) |
+| Hisob holati | ✅ `approved`, bloklanmagan | DB |
+| API URL | ✅ To'g'ri | HTTP va socket bir xil `API_URL` (`src/config.ts`) |
+
+### Asosiy dalil
+
+Haydovchi `+998990051630` ning `last_seen_at` — **7+ soat oldin**. `goOnline` muvaffaqiyatli
+bo'lganda bu maydon yangilanadi ⇒ **urinishlar serverga umuman yetib bormayapti**.
+
+### Nega sabab topilmadi
+
+1. **Ilova xatoni ko'rsatmasdi** — `connect_error` handleri umuman yo'q edi; `driver:online`
+   ack'i `{ok:false}` bo'lsa ham jimgina yutilardi. **Tuzatildi** (`ccc9e38`) — lekin
+   samarasini ko'rish uchun yangi APK kerak.
+2. **Railway log API'si 2026-07-28 kuni ishlamadi** — `railway logs` har safar
+   `operation timed out`. Server tomondan kuzatib bo'lmadi.
+
+### Keyingi qadam (aniq tartib)
+
+1. Build **`0a0a2522`** holatini tekshiring (2026-07-28 ~19:58 da boshlangan, EAS navbatida edi):
+   ```bash
+   cd apps/driver-app
+   npx eas-cli@latest build:view 0a0a2522-6d0f-4140-884e-efd0a7c12055
+   ```
+   Tugagan bo'lsa `Application Archive URL` dan APK'ni oling.
+2. O'rnating → "Ishni boshlash" → status ostida **qizil xato matni** chiqadi.
+3. O'sha matnga qarab:
+
+| Xato matni | Ma'nosi |
+|---|---|
+| `timeout`, `xhr poll error`, `websocket error` | tarmoq / proksi |
+| `jwt expired`, `Token yaroqsiz` | qayta login kerak |
+| `Hisob bloklangan` | hisob holati |
+| `Sessiya tayyor emas` | serverdagi race (tuzatilgan bo'lishi kerak) |
+
+4. Server tomondan (loglar tiklansa):
+   ```bash
+   railway logs --service api | grep -E "Haydovchi ulandi|socketi uzildi|rad etildi"
+   ```
+   (`ab22aa8` da qo'shilgan, ishlashi test ulanish bilan tasdiqlangan.)
+
+---
+
+## 3. Production holati
+
+| Servis | URL / holat |
+|---|---|
+| **api** | https://api-production-13444.up.railway.app · `/health` ok · eng so'nggi kod |
+| **admin** | https://admin-production-42e5.up.railway.app · uz/ru i18n + metrikalar |
+| **bot** | `@toy_taxy_bot` · polling · barqaror |
+| Postgres + Redis | Railway plugin · migratsiya 7 qo'llangan |
+
+Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
+**GitHub'ga ulanmagan** — merge deploy qilmaydi, qo'lda ishga tushiriladi.
+
+**Muhim env (o'rnatilgan):**
+- `CORS_ORIGINS=https://admin-production-42e5.up.railway.app` — prod'da **majburiy**,
+  bo'lmasa API ishga tushmaydi (ataylab).
+- `RAILWAY_CONFIG_PATH=apps/api/railway.json` — busiz `railway.json` o'qilmaydi.
+- `NOMINATIM_URL` / `OSRM_URL` — **bo'sh** (xarita xizmatlari o'chiq).
+
+---
+
+## 4. Bu sessiyada bajarilgan ish
+
+```
+ccc9e38 fix(driver-app): ulanish xatosi ko'rinadigan bo'ldi
+ab22aa8 feat(api): haydovchi socket ulanishi/uzilishini loglash
+b20df18 feat(bot): manzil va izoh so'ralmaydi — oqim qisqartirildi
+32755dc fix(driver-app): socket faqat WebSocket'ga bog'lanmasin (zaxira polling)
+58507da fix(bot): 409 Conflict'da crash-loop o'rniga qayta urinish
+37ca03c fix(bot): manzil qidiruvida mijoz variantni tanlaydi (#2)
+b0fd7c9 feat: ishonchlilik, xavfsizlik, ko'p instansiya va testlar (#1)
+```
+
+**Kritik tuzatishlar (PR #1):**
+- `trips.complete()` — komissiya status o'tishidan KEYIN va bitta tranzaksiyada
+  (avval o'tish natijasi tekshirilmasdi → bekor qilingan zakazdan pul yechilardi).
+- `billing.adjust()` — balans atomik, lost update yo'q.
+- Bekor qilishlarga status guard'i.
+- `addTrack()` — atomik jsonb, GPS nuqtalari yo'qolmaydi.
+- `numeric` transformer — TypeORM `number` qaytaradi.
+
+**Xavfsizlik:** CORS allowlist (HTTP+WS), helmet, bloklangan hisob tokenini rad etish
+(Redis kesh + socketni uzish), login rate limit, 403, prod ENV qattiq talablari.
+
+**Masshtab:** Socket.IO Redis adapter · dispatch **egalik modeli**
+(`dispatch:owner:<orderId>`, `SET NX` + TTL 90s; javob pub/sub orqali egasiga) ·
+bot sessiyasi Redis'da. **Bot polling sababli 1 instansiyada qolishi kerak.**
+
+**Kuzatuv:** global HTTP exception filter · **WS uchun interceptor** (filter EMAS) ·
+pino redact + `x-request-id` · terminus health · Swagger `/docs` · `GET /ops/metrics`.
+
+**Sifat:** ESLint qo'shildi · **99 unit test** (api 57, bot 25, admin 17) — avval 0 ta ·
+CI `integration` job'i (haqiqiy Postgres+Redis bilan simlar) ·
+**CI 2026-07-25 dan beri hech qachon o'tmagan edi** (pnpm versiya ziddiyati) — tuzatildi.
+
+**Bot oqimi qisqartirildi:** toifa → lokatsiya → tasdiq (manzil va izoh so'ralmaydi).
+
+---
+
+## 5. Qolgan ishlar
+
+1. **⚠️ "Ulanmoqda" muammosi** (2-bo'lim) — asosiy.
+2. **FCM kalitini Expo'ga yuklash** — busiz push yetkazilmaydi:
+   `cd apps/driver-app && eas credentials --platform android` → Push Notifications → FCM V1
+   → `~/Downloads/toy-taxi-firebase-adminsdk-*.json`.
+   (`google-services.json` joyida va to'g'ri — APK ichida tekshirilgan.)
+3. **Haydovchilar qo'shish** — hozir 1 ta approved haydovchi (OFFLINE).
+   Botdan zakaz ishlashi uchun **kamida bitta ONLINE haydovchi shart**.
+   (`+998900000098` va `+998900000099` — diagnostika uchun yaratilgan, bloklangan.)
+4. **Xarita xizmatlari** (ixtiyoriy) — `NOMINATIM_URL`/`OSRM_URL`. API'dagi `/geo/*`
+   endpointlari tayyor va testlangan, lekin **hozir hech kim chaqirmaydi** (bot oqimidan
+   manzil olib tashlangan). Kerak bo'lmasa o'chirsa bo'ladi.
+5. **Railway healthcheck** — `RAILWAY_CONFIG_PATH` qo'yildi, keyingi deployda faollashishi
+   kerak; tekshirilmagan.
+6. **In-app xarita** (react-native-maps) — driver-app TODO.
+
+---
+
+## 6. Lokal ishga tushirish va tuzoqlar
+
+```bash
+pnpm db:up                                   # postgres:5434 + redis:6379
+set -a; . ./.env; set +a
+export ADMIN_LOGIN=admin ADMIN_PASSWORD=admin123 LOGIN_RATE_LIMIT=1000
+pnpm --filter @tty/api migration:run
+pnpm --filter @tty/shared build && pnpm --filter @tty/api build
+node apps/api/dist/main.js
+```
+
+**Tuzoqlar (qimmatga tushgan):**
+- `ConfigModule` `.env` ni **O'QIMAYDI** — env'ni qo'lda export qilish shart.
+- **Simlarni ketma-ket haydashda `LOGIN_RATE_LIMIT=1000`** kerak (prod limiti 5/daq →
+  5-simdan keyin 429).
+- **Har sim oldidan DB tozalash** (FIXED telefon raqamlar):
+  `TRUNCATE orders, order_events, drivers, vehicles, customers, trip_tracks, sos_events,
+  transactions, ratings RESTART IDENTITY CASCADE;` + `redis-cli FLUSHALL`
+- **`sim:bot` `apps/bot/dist` dan import qiladi** — oldin `pnpm --filter @tty/bot build`.
+- **`sim:sprint3`** API'ni `DISPATCH_WINDOW_SIZE=1` bilan talab qiladi.
+- **`sim:cluster`** ikkita instansiya: `API_PORT=3000` va `API_PORT=3001`.
+- **TypeORM:** `manager.query()` UPDATE uchun `[rows, affected]`, SELECT uchun `rows`.
+- **Botni `getUpdates` bilan TEKSHIRMANG** — polling slotini o'g'irlab botni yiqitadi.
+- **Bot deploy'da bitta 409 NORMAL** — `launchWithRetry` uni o'tkazadi.
+
+**Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster`
+
+---
+
+## 7. Arxitektura qarorlari (nega aynan shunday)
+
+- **Dispatch egaligi, BullMQ emas** — dispatch mahsulotning yuragi va sim'lar bilan
+  qoplangan; egalik modeli o'sha mantiqni o'zgartirmasdan ko'p instansiya to'g'riligini
+  beradi, to'liq qayta yozishdan ancha kam xavf bilan.
+- **WS uchun interceptor, filter emas** — Nest `filter.func()` natijasini ishlatmaydi,
+  ya'ni exception filter orqali Socket.IO ack qaytarib bo'lmaydi.
+- **CORS adapter darajasida** — `@WebSocketGateway({cors})` dekoratori env o'qiy olmaydi
+  (u modul yuklanganda hisoblanadi).
+- **Prod ENV qattiq talablari** — xavfsizlik sozlamasi unutilganda servis jimgina zaif
+  holatda ishlamasin, balki darhol tushunarli xato bilan to'xtasin.
+- **`handleConnection` da `driverId` I/O'DAN OLDIN o'rnatiladi** — Socket.IO `connect` ni
+  transport ulanishi bilanoq beradi, mijoz `driver:online` ni await'lar tugashidan oldin
+  yuborishi mumkin (prod'da bir marta "Empty criteria" xatosini bergan).
+- **`makeT` har til uchun bitta funksiya keshlaydi** — avval har renderda yangi funksiya
+  qaytarib, `useCallback`/`useEffect` bog'liqligida cheksiz render tsikliga sabab bo'lgan.
