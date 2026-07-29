@@ -113,8 +113,7 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 4. Qolgan ishlar
 
 1. **🔴 Zakaz oqimini sinash** (2-bo'lim) — birinchi navbatda.
-2. **🔴 EAS build — endi tayyor.** Yangi dizayn TO'LIQ joriy qilindi (`9c50004`,
-   `<NEXT>`), ilova tomondagi GPS tuzatishi ham shu buildga kiradi.
+2. **🔴 EAS build — endi tayyor.** Yangi dizayn TO'LIQ joriy qilindi (`9c50004`, `fd3b0cd`), ilova tomondagi GPS tuzatishi ham shu buildga kiradi.
    ```bash
    cd apps/driver-app && eas build --platform android --profile preview
    ```
@@ -150,7 +149,7 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
-<NEXT>  feat(driver-app): yangi dizayn tugallandi — safar, yakuniy narx, Kabinet
+fd3b0cd feat(driver-app): yangi dizayn tugallandi — safar, yakuniy narx, Kabinet
 9c50004 feat(driver-app): yangi dizayn — tokenlar, Login, Parol, asosiy ekran
 22b2cd4 docs: HANDOFF yangilandi + driver-app dizayn promptlari (Google Stitch)
 40d197f fix(dispatch): "Onlayn" haydovchi taklif olmasligi tuzatildi (geo-indeks)
