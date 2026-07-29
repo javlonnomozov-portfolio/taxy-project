@@ -8,7 +8,7 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
-import { corsOptions, parseOrigins } from './config/cors';
+import { corsOptions, parseOrigins, selfOrigin } from './config/cors';
 import { CorsSocketAdapter } from './realtime/cors-socket.adapter';
 
 async function bootstrap() {
@@ -35,7 +35,9 @@ async function bootstrap() {
   const config = app.get(ConfigService);
   // CORS: prod'da faqat ro'yxatdagi origin'lar (admin domeni). Busiz istalgan
   // sayt brauzerdan admin tokeni bilan API'ga so'rov yubora olardi.
-  const origins = parseOrigins(config.get<string>('CORS_ORIGINS'));
+  // O'z domenimiz ham ro'yxatga qo'shiladi — Mini App sahifasi shu API'dan
+  // beriladi va uning POST so'rovi `Origin` sarlavhasi bilan keladi.
+  const origins = parseOrigins(config.get<string>('CORS_ORIGINS'), selfOrigin());
   app.enableCors(corsOptions(origins));
   // Socket.IO: bir xil CORS qoidasi + Redis adapter (ko'p instansiya uchun).
   const wsAdapter = new CorsSocketAdapter(app, origins);

@@ -1,4 +1,4 @@
-import { corsOptions, parseOrigins } from './cors';
+import { corsOptions, parseOrigins, selfOrigin } from './cors';
 import { validateEnv } from './env.validation';
 
 type OriginFn = (origin: string | undefined, cb: (e: Error | null, ok?: boolean) => void) => void;
@@ -23,6 +23,42 @@ describe('parseOrigins', () => {
 
   it('vergul bilan ajratadi va oxirgi slashni olib tashlaydi', () => {
     expect(parseOrigins('https://a.uz/, https://b.uz')).toEqual(['https://a.uz', 'https://b.uz']);
+  });
+});
+
+describe('parseOrigins — o\'z origin', () => {
+  it('o\'z origin\'ini ro\'yxatga qo\'shadi (Mini App POST so\'rovi uchun SHART)', () => {
+    expect(parseOrigins('https://admin.uz', 'https://api.uz')).toEqual([
+      'https://admin.uz',
+      'https://api.uz',
+    ]);
+  });
+
+  it('allaqachon ro\'yxatda bo\'lsa takrorlamaydi', () => {
+    expect(parseOrigins('https://api.uz', 'https://api.uz')).toEqual(['https://api.uz']);
+  });
+
+  it('CORS_ORIGINS bo\'sh bo\'lsa dev rejimi buzilmaydi (null)', () => {
+    expect(parseOrigins('', 'https://api.uz')).toBeNull();
+  });
+});
+
+describe('selfOrigin', () => {
+  it('Railway domenidan https origin yasaydi', () => {
+    expect(selfOrigin({ RAILWAY_PUBLIC_DOMAIN: 'api-x.up.railway.app' })).toBe(
+      'https://api-x.up.railway.app',
+    );
+  });
+
+  it('RAILWAY_STATIC_URL zaxira sifatida ishlatiladi', () => {
+    expect(selfOrigin({ RAILWAY_STATIC_URL: 'api-x.up.railway.app' })).toBe(
+      'https://api-x.up.railway.app',
+    );
+  });
+
+  it('Railway tashqarisida null (lokal dev)', () => {
+    expect(selfOrigin({})).toBeNull();
+    expect(selfOrigin({ RAILWAY_PUBLIC_DOMAIN: '' })).toBeNull();
   });
 });
 

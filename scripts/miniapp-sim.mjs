@@ -56,10 +56,14 @@ function signInitData(telegramId, token = TOKEN) {
   return p.toString();
 }
 
+// `Origin` SARLAVHASI MUHIM: brauzer POST so'rovida uni O'Z-ORIGIN bo'lganda ham
+// yuboradi. Prod'da aynan shu narsa CORS'ga urilib 500 bergan edi (allowlist'da
+// API'ning o'z domeni yo'q edi). Sim buni takrorlashi uchun biz ham yuboramiz.
+// Ushlash uchun API'ni CORS_ORIGINS o'rnatilgan holda ishga tushiring.
 const trackRaw = (initData, orderId) =>
   fetch(API + '/miniapp/track', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', origin: API },
     body: JSON.stringify({ initData, orderId }),
   });
 
@@ -103,7 +107,7 @@ async function main() {
   await sleep(900);
 
   console.log('--- Sahifa ---');
-  const page = await fetch(API + '/miniapp/track');
+  const page = await fetch(API + '/miniapp/track', { headers: { origin: API } });
   const html = await page.text();
   check('GET /miniapp/track HTML qaytardi', page.ok && html.includes('<!DOCTYPE html>'));
   check('Sahifa Telegram WebApp SDK yuklaydi', html.includes('telegram-web-app.js'));

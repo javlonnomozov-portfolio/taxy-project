@@ -5,12 +5,34 @@ import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.int
  * Bo'sh bo'lsa `null` — dev'da "hammaga ochiq" degani. Production'da bo'sh
  * qoldirib bo'lmaydi (env.validation.ts ishga tushishda to'xtatadi).
  */
-export function parseOrigins(raw?: string): string[] | null {
+export function parseOrigins(raw?: string, self?: string | null): string[] | null {
   const list = (raw ?? '')
     .split(',')
     .map((s) => s.trim().replace(/\/+$/, '')) // oxirgi '/' ni olib tashlaymiz
     .filter(Boolean);
-  return list.length > 0 ? list : null;
+  if (list.length === 0) return null;
+  // O'Z origin'i doim ro'yxatda bo'lsin — pastdagi izohga qarang.
+  if (self && !list.includes(self)) list.push(self);
+  return list;
+}
+
+/**
+ * Servisning o'z public origin'i (Railway domenidan).
+ *
+ * MUHIM: Telegram Mini App sahifasi AYNAN SHU API tomonidan beriladi, ya'ni
+ * uning `fetch('/miniapp/track')` so'rovi o'z-origin. Lekin brauzer **POST**
+ * so'rovida `Origin` sarlavhasini o'z-origin bo'lganda ham yuboradi — u
+ * allowlist'da bo'lmasa CORS uni rad etadi va 500 qaytadi.
+ *
+ * Aynan shu prod'da yuz berdi: lokalda `CORS_ORIGINS` bo'sh (hammaga ochiq)
+ * bo'lgani uchun sim'lar buni ko'rsatmadi.
+ */
+export function selfOrigin(env: NodeJS.ProcessEnv = process.env): string | null {
+  const domain = env.RAILWAY_PUBLIC_DOMAIN || env.RAILWAY_STATIC_URL;
+  if (!domain) return null;
+  const clean = domain.trim().replace(/\/+$/, '');
+  if (!clean) return null;
+  return clean.startsWith('http') ? clean : `https://${clean}`;
 }
 
 /**

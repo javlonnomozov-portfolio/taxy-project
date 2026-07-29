@@ -219,17 +219,25 @@ export function miniappPage(): string {
     })
       .then(function (r) {
         if (r.status === 403 || r.status === 404) throw new Error('denied');
-        if (!r.ok) throw new Error('http');
+        // Xato KODINI matnga chiqaramiz: "Ma'lumot olinmadi" o'zi hech narsa
+        // aytmaydi — CORS/500 muammosini topish uchun yarim soat ketgan edi.
+        if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       })
       .then(function (d) {
-        render(d);
+        try {
+          render(d);
+        } catch (re) {
+          // Chizishdagi xato tarmoq xatosidan farqlansin (avval ikkalasi ham
+          // bir xil "Ma'lumot olinmadi" ko'rinardi).
+          elSub.textContent = t.err + ' [render: ' + (re && re.message) + ']';
+        }
         // Safar tugagach so'rovlarni to'xtatamiz — bekorga tarmoq sarflamaymiz.
         if (!d.finished) schedule(5000);
       })
       .catch(function (e) {
         if (e.message === 'denied') { fail(t.denied); return; }
-        elSub.textContent = t.err;
+        elSub.textContent = t.err + ' [' + (e && e.message ? e.message : 'network') + ']';
         schedule(8000);
       });
   }
