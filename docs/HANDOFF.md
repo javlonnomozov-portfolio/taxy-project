@@ -123,6 +123,36 @@ railway logs --service api | grep "Nomzod topilmadi"
   (`drivers.last_lat` NULL) ⇒ **APK'ni qayta qurish kerak** (ilova tomondagi tuzatish).
 - boshqa toifa ko'rsatsa ⇒ mijoz noto'g'ri toifa tanlagan.
 
+### 2d. "Taksi qayerda?" — Telegram Mini App jonli xarita (`162bf75`)
+
+Avval tugma statik joylashuv nuqtasi yuborardi — u muzlab qolardi va mijoz har
+safar tugmani qayta bosishi kerak edi (10s bo'g'iq bilan). Endi Mini App ochiladi,
+xarita **har 5 soniyada o'zi yangilanadi**.
+
+| Endpoint | Nima |
+|---|---|
+| `GET /miniapp/track` | sahifa (Leaflet + OSM, kalit kerak emas) |
+| `POST /miniapp/track` | jonli ma'lumot: haydovchi nuqtasi, olib ketish nuqtasi, mashina kartasi |
+
+**Bu YAGONA guard'siz controller.** Himoya butunlay Telegram `initData` imzosida:
+HMAC-SHA256 (doimiy vaqtli solishtirish) + `auth_date` eskirganini rad etish +
+imzodagi telegram id zakaz mijozining `telegram_id` si bilan solishtiriladi.
+Busiz `?order=<id>` bilan begona safarni kuzatish mumkin bo'lardi.
+
+**Env:** `TELEGRAM_BOT_TOKEN` API'da — Railway servis-havolasi bilan qo'yilgan:
+`${{bot.BOT_TOKEN}}` (bitta joyda turadi, nusxalanmaydi). **IXTIYORIY** — berilmasa
+mini app 503 qaytaradi va bot eski statik tugmaga qaytadi.
+
+**Bot:** `MINIAPP_URL` (default `API_BASE_URL + /miniapp/track`). Telegram `web_app`
+tugmasi faqat **HTTPS** qabul qiladi — lokal dev'da (http) bot avtomatik eski
+callback tugmasiga qaytadi, aks holda Telegram BUTUN klaviaturani rad etardi.
+
+Tekshirildi: `pnpm sim:miniapp` 16/16 (jonli yangilanish + begona foydalanuvchi,
+buzilgan imzo, yaroqsiz hash, mavjud bo'lmagan zakaz — hammasi rad etiladi),
++ 8 ta unit test imzo tekshiruvi uchun. Prod'da sahifa 200, imzosiz so'rov 403.
+
+---
+
 ---
 
 ## 3. Production holati
@@ -184,6 +214,8 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+162bf75 feat(miniapp): "Taksi qayerda?" — Telegram Mini App jonli xaritasi
+7a5ca93 docs: HANDOFF — kech onlayn haydovchi va NO_DRIVER biriktirish tuzatishlari
 7dee020 fix(dispatch,bot): kech onlayn haydovchi + NO_DRIVER'dan keyingi biriktirish
 aec5421 docs: HANDOFF — dizayn tugagani va EAS build tayyorligi
 fd3b0cd feat(driver-app): yangi dizayn tugallandi — safar, yakuniy narx, Kabinet
@@ -257,8 +289,10 @@ node apps/api/dist/main.js
   `grep -x` EMAS (aniq qator mosligi noto'g'ri natija beradi).
 
 **Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
-sim:online-geo sim:late-driver`
+sim:online-geo sim:late-driver sim:miniapp`
 
+- **`sim:miniapp` uchun API `TELEGRAM_BOT_TOKEN` bilan ishga tushirilishi kerak**
+  (istalgan qiymat, masalan `123:TEST` — sim ham o'shani ishlatadi).
 - **Simlar orasida API'ni QAYTA ISHGA TUSHIRING.** Dispatch holati xotirada (taymerlar
   bilan); DB'ni TRUNCATE qilsangiz taymer o'chirilgan zakazga murojaat qilib FK xatosi
   beradi. Bu prod'da bo'lmaydi (zakaz o'chirilmaydi), lekin sim'ni chalg'itadi.
