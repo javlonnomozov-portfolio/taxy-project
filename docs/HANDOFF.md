@@ -209,6 +209,43 @@ Tekshirildi: `pnpm sim:arrived-guard` 8/8 + pricing chegarasiga 3 unit test.
 
 ---
 
+### 2g. Mini App'dan buyurtma berish + baholash ixtiyoriy (`8bd3923`, `91f0815`)
+
+**Xaritadan buyurtma.** Telegram lokatsiya tugmasi FAQAT telefonning joriy GPS
+nuqtasini yubora oladi — mijoz boshqa manzilga taksi chaqira olmasdi, GPS
+noto'g'ri ko'rsatgan binoda noto'g'ri nuqta ketardi. Endi mini app'da nuqtani
+o'zi qo'yadi.
+
+Mini app IKKI rejimli (bitta sahifa, `/miniapp/state` hal qiladi):
+- faol buyurtma yo'q → **BUYURTMA**: xarita markazida qotgan nuqta (markerni
+  barmoq bilan sudrashdan aniqroq — barmoq nuqtani yopmaydi), toifa, tugma
+- faol buyurtma bor → **KUZATUV** (avvalgidek)
+
+| Endpoint | Nima |
+|---|---|
+| `POST /miniapp/state` | faol buyurtma bormi → qaysi rejim |
+| `POST /miniapp/order` | xaritadan tanlangan nuqta bilan buyurtma |
+
+Barcha qoidalar `OrdersService.create()` da QOLADI. Mini app faqat kimligini
+tekshiradi: imzo → telegram id → mijoz. Ro'yxatdan o'tmagan 403.
+Qo'shimcha: daqiqasiga 5 buyurtma chegarasi.
+
+**Bot menyusida** "🗺 Xaritadan chaqirish" (web_app). Eski matnli oqim
+**ATAYLAB QOLDIRILDI** — eski Telegram mijozlarida mini app ochilmaydi va
+lokatsiya tugmasi kam texnologiyali foydalanuvchi uchun bir bosishda ishlaydi.
+
+**Manzil nomlari YO'Q** — foydalanuvchi qarori. `NOMINATIM_URL` bo'sh, teskari
+geokodlash o'chiq. Mijoz xaritadan joyni ko'radi, lekin "Registon ko'chasi 12"
+yozilmaydi. Kerak bo'lsa `/geo/*` endpointlari tayyor turibdi.
+
+**Baholash ixtiyoriy.** Texnik jihatdan hech narsani bloklamasdi, lekin UX uni
+majburiydek ko'rsatardi (5 ta yulduz, chiqish yo'li yo'q). Endi "O'tkazib
+yuborish" tugmasi bor va matn "(ixtiyoriy)" deydi.
+
+Tekshirildi: `pnpm sim:miniapp` **25/25**.
+
+---
+
 ---
 
 ## 3. Production holati
@@ -270,6 +307,9 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+8bd3923 feat(miniapp): xaritadan buyurtma berish (nuqta GPS bilan cheklanmaydi)
+91f0815 fix(bot): haydovchini baholash IXTIYORIY ekani ko'rinadigan bo'ldi
+1d234eb docs: HANDOFF — 'Yetib keldim' himoyasi
 8193311 feat(trips): "Yetib keldim" geofence + kutish haqiga chegara
 7dfcdc3 docs: HANDOFF — Mini App CORS tuzatishi
 b3be366 fix(cors): API o'z domenini ham allowlist'ga qo'shsin (Mini App 500)
