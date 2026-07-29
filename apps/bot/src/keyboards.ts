@@ -1,4 +1,5 @@
 import { Markup } from 'telegraf';
+import { CONFIG, hasMiniapp } from './config';
 import { Lang, t } from './i18n';
 
 export const langKeyboard = Markup.inlineKeyboard([
@@ -39,9 +40,26 @@ export const cancelOrderKeyboard = (lang: Lang) =>
   Markup.inlineKeyboard([[Markup.button.callback(t(lang, 'cancel_order_btn'), 'order:cancel')]]);
 
 // Haydovchi topilgach: taksi joylashuvini ko'rish + bekor qilish.
-export const trackingKeyboard = (lang: Lang) =>
+/**
+ * Safar davomidagi klaviatura.
+ *
+ * "Taksi qayerda?" — Telegram Mini App (jonli xarita, o'zi yangilanadi).
+ * Avval `replyWithLocation` bilan STATIK nuqta yuborilardi: u muzlab qolardi va
+ * mijoz har safar tugmani qayta bosishi kerak edi.
+ *
+ * HTTPS bo'lmasa (lokal dev) — eski callback tugmasiga qaytamiz, aks holda
+ * Telegram butun klaviaturani rad etadi.
+ */
+export const trackingKeyboard = (lang: Lang, orderId?: string) =>
   Markup.inlineKeyboard([
-    [Markup.button.callback(t(lang, 'show_location_btn'), 'order:where')],
+    [
+      hasMiniapp && orderId
+        ? Markup.button.webApp(
+            t(lang, 'show_location_btn'),
+            `${CONFIG.miniappUrl}?order=${encodeURIComponent(orderId)}&lang=${lang}`,
+          )
+        : Markup.button.callback(t(lang, 'show_location_btn'), 'order:where'),
+    ],
     [Markup.button.callback(t(lang, 'cancel_order_btn'), 'order:cancel')],
   ]);
 

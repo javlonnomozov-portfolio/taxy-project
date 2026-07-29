@@ -27,7 +27,8 @@
     "sim:security": "node scripts/security-sim.mjs",
     "sim:cluster": "node scripts/cluster-sim.mjs",
     "sim:online-geo": "node scripts/online-geo-sim.mjs",
-    "sim:late-driver": "node scripts/late-driver-sim.mjs"
+    "sim:late-driver": "node scripts/late-driver-sim.mjs",
+    "sim:miniapp": "node scripts/miniapp-sim.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

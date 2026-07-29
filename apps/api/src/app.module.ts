@@ -22,6 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { TripsModule } from './trips/trips.module';
 import { ReputationModule } from './reputation/reputation.module';
 import { OpsModule } from './ops/ops.module';
+import { MiniappModule } from './miniapp/miniapp.module';
 
 @Module({
   imports: [
@@ -89,6 +90,7 @@ import { OpsModule } from './ops/ops.module';
     DispatchModule,
     OffersModule,
     OpsModule,
+    MiniappModule,
     RealtimeModule,
   ],
 })

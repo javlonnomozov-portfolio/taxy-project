@@ -71,7 +71,7 @@ export function trackOrder(opts: {
         if (m.driver)
           await send(
             t(lang, 'driver_found', m.driver.name, m.driver.vehicle || '—', m.driver.plate || '—', m.driver.phone, String(m.driver.ratingAvg ?? 0)),
-            trackingKeyboard(lang),
+            trackingKeyboard(lang, orderId),
           );
         break;
       case 'ARRIVED':

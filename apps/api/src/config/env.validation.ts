@@ -42,6 +42,11 @@ export const envSchema = z.object({
   OSRM_URL: optionalUrl,
   // Nominatim foydalanish shartlari o'zini tanitadigan User-Agent'ni TALAB qiladi.
   GEO_USER_AGENT: emptyAsUndefined(z.string().optional()),
+  // Telegram Mini App ("Taksi qayerda?" jonli xarita) uchun bot tokeni — u bilan
+  // Telegram'ning `initData` imzosi tekshiriladi. IXTIYORIY: berilmasa mini app
+  // 503 qaytaradi va bot eski statik joylashuv tugmasiga qaytadi (servis
+  // ishga tushmay qolmasin — prod ENV talablari qattiq).
+  TELEGRAM_BOT_TOKEN: emptyAsUndefined(z.string().optional()),
   // CORS: ruxsat etilgan origin'lar, vergul bilan (masalan admin domeni).
   // Bo'sh bo'lsa — dev'da hammaga ochiq, PROD'da esa ishga tushmaydi (pastga qarang).
   CORS_ORIGINS: z.string().optional(),
