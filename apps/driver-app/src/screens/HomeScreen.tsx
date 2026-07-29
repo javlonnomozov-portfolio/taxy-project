@@ -126,7 +126,12 @@ export function HomeScreen({
     // Ulanish/qayta ulanish: agar haydovchi ishlashni xohlasa — qayta ro'yxatdan o'tamiz.
     s.on('connect', () => {
       setConnError(null);
-      if (wantOnlineRef.current) registerOnline();
+      if (wantOnlineRef.current) {
+        registerOnline();
+        // Uzilish davomida server bizni dispatch indeksidan chiqarib yuborgan bo'lishi
+        // mumkin — joylashuvni darhol qaytaramiz, taklif olish uchun shu shart.
+        if (lastLoc.current) s.emit(EV.location, lastLoc.current);
+      }
     });
     // Ulanib bo'lmasa sababni ko'rsatamiz (tarmoq, proksi, token va h.k.).
     s.on('connect_error', (e: Error) => setConnError(e.message || 'connect_error'));
@@ -196,6 +201,20 @@ export function HomeScreen({
     };
   }, [token]);
 
+  // Joylashuv "yurak urishi". Server haydovchini dispatch indeksida faqat joylashuv
+  // yangilanishi kelganda ushlab turadi, `watchPositionAsync` esa turgan telefonda
+  // jim qolishi mumkin. Shuning uchun onlayn ekanmiz — har daqiqada oxirgi ma'lum
+  // nuqtani qayta yuboramiz (uzilib-ulanganda ham indeks tiklanadi).
+  useEffect(() => {
+    if (!intent) return;
+    const id = setInterval(() => {
+      if (lastLoc.current) socketRef.current?.emit(EV.location, lastLoc.current);
+      else void sendCurrentPosition();
+    }, 60_000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intent]);
+
   // Har soniyada: countdown yangilanadi va muddati tugagan takliflar ro'yxatdan chiqadi.
   useEffect(() => {
     const id = setInterval(() => {
@@ -242,8 +261,25 @@ export function HomeScreen({
         },
       );
     }
+    // Server dispatch uchun joylashuvsiz haydovchini KO'RMAYDI, `watchPositionAsync` esa
+    // `distanceInterval` sababli telefon qimirlamaguncha hech narsa bermasligi mumkin —
+    // shuning uchun darhol bitta nuqta olib yuboramiz. Busiz haydovchi "Onlayn" turib,
+    // hech qachon taklif olmasligi mumkin edi.
+    void sendCurrentPosition();
     // Fon rejimida ham joylashuv (ilova yopiq bo'lsa HTTP orqali)
     void startBackgroundLocation();
+  }
+
+  /** Hozirgi joylashuvni bir marta olib serverga yuborish (indeksni tirik ushlash uchun). */
+  async function sendCurrentPosition(): Promise<void> {
+    try {
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      lastLoc.current = loc;
+      socketRef.current?.emit(EV.location, loc);
+    } catch {
+      /* GPS hozir yo'q — keyingi urinishda */
+    }
   }
 
   function goOffline() {

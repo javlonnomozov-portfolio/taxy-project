@@ -129,7 +129,21 @@ export class DriversService {
       lastSeenAt: new Date(),
     });
     // toifani keshlab qo'yamiz (location yangilanishlarida tez ishlatish uchun)
-    await this.getCategory(driverId);
+    const category = await this.getCategory(driverId);
+
+    // MUHIM: dispatch faqat Redis geo-indeksidan qidiradi (`geo:drivers:<toifa>`), DB
+    // statusidan EMAS. Ilgari bu yerda geo-indeksga yozilmasdi — haydovchi ilovada
+    // yashil "Onlayn" ko'rinardi, lekin dispatch uchun MAVJUD EMAS edi va zakaz
+    // darhol NO_DRIVER bo'lardi. Indeksga faqat `driver:location` tushganda kirardi;
+    // telefon qimirlamasa (Android `distanceInterval` filtri) GPS yangilanishi
+    // kelmasligi mumkin, `goOffline` esa indeksdan o'chirib yuborgan bo'lardi
+    // (har uzilish/qayta ulanishda shunday bo'ladi).
+    // Shuning uchun oxirgi ma'lum joylashuvdan indeksni tiklaymiz — xuddi
+    // `markIdle()` dagi kabi. Ilova birinchi GPS nuqtasini yuborishi bilan u
+    // aniqroq qiymat bilan ustidan yoziladi.
+    if (driver.lastLat != null && driver.lastLng != null) {
+      await this.geo.setDriverLocation(driverId, category, driver.lastLng, driver.lastLat);
+    }
   }
 
   async goOffline(driverId: string): Promise<void> {

@@ -34,6 +34,11 @@ export class GeoService {
     );
   }
 
+  /** Toifa indeksidagi haydovchilar soni — dispatch "nega hech kim yo'q" diagnostikasi uchun. */
+  async countInIndex(category: VehicleCategory): Promise<number> {
+    return this.redis.zcard(this.key(category));
+  }
+
   /**
    * Berilgan nuqtadan radius (metr) ichidagi eng yaqin haydovchilar —
    * masofa bo'yicha tartiblangan (eng yaqin birinchi).

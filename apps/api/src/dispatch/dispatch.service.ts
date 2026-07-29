@@ -345,6 +345,14 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           state.radiusIdx++;
           continue; // kattaroq radius bilan urinish
         }
+        // Eng katta radiusda ham hech kim yo'q. Sababi ko'rinmasa diagnostika
+        // imkonsiz ("haydovchi onlayn edi-ku?") — indeksdagi haqiqiy holatni yozamiz.
+        const inIndex = await this.geo.countInIndex(state.category);
+        this.log.warn(
+          `Nomzod topilmadi (zakaz ${state.orderId}): toifa=${state.category}, ` +
+            `radius=${radius}m, shu toifadagi geo-indeksda ${inIndex} ta haydovchi, ` +
+            `rad etganlar=${state.declined.size}`,
+        );
         break; // nomzod tugadi
       }
 
