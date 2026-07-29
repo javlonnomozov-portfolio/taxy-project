@@ -245,6 +245,14 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
             if (status === 'COMPLETED') ss.ratingOrderId = oid;
           });
         },
+        // NO_DRIVER'dan keyin operator (yoki kech onlayn bo'lgan haydovchi)
+        // zakazni oldi — sessiyada uni yana faol qilamiz.
+        onAssigned: (oid) => {
+          const chatId = ctx.chat!.id;
+          void store.update(chatId, (ss) => {
+            if (!ss.activeOrderId) ss.activeOrderId = oid;
+          });
+        },
       });
     } catch (e) {
       const msg = (e as Error).message.includes('409') ? t(s.lang, 'active_exists') : t(s.lang, 'err');

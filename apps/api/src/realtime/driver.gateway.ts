@@ -119,7 +119,10 @@ export class DriverGateway
 
   @SubscribeMessage(SOCKET_EVENTS.driver.online)
   async online(client: Socket) {
-    await this.drivers.goOnline(this.driverId(client));
+    const id = this.driverId(client);
+    await this.drivers.goOnline(id);
+    // Zakaz haydovchidan oldin kelgan bo'lishi mumkin — kutib turganini beramiz.
+    this.retryPending(id);
     return { ok: true };
   }
 
@@ -131,7 +134,19 @@ export class DriverGateway
 
   @SubscribeMessage(SOCKET_EVENTS.driver.location)
   async location(client: Socket, data: { lat: number; lng: number }) {
-    await this.drivers.updateLocation(this.driverId(client), data.lat, data.lng);
+    const id = this.driverId(client);
+    await this.drivers.updateLocation(id, data.lat, data.lng);
+    // Birinchi GPS nuqtasi haydovchini geo-indeksga qo'shadi — `online` paytida
+    // joylashuv hali bo'lmagan bo'lishi mumkin, shuning uchun bu yerda ham
+    // urinamiz (servisning o'zida bo'g'iq bor, har nuqtada ishlamaydi).
+    this.retryPending(id);
+  }
+
+  /** Kutib turgan zakazlarni qayta taklif qilish — javobni kutmaymiz. */
+  private retryPending(driverId: string): void {
+    void this.dispatch
+      .retryPendingForDriver(driverId)
+      .catch((e) => this.log.warn(`Kutib turgan zakazlarni qayta urinish xato: ${(e as Error).message}`));
   }
 
   @SubscribeMessage(SOCKET_EVENTS.driver.offerResponse)

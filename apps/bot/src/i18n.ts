@@ -31,7 +31,7 @@ const uz: Dict = {
   confirm: '✅ Tasdiqlash',
   confirm_order: (cat: string) => `Buyurtma: ${cat}\nTasdiqlaysizmi?`,
   searching: '🔎 Eng yaqin haydovchilar izlanmoqda…',
-  no_driver: '😔 Afsus, hozir bo‘sh taksi yo‘q. Keyinroq urinib ko‘ring.',
+  no_driver: '😔 Hozircha bo‘sh taksi topilmadi. Operator qidirishda davom etmoqda — taksi topilsa darhol xabar beramiz. Xohlasangiz, yangi buyurtma ham berishingiz mumkin.',
   driver_found: (name: string, car: string, plate: string, phone: string, rating: string) =>
     `✅ Haydovchi topildi!\n👤 ${name} ⭐ ${rating}\n🚗 ${car} (${plate})\n📞 ${phone}\n\nHaydovchi yo‘lda.`,
   arrived: '🚗 Haydovchi yetib keldi!',
@@ -92,7 +92,7 @@ const ru: Dict = {
   confirm: '✅ Подтвердить',
   confirm_order: (cat: string) => `Заказ: ${cat}\nПодтверждаете?`,
   searching: '🔎 Ищем ближайших водителей…',
-  no_driver: '😔 Извините, сейчас нет свободных такси. Попробуйте позже.',
+  no_driver: '😔 Пока свободное такси не найдено. Оператор продолжает поиск — как только такси найдётся, мы сразу сообщим. При желании вы можете оформить новый заказ.',
   driver_found: (name: string, car: string, plate: string, phone: string, rating: string) =>
     `✅ Водитель найден!\n👤 ${name} ⭐ ${rating}\n🚗 ${car} (${plate})\n📞 ${phone}\n\nВодитель в пути.`,
   arrived: '🚗 Водитель прибыл!',

@@ -19,16 +19,25 @@ interface StatusMsg {
   penalized?: boolean;
 }
 
+// DIQQAT: `NO_DRIVER` bu yerda YO'Q — u backend uchun yakuniy emas.
+// Zakaz NO_DRIVER'da qolganda operator hali ham haydovchi biriktirishi mumkin
+// (`/ops/orders/:id/assign`), va keyinroq onlayn bo'lgan haydovchiga avtomatik
+// qayta taklif ham boradi. Avval NO_DRIVER'da socket YOPILARDI — shuning uchun
+// operator biriktirgach mijozga hech narsa kelmasdi.
 const TERMINAL = [
   'COMPLETED',
-  'NO_DRIVER',
   'CANCELLED_BY_CUSTOMER',
   'CANCELLED_BY_DRIVER',
   'CUSTOMER_NO_SHOW',
   'CLOSED_BY_OPERATOR',
 ];
 
+// NO_DRIVER'dan keyin qancha vaqt kuzatishda qolamiz (operator/kech onlayn
+// haydovchi uchun). API tomonidagi qayta urinish oynasi ham 15 daqiqa.
+const NO_DRIVER_WATCH_MS = 15 * 60_000;
+
 const sockets = new Map<string, Socket>();
+const watchdogs = new Map<string, NodeJS.Timeout>();
 
 // Bitta buyurtma bo'yicha jonli statusni kuzatib, Telegram'ga xabar yuboradi.
 export function trackOrder(opts: {
@@ -38,8 +47,10 @@ export function trackOrder(opts: {
   lang: Lang;
   telegram: Telegram;
   onTerminal: (orderId: string, status: string) => void;
+  /** Zakaz NO_DRIVER'dan keyin jonlandi (operator biriktirdi / haydovchi topildi). */
+  onAssigned?: (orderId: string) => void;
 }): void {
-  const { orderId, chatId, customerId, lang, telegram, onTerminal } = opts;
+  const { orderId, chatId, customerId, lang, telegram, onTerminal, onAssigned } = opts;
   const socket = io(CONFIG.apiBaseUrl + '/customer', {
     auth: { customerId, internalKey: CONFIG.internalKey },
     transports: ['websocket'],
@@ -53,6 +64,10 @@ export function trackOrder(opts: {
     if (m.orderId !== orderId) return;
     switch (m.status) {
       case 'ACCEPTED':
+        // NO_DRIVER'dan keyin kelgan bo'lishi mumkin — sessiyada zakazni
+        // yana faol qilamiz, aks holda mijoz uni bekor qila olmay qoladi.
+        clearWatchdog(orderId);
+        onAssigned?.(orderId);
         if (m.driver)
           await send(
             t(lang, 'driver_found', m.driver.name, m.driver.vehicle || '—', m.driver.plate || '—', m.driver.phone, String(m.driver.ratingAvg ?? 0)),
@@ -70,7 +85,12 @@ export function trackOrder(opts: {
         break;
       case 'NO_DRIVER':
         await send(t(lang, 'no_driver'), mainMenu(lang));
-        break;
+        // Zakazni sessiyada bo'shatamiz (mijoz yangi zakaz bera olsin), LEKIN
+        // kuzatuvni saqlab qolamiz — operator yoki kech onlayn bo'lgan haydovchi
+        // hali ham bu zakazni olishi mumkin.
+        onTerminal(orderId, m.status);
+        armWatchdog(orderId);
+        return;
       case 'CANCELLED_BY_DRIVER':
       case 'CLOSED_BY_OPERATOR':
       case 'CUSTOMER_NO_SHOW':
@@ -85,10 +105,31 @@ export function trackOrder(opts: {
 }
 
 export function stopTracking(orderId: string): void {
+  clearWatchdog(orderId);
   const s = sockets.get(orderId);
   if (s) {
     s.close();
     sockets.delete(orderId);
+  }
+}
+
+/** NO_DRIVER'dan keyin socket abadiy ochiq qolmasin — chegaralangan oyna. */
+function armWatchdog(orderId: string): void {
+  clearWatchdog(orderId);
+  watchdogs.set(
+    orderId,
+    setTimeout(() => {
+      watchdogs.delete(orderId);
+      stopTracking(orderId);
+    }, NO_DRIVER_WATCH_MS),
+  );
+}
+
+function clearWatchdog(orderId: string): void {
+  const w = watchdogs.get(orderId);
+  if (w) {
+    clearTimeout(w);
+    watchdogs.delete(orderId);
   }
 }
 

@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Not, Repository } from 'typeorm';
+import { In, MoreThan, Not, Repository } from 'typeorm';
 import {
   ActorType,
   DriverStatus,
@@ -28,6 +28,7 @@ import { DriversService } from '../drivers/drivers.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DispatchOwnershipService } from './dispatch-ownership.service';
+import { ACTIVE_STATUSES } from '../orders/orders.constants';
 import { Candidate, haversineM, sortCandidates } from './dispatch.util';
 
 interface DispatchState {
@@ -64,6 +65,12 @@ const RECOVERY_MAX_AGE_MS = 15 * 60_000; // 15 daqiqadan eski yetimlar → NO_DR
 // Avto-dispatch haydovchi topolmasa — mijozga darhol "taksi yo'q" demaymiz.
 // Operator (dispatcher) shu oyna ichida qo'lda taksi topishga urinadi.
 const OPERATOR_WINDOW_MS = 5 * 60_000;
+// Zakaz haydovchidan OLDIN kelishi odatiy hol (kечqurun bitta taksi ham onlayn
+// bo'lmasligi mumkin). Shuning uchun haydovchi keyin onlayn bo'lganda kutib
+// turgan NO_DRIVER zakazlarni unga qayta taklif qilamiz — lekin cheksiz emas.
+const RETRY_PENDING_MAX_AGE_MS = 15 * 60_000;
+// GPS har ~4 soniyada keladi — har nuqtada DB'ga bormaslik uchun bo'g'iq.
+const RETRY_THROTTLE_MS = 20_000;
 
 @Injectable()
 export class DispatchService implements OnModuleInit, OnModuleDestroy {
@@ -71,6 +78,8 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
   private readonly states = new Map<string, DispatchState>();
   // NO_DRIVER'dan keyin operator hal qilmasa — mijozni xabardor qilish taymeri.
   private readonly operatorFallback = new Map<string, NodeJS.Timeout>();
+  // Haydovchi bo'yicha "kutib turgan zakazlarni qayta urinish" bo'g'ig'i.
+  private readonly lastRetryAt = new Map<string, number>();
 
   constructor(
     @InjectRepository(Order) private readonly orders: Repository<Order>,
@@ -90,7 +99,11 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
     // Boshqa instansiyalardan yo'naltirilgan haydovchi javoblarini qabul qilamiz.
     await this.ownership.listen((m) => {
-      void this.applyResponse(m.orderId, m.driverId, m.accept);
+      // `.catch()` SHART: bu callback'ni hech kim await qilmaydi, ya'ni xato
+      // "unhandled rejection" bo'lib butun jarayonni yiqitadi.
+      void this.applyResponse(m.orderId, m.driverId, m.accept).catch((e) =>
+        this.log.error(`applyResponse xato: ${(e as Error).message}`),
+      );
     });
     try {
       await this.recoverOrphans();
@@ -295,6 +308,91 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         ? haversineM(order.pickupLat, order.pickupLng, driver.lastLat, driver.lastLng)
         : 0;
     await this.offer(state, driverId, distanceM);
+  }
+
+  /**
+   * Haydovchi endi buyurtma qabul qila oladi — onlayn bo'ldi yoki birinchi GPS
+   * nuqtasi kelib geo-indeksga tushdi.
+   *
+   * Zakaz haydovchidan OLDIN kelgan bo'lishi mumkin: o'shanda hech kim topilmay
+   * zakaz NO_DRIVER'da qolgan va uni qayta ko'taradigan hech narsa yo'q edi —
+   * haydovchi ilovada onlayn turib, kutib turgan zakazdan bexabar qolardi.
+   */
+  async retryPendingForDriver(driverId: string): Promise<void> {
+    const now = Date.now();
+    if (now - (this.lastRetryAt.get(driverId) ?? 0) < RETRY_THROTTLE_MS) return;
+
+    const driver = await this.driverRepo.findOne({ where: { id: driverId } });
+    if (!driver || driver.status !== DriverStatus.ONLINE_IDLE) return;
+    const dLat = driver.lastLat;
+    const dLng = driver.lastLng;
+    if (dLat == null || dLng == null) return; // geo-indeksda yo'q — berib bo'lmaydi
+
+    // Bo'g'iqni FAQAT shu yerda belgilaymiz. Avval eng boshida turardi va
+    // `driver:online` (joylashuv hali yo'q → darhol return) uni yozib qo'yardi;
+    // bir zumdan keyin kelgan BIRINCHI GPS nuqtasi — aynan haydovchini indeksga
+    // qo'shadigani — 20 soniya davomida bloklanardi va zakaz kutib qolardi.
+    this.lastRetryAt.set(driverId, now);
+
+    const category = await this.drivers.getCategory(driverId);
+
+    // 1) Hali ketayotgan dispatchlarda oynada joy bo'lsa — yangi haydovchini qo'shamiz.
+    for (const st of this.states.values()) {
+      if (!st.active || st.targeted) continue;
+      if (st.category !== category) continue;
+      if (st.offered.has(driverId) || st.declined.has(driverId)) continue;
+      if (st.offered.size >= st.windowSize) continue;
+      await this.fillWindow(st);
+    }
+
+    // 2) Haydovchi topilmay kutib turgan zakazlar.
+    const maxRadius = Math.max(
+      ...this.config
+        .get<string>('DISPATCH_RADIUS_STEPS_M')!
+        .split(',')
+        .map((s) => Number(s.trim())),
+    );
+    const pending = await this.orders.find({
+      where: {
+        status: OrderStatus.NO_DRIVER,
+        vehicleCategory: category,
+        createdAt: MoreThan(new Date(now - RETRY_PENDING_MAX_AGE_MS)),
+      },
+      order: { createdAt: 'ASC' },
+      take: 5,
+    });
+
+    for (const o of pending) {
+      if (this.states.has(o.id)) continue; // allaqachon dispatch qilinmoqda
+      if (haversineM(o.pickupLat, o.pickupLng, dLat, dLng) > maxRadius) continue;
+
+      // Mijoz "taksi topilmadi" xabaridan keyin YANGI zakaz bergan bo'lishi mumkin —
+      // eskisini tiriltirsak u bir vaqtda ikkita safarga tushib qolardi.
+      const newer = await this.orders.findOne({
+        where: { customerId: o.customerId, status: In(ACTIVE_STATUSES) },
+      });
+      if (newer) continue;
+
+      // NO_DRIVER → CREATED atomik: ikki instansiya bitta zakazni tiriltirmasin
+      // (`start()` faqat CREATED'dan ishlaydi).
+      const res = await this.orders
+        .createQueryBuilder()
+        .update(Order)
+        .set({ status: OrderStatus.CREATED })
+        .where('id = :id AND status = :st', { id: o.id, st: OrderStatus.NO_DRIVER })
+        .execute();
+      if (!res.affected) continue;
+
+      this.cancelOperatorFallback(o.id);
+      await this.events.record(o.id, 'dispatching', ActorType.SYSTEM, {
+        actorId: driverId,
+        reason: 'driver_came_online',
+      });
+      this.log.log(
+        `Haydovchi ${driverId} onlayn bo'ldi — kutib turgan zakaz ${o.id} qayta dispatch qilinmoqda`,
+      );
+      await this.start(o.id);
+    }
   }
 
   /** Toifa uchun real taksometr sozlamasi (tarifdan; bo'lmasa default). */
@@ -525,7 +623,11 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     // Haydovchi endi band — boshqa buyurtmalarning unga bo'lgan takliflarini bekor qilamiz.
     for (const other of this.states.values()) {
       if (other.orderId !== state.orderId && other.active && other.offered.has(driverId)) {
-        void this.decline(other, driverId, 'assigned_elsewhere');
+        // Ushlanmagan `void` edi — bu yerdagi DB xatosi (masalan boshqa zakaz
+        // allaqachon o'chirilgan) butun API jarayonini yiqitardi.
+        void this.decline(other, driverId, 'assigned_elsewhere').catch((e) =>
+          this.log.error(`decline (assigned_elsewhere) xato: ${(e as Error).message}`),
+        );
       }
     }
 
