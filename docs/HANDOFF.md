@@ -1,6 +1,6 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
-> **Holat sanasi:** 2026-07-28 · **Branch:** `main` · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
+> **Holat:** 2026-07-28 kech · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -20,59 +20,63 @@ chiqarilgan — o'z `node_modules`, npm, EAS bilan quriladi), `packages/shared`.
 Driver-app: owner `javl9n`, package `uz.toytaxy.driver`,
 EAS projectId `486e16a1-b012-4256-b121-0ebbfc386cbd`.
 
+**Bot oqimi (qisqartirilgan):** toifa → lokatsiya → tasdiq. Manzil va izoh **so'ralmaydi**.
+
 ---
 
-## 2. ⚠️ HAL QILINMAGAN MUAMMO — asosiy ish shu
+## 2. 🔴 KUTILAYOTGAN TASDIQ — birinchi ish shu
 
-**Haydovchi ilovasida "Ishni boshlash" bosilganda "Ulanmoqda…" holatida qotib qoladi.**
-Haydovchi onlayn bo'lmaydi → botdan berilgan zakaz `NO_DRIVER` bo'ladi.
+Haydovchi ilovasidagi **"Ulanmoqda…"** muammosining sababi **topildi va tuzatildi**,
+lekin **foydalanuvchi hali yangi APK'ni sinab ko'rmadi**.
 
-### Chiqarib tashlangan sabablar (tekshirilgan)
+### Sabab (aniqlangan)
 
-| Tekshiruv | Natija | Qanday |
-|---|---|---|
-| Server socket | ✅ Ishlaydi | Node klient bilan prod'ga ulandim (ilova bilan bir xil sozlama): `CONNECT ✅ transport=websocket`, `driver:online → {"ok":true}`, 75s uzilmadi |
-| CORS mobil ilovani bloklaydimi | ✅ Yo'q | `Origin`siz handshake → 200; yomon origin → 400 |
-| Token | ✅ Yaroqli | Bugun 11:58 da ilovadan `POST /drivers/location` → **201** (okhttp) |
-| Hisob holati | ✅ `approved`, bloklanmagan | DB |
-| API URL | ✅ To'g'ri | HTTP va socket bir xil `API_URL` (`src/config.ts`) |
+Ilovada `transports: ['websocket', 'polling']` yozilgan edi. Socket.IO transportlarni
+**aynan shu tartibda** sinaydi ⇒ avval WebSocket urinilardi. Foydalanuvchi tarmog'ida WS
+upgrade bloklangan ⇒ ulanish yiqilardi va ilova jimgina "Ulanmoqda…" da qotardi.
 
-### Asosiy dalil
+Sabab faqat ilovaga `connect_error` ko'rsatish qo'shilgandan keyin ko'rindi — ekranda
+**`websocket error`** chiqdi (foydalanuvchi skrinshot yubordi).
 
-Haydovchi `+998990051630` ning `last_seen_at` — **7+ soat oldin**. `goOnline` muvaffaqiyatli
-bo'lganda bu maydon yangilanadi ⇒ **urinishlar serverga umuman yetib bormayapti**.
+### Tuzatish (`aec3e5f`)
 
-### Nega sabab topilmadi
+```ts
+transports: ['polling', 'websocket']   // polling BIRINCHI
+```
 
-1. **Ilova xatoni ko'rsatmasdi** — `connect_error` handleri umuman yo'q edi; `driver:online`
-   ack'i `{ok:false}` bo'lsa ham jimgina yutilardi. **Tuzatildi** (`ccc9e38`) — lekin
-   samarasini ko'rish uchun yangi APK kerak.
-2. **Railway log API'si 2026-07-28 kuni ishlamadi** — `railway logs` har safar
-   `operation timed out`. Server tomondan kuzatib bo'lmadi.
+Ulanish oddiy HTTP (polling) orqali o'rnatiladi, so'ng imkon bo'lsa WS'ga ko'tariladi;
+ko'tarilmasa polling'da ishlayveradi.
 
-### Keyingi qadam (aniq tartib)
+**Prod'ga qarshi isbotlangan** (WS butunlay bloklangan holat taqlid qilingan):
+```
+transports:['polling'], upgrade:false  →  CONNECT ✅ transport=polling
+driver:online → {"ok":true}
+```
 
-1. Build **`0a0a2522`** holatini tekshiring (2026-07-28 ~19:58 da boshlangan, EAS navbatida edi):
-   ```bash
-   cd apps/driver-app
-   npx eas-cli@latest build:view 0a0a2522-6d0f-4140-884e-efd0a7c12055
-   ```
-   Tugagan bo'lsa `Application Archive URL` dan APK'ni oling.
-2. O'rnating → "Ishni boshlash" → status ostida **qizil xato matni** chiqadi.
-3. O'sha matnga qarab:
+### Yangi APK (sinash kerak)
 
-| Xato matni | Ma'nosi |
-|---|---|
-| `timeout`, `xhr poll error`, `websocket error` | tarmoq / proksi |
-| `jwt expired`, `Token yaroqsiz` | qayta login kerak |
-| `Hisob bloklangan` | hisob holati |
-| `Sessiya tayyor emas` | serverdagi race (tuzatilgan bo'lishi kerak) |
+```
+https://expo.dev/artifacts/eas/evjf3kHqrTWit8oNB7Lin--mhsCawLj3jC-YmX5Qoh0.apk
+```
+Build `59de1d79` · commit `aec3e5ff` · ichi tekshirilgan
+(polling ✅ websocket ✅ connect_error ✅ Kabinet ✅ Firebase ✅).
 
-4. Server tomondan (loglar tiklansa):
-   ```bash
-   railway logs --service api | grep -E "Haydovchi ulandi|socketi uzildi|rad etildi"
-   ```
-   (`ab22aa8` da qo'shilgan, ishlashi test ulanish bilan tasdiqlangan.)
+### Sinov tartibi
+
+1. APK o'rnatilsin → **"Ishni boshlash"** → yashil **"Onlayn"** bo'lishi kerak
+   (qizil `websocket error` yo'qolishi kerak).
+2. Telegram: `@toy_taxy_bot` → `/start` → 🚕 Taksi chaqirish → toifa → lokatsiya → tasdiq
+3. Ilovada taklif chiqadi → "Qabul"
+4. Safar bosqichlari: yetib keldim → boshladim → yakunladim
+
+**Agar hali ham ishlamasa:** ilova endi xatoni ekranda ko'rsatadi — o'sha matnni oling.
+Server tomondan ham:
+```bash
+railway logs --service api | grep -E "Haydovchi ulandi|socketi uzildi|rad etildi"
+```
+(Eslatma: 2026-07-28 kuni Railway log API'si uzoq vaqt `operation timed out` berdi.
+Ishlamasa, DB'dan `drivers.last_seen_at` ni tekshiring — `goOnline` muvaffaqiyatli
+bo'lsa u yangilanadi.)
 
 ---
 
@@ -82,7 +86,7 @@ bo'lganda bu maydon yangilanadi ⇒ **urinishlar serverga umuman yetib bormayapt
 |---|---|
 | **api** | https://api-production-13444.up.railway.app · `/health` ok · eng so'nggi kod |
 | **admin** | https://admin-production-42e5.up.railway.app · uz/ru i18n + metrikalar |
-| **bot** | `@toy_taxy_bot` · polling · barqaror |
+| **bot** | `@toy_taxy_bot` · polling · barqaror · qisqartirilgan oqim bilan |
 | Postgres + Redis | Railway plugin · migratsiya 7 qo'llangan |
 
 Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
@@ -90,15 +94,43 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 
 **Muhim env (o'rnatilgan):**
 - `CORS_ORIGINS=https://admin-production-42e5.up.railway.app` — prod'da **majburiy**,
-  bo'lmasa API ishga tushmaydi (ataylab).
-- `RAILWAY_CONFIG_PATH=apps/api/railway.json` — busiz `railway.json` o'qilmaydi.
+  bo'lmasa API ishga tushmaydi (ataylab shunday).
+- `RAILWAY_CONFIG_PATH=apps/api/railway.json`
 - `NOMINATIM_URL` / `OSRM_URL` — **bo'sh** (xarita xizmatlari o'chiq).
 
 ---
 
-## 4. Bu sessiyada bajarilgan ish
+## 4. Qolgan ishlar
+
+1. **🔴 Yangi APK bilan sinov** (2-bo'lim) — birinchi navbatda.
+2. **FCM kaliti Expo'ga yuklanishi** — jarayon boshlangan edi, tugadimi noma'lum.
+   ```bash
+   cd apps/driver-app && eas credentials --platform android
+   ```
+   Ketma-ketlik: `preview` → `Push Notifications: Manage your FCM V1 service account key`
+   → `Set up a Google Service Account Key` → fayl:
+   `~/Downloads/toy-taxi-firebase-adminsdk-fbsvc-fb514f8e04.json`
+   (EAS faqat loyiha papkasidagi `.json` larni ko'rsatsa — faylni `apps/driver-app/` ga
+   ko'chiring, u `.gitignore` da; ishlatib bo'lgach o'chiring.)
+   **Rebuild kerak emas** — kalit Expo serverida turadi. Push faqat ilova yopiq
+   bo'lganda kerak; ochiq turganda takliflar socket orqali keladi.
+3. **Haydovchilar qo'shish** — hozir 1 ta approved haydovchi (`+998990051630`, OFFLINE).
+   Botdan zakaz ishlashi uchun **kamida bitta ONLINE haydovchi shart** —
+   aks holda zakaz darhol `NO_DRIVER` bo'ladi.
+   (`+998900000097/98/99` — diagnostika uchun yaratilgan, **bloklangan**, o'chirsa bo'ladi.)
+4. **Xarita xizmatlari** (ixtiyoriy) — API'dagi `/geo/*` endpointlari tayyor va
+   testlangan, lekin **hozir hech kim chaqirmaydi** (bot oqimidan manzil olib tashlangan).
+   Kerak bo'lmasa o'chirsa bo'ladi.
+5. **Railway healthcheck** — `RAILWAY_CONFIG_PATH` qo'yildi, faollashgani tekshirilmagan.
+6. **In-app xarita** (react-native-maps) — driver-app TODO.
+
+---
+
+## 5. Bu sessiyada bajarilgan ish
 
 ```
+aec3e5f fix(driver-app): transport tartibi — polling BIRINCHI (websocket error tuzatildi)
+e957df4 docs: HANDOFF.md ni joriy holatga yangilash
 ccc9e38 fix(driver-app): ulanish xatosi ko'rinadigan bo'ldi
 ab22aa8 feat(api): haydovchi socket ulanishi/uzilishini loglash
 b20df18 feat(bot): manzil va izoh so'ralmaydi — oqim qisqartirildi
@@ -108,48 +140,27 @@ b20df18 feat(bot): manzil va izoh so'ralmaydi — oqim qisqartirildi
 b0fd7c9 feat: ishonchlilik, xavfsizlik, ko'p instansiya va testlar (#1)
 ```
 
-**Kritik tuzatishlar (PR #1):**
+**Kritik pul/poyga tuzatishlari (PR #1):**
 - `trips.complete()` — komissiya status o'tishidan KEYIN va bitta tranzaksiyada
   (avval o'tish natijasi tekshirilmasdi → bekor qilingan zakazdan pul yechilardi).
 - `billing.adjust()` — balans atomik, lost update yo'q.
-- Bekor qilishlarga status guard'i.
-- `addTrack()` — atomik jsonb, GPS nuqtalari yo'qolmaydi.
-- `numeric` transformer — TypeORM `number` qaytaradi.
+- Bekor qilishlarga status guard'i. `addTrack()` atomik jsonb.
+- `numeric` transformer — TypeORM `number` qaytaradi (string emas).
 
-**Xavfsizlik:** CORS allowlist (HTTP+WS), helmet, bloklangan hisob tokenini rad etish
-(Redis kesh + socketni uzish), login rate limit, 403, prod ENV qattiq talablari.
+**Xavfsizlik:** CORS allowlist (HTTP+WS) · helmet · bloklangan hisob tokenini rad etish
+(Redis kesh + socketni uzish) · login rate limit · 403 · prod ENV qattiq talablari.
 
 **Masshtab:** Socket.IO Redis adapter · dispatch **egalik modeli**
 (`dispatch:owner:<orderId>`, `SET NX` + TTL 90s; javob pub/sub orqali egasiga) ·
 bot sessiyasi Redis'da. **Bot polling sababli 1 instansiyada qolishi kerak.**
 
 **Kuzatuv:** global HTTP exception filter · **WS uchun interceptor** (filter EMAS) ·
-pino redact + `x-request-id` · terminus health · Swagger `/docs` · `GET /ops/metrics`.
+pino redact + `x-request-id` · terminus health · Swagger `/docs` · `GET /ops/metrics` ·
+socket ulanish/uzilish loglari.
 
 **Sifat:** ESLint qo'shildi · **99 unit test** (api 57, bot 25, admin 17) — avval 0 ta ·
 CI `integration` job'i (haqiqiy Postgres+Redis bilan simlar) ·
 **CI 2026-07-25 dan beri hech qachon o'tmagan edi** (pnpm versiya ziddiyati) — tuzatildi.
-
-**Bot oqimi qisqartirildi:** toifa → lokatsiya → tasdiq (manzil va izoh so'ralmaydi).
-
----
-
-## 5. Qolgan ishlar
-
-1. **⚠️ "Ulanmoqda" muammosi** (2-bo'lim) — asosiy.
-2. **FCM kalitini Expo'ga yuklash** — busiz push yetkazilmaydi:
-   `cd apps/driver-app && eas credentials --platform android` → Push Notifications → FCM V1
-   → `~/Downloads/toy-taxi-firebase-adminsdk-*.json`.
-   (`google-services.json` joyida va to'g'ri — APK ichida tekshirilgan.)
-3. **Haydovchilar qo'shish** — hozir 1 ta approved haydovchi (OFFLINE).
-   Botdan zakaz ishlashi uchun **kamida bitta ONLINE haydovchi shart**.
-   (`+998900000098` va `+998900000099` — diagnostika uchun yaratilgan, bloklangan.)
-4. **Xarita xizmatlari** (ixtiyoriy) — `NOMINATIM_URL`/`OSRM_URL`. API'dagi `/geo/*`
-   endpointlari tayyor va testlangan, lekin **hozir hech kim chaqirmaydi** (bot oqimidan
-   manzil olib tashlangan). Kerak bo'lmasa o'chirsa bo'ladi.
-5. **Railway healthcheck** — `RAILWAY_CONFIG_PATH` qo'yildi, keyingi deployda faollashishi
-   kerak; tekshirilmagan.
-6. **In-app xarita** (react-native-maps) — driver-app TODO.
 
 ---
 
@@ -166,8 +177,7 @@ node apps/api/dist/main.js
 
 **Tuzoqlar (qimmatga tushgan):**
 - `ConfigModule` `.env` ni **O'QIMAYDI** — env'ni qo'lda export qilish shart.
-- **Simlarni ketma-ket haydashda `LOGIN_RATE_LIMIT=1000`** kerak (prod limiti 5/daq →
-  5-simdan keyin 429).
+- **Simlarni ketma-ket haydashda `LOGIN_RATE_LIMIT=1000`** kerak (prod limiti 5/daq).
 - **Har sim oldidan DB tozalash** (FIXED telefon raqamlar):
   `TRUNCATE orders, order_events, drivers, vehicles, customers, trip_tracks, sos_events,
   transactions, ratings RESTART IDENTITY CASCADE;` + `redis-cli FLUSHALL`
@@ -177,6 +187,8 @@ node apps/api/dist/main.js
 - **TypeORM:** `manager.query()` UPDATE uchun `[rows, affected]`, SELECT uchun `rows`.
 - **Botni `getUpdates` bilan TEKSHIRMANG** — polling slotini o'g'irlab botni yiqitadi.
 - **Bot deploy'da bitta 409 NORMAL** — `launchWithRetry` uni o'tkazadi.
+- **APK ichini tekshirishda** bundle Hermes bayt-kodida — `strings -a -n 4` ishlating,
+  `grep -x` EMAS (aniq qator mosligi noto'g'ri natija beradi).
 
 **Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster`
 
@@ -189,12 +201,23 @@ node apps/api/dist/main.js
   beradi, to'liq qayta yozishdan ancha kam xavf bilan.
 - **WS uchun interceptor, filter emas** — Nest `filter.func()` natijasini ishlatmaydi,
   ya'ni exception filter orqali Socket.IO ack qaytarib bo'lmaydi.
-- **CORS adapter darajasida** — `@WebSocketGateway({cors})` dekoratori env o'qiy olmaydi
-  (u modul yuklanganda hisoblanadi).
+- **CORS adapter darajasida** — `@WebSocketGateway({cors})` dekoratori env o'qiy olmaydi.
 - **Prod ENV qattiq talablari** — xavfsizlik sozlamasi unutilganda servis jimgina zaif
-  holatda ishlamasin, balki darhol tushunarli xato bilan to'xtasin.
+  holatda ishlamasin, darhol tushunarli xato bilan to'xtasin.
 - **`handleConnection` da `driverId` I/O'DAN OLDIN o'rnatiladi** — Socket.IO `connect` ni
   transport ulanishi bilanoq beradi, mijoz `driver:online` ni await'lar tugashidan oldin
-  yuborishi mumkin (prod'da bir marta "Empty criteria" xatosini bergan).
+  yuborishi mumkin (prod'da "Empty criteria" xatosini bergan).
 - **`makeT` har til uchun bitta funksiya keshlaydi** — avval har renderda yangi funksiya
   qaytarib, `useCallback`/`useEffect` bog'liqligida cheksiz render tsikliga sabab bo'lgan.
+
+---
+
+## 8. Bu sessiyaning saboqlari
+
+- **Jimgina yutilgan xatolar eng qimmatga tushdi.** `connect_error` handleri yo'qligi
+  sababli oddiy transport tartibi xatosini topish yarim kun oldi. Xato ko'rsatish
+  qo'shilishi bilan javob bir zumda ma'lum bo'ldi.
+- **Izohga ishonmang, kodni tekshiring.** `32755dc` dagi izod "polling bilan ulanib,
+  WS'ga ko'tariladi" degan edi, lekin massiv tartibi bunga teskari edi.
+- **Diagnostika tizimni buzmasligi kerak.** Botni `getUpdates` bilan tekshirish uni
+  yiqitdi.
