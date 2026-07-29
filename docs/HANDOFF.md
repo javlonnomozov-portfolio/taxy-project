@@ -67,6 +67,41 @@ tuzatish bilan: ✅ taklif keldi, DISPATCHING
 **API prod'ga deploy qilindi** (2026-07-29), `/health` ok.
 **APK hali qayta qurilmagan** — dizayn tugadi, build qilish mumkin (4-bo'lim, 2-band).
 
+### 2c. "Zakaz oldin, haydovchi keyin" — TUZATILDI, PROD'DA (`7dee020`)
+
+Ikkita alohida muammo, ikkalasi ham bitta holatdan: zakaz kelganda hech kim onlayn emas.
+
+**(1) Kech onlayn bo'lgan haydovchiga taklif bormasdi.** Zakaz NO_DRIVER'da qolardi va
+uni qayta ko'taradigan hech narsa yo'q edi. Haydovchi keyin ishga chiqsa ham kutib
+turgan zakazdan bexabar qolardi.
+→ `DispatchService.retryPendingForDriver()` — haydovchi onlayn bo'lganda YOKI birinchi
+GPS nuqtasi kelganda (geo-indeksga tushganda) o'z toifasidagi, 15 daqiqadan yangi,
+radius ichidagi NO_DRIVER zakazlarni qayta dispatch qiladi.
+NO_DRIVER→CREATED atomik. Mijoz orada YANGI zakaz bergan bo'lsa eskisi tiriltirilmaydi.
+
+**(2) Operator biriktirsa mijoz ko'rmasdi.** API to'g'ri emit qilardi — muammo BOTDA edi:
+`tracker.ts` `NO_DRIVER` ni terminal deb bilib **socketni yopardi**, keyingi `ACCEPTED`
+hech qayerga bormasdi.
+→ NO_DRIVER endi terminal emas. Sessiya bo'shatiladi (mijoz yangi zakaz bera olsin),
+lekin kuzatuv 15 daqiqa saqlanadi; ACCEPTED kelsa zakaz sessiyada yana faol bo'ladi.
+
+**Yo'l-yo'lakay:** `finalize()` va ownership listener'dagi ushlanmagan `void` promise'lar
+`.catch()` bilan o'raldi — u yerdagi DB xatosi butun API jarayonini **yiqitardi**
+(sim'da haqiqatan yiqitdi).
+
+**Isbotlangan** — `pnpm sim:late-driver`: tuzatishsiz 3 ta tekshiruv yiqiladi,
+tuzatish bilan 7/7. Boshqa simlar ham toza (dispatch 10/10, trip 15/15, race 9/9,
+security 10/10, online-geo 1/1).
+
+**api va bot prod'ga deploy qilindi** (2026-07-29).
+
+**⚠️ Ochiq qolgan xavf:** operator `POST /ops/orders/:id/assign` mijozda BOSHQA faol
+zakaz bor-yo'qligini tekshirmaydi. Mijoz "taksi topilmadi"dan keyin yangi zakaz bergan
+bo'lsa, eski zakazga qo'lda biriktirish uni bir vaqtda ikkita safarga tushirishi mumkin.
+Avto-qayta-dispatch yo'lida bu tekshiruv bor, operator yo'lida yo'q — mahsulot qarori.
+
+---
+
 ### Sinov tartibi (MAVJUD APK bilan)
 
 1. Ilovada **"Ishni boshlash"** → yashil **"Onlayn"**
@@ -149,6 +184,8 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+7dee020 fix(dispatch,bot): kech onlayn haydovchi + NO_DRIVER'dan keyingi biriktirish
+aec5421 docs: HANDOFF — dizayn tugagani va EAS build tayyorligi
 fd3b0cd feat(driver-app): yangi dizayn tugallandi — safar, yakuniy narx, Kabinet
 9c50004 feat(driver-app): yangi dizayn — tokenlar, Login, Parol, asosiy ekran
 22b2cd4 docs: HANDOFF yangilandi + driver-app dizayn promptlari (Google Stitch)
@@ -219,7 +256,12 @@ node apps/api/dist/main.js
 - **APK ichini tekshirishda** bundle Hermes bayt-kodida — `strings -a -n 4` ishlating,
   `grep -x` EMAS (aniq qator mosligi noto'g'ri natija beradi).
 
-**Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster sim:online-geo`
+**Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
+sim:online-geo sim:late-driver`
+
+- **Simlar orasida API'ni QAYTA ISHGA TUSHIRING.** Dispatch holati xotirada (taymerlar
+  bilan); DB'ni TRUNCATE qilsangiz taymer o'chirilgan zakazga murojaat qilib FK xatosi
+  beradi. Bu prod'da bo'lmaydi (zakaz o'chirilmaydi), lekin sim'ni chalg'itadi.
 
 ---
 
