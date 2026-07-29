@@ -153,6 +153,34 @@ buzilgan imzo, yaroqsiz hash, mavjud bo'lmagan zakaz — hammasi rad etiladi),
 
 ---
 
+### 2e. Mini App prod'da 500 bergan edi — CORS (`b3be366`)
+
+Foydalanuvchi Mini App'ni ochdi: xarita chiqdi, lekin "Ma'lumot olinmadi" yozildi.
+
+**Sabab:** brauzer **POST** so'rovida `Origin` sarlavhasini **o'z-origin bo'lganda
+ham** yuboradi. Mini App sahifasi API'ning o'zidan berilgani uchun `Origin` =
+API domeni edi, allowlist'da esa faqat admin domeni bor — CORS rad etib 500 qaytardi.
+
+Lokalda `CORS_ORIGINS` bo'sh (dev = hammaga ochiq) bo'lgani uchun `sim:miniapp`
+16/16 o'tgan edi. **Klassik dev/prod farqi.**
+
+**Tuzatish:** `selfOrigin()` — servis o'z public domenini `RAILWAY_PUBLIC_DOMAIN` /
+`RAILWAY_STATIC_URL` dan oladi va `parseOrigins()` uni allowlist'ga qo'shadi
+(env'da qo'lda yozib unutib bo'lmasin).
+
+**Sim endi buni ushlaydi:** `Origin` sarlavhasi yuboriladi. Ushlash uchun API'ni
+`CORS_ORIGINS` o'rnatilgan holda ishga tushiring:
+```bash
+CORS_ORIGINS=https://admin.example RAILWAY_PUBLIC_DOMAIN=http://localhost:3000 \
+  TELEGRAM_BOT_TOKEN=123:TEST node apps/api/dist/main.js
+```
+Isbotlandi: `selfOrigin` bo'lmasa sim yiqiladi, bo'lsa 16/16.
+
+Sahifa endi xato KODINI ko'rsatadi ("HTTP 500") va chizish xatosini tarmoq
+xatosidan ajratadi — avval ikkalasi ham bir xil "Ma'lumot olinmadi" berardi.
+
+---
+
 ---
 
 ## 3. Production holati
@@ -214,6 +242,8 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+b3be366 fix(cors): API o'z domenini ham allowlist'ga qo'shsin (Mini App 500)
+67ca7bb docs: HANDOFF — Telegram Mini App jonli xaritasi
 162bf75 feat(miniapp): "Taksi qayerda?" — Telegram Mini App jonli xaritasi
 7a5ca93 docs: HANDOFF — kech onlayn haydovchi va NO_DRIVER biriktirish tuzatishlari
 7dee020 fix(dispatch,bot): kech onlayn haydovchi + NO_DRIVER'dan keyingi biriktirish
