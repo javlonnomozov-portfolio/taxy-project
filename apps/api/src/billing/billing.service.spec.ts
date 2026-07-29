@@ -10,7 +10,36 @@ const svc = new BillingService(
   null as never,
   null as never,
   null as never,
+  null as never,
 );
+
+describe('BillingService — har zakaz uchun qat\'iy to\'lov (per_order)', () => {
+  it('tizim sozlamasidagi summani oladi', () => {
+    expect(svc.computeCommission(driver(BillingMode.PER_ORDER), 50000, 1500)).toBe(1500);
+  });
+
+  it('summa safar narxiga BOG\'LIQ EMAS', () => {
+    const a = svc.computeCommission(driver(BillingMode.PER_ORDER), 5000, 1500);
+    const b = svc.computeCommission(driver(BillingMode.PER_ORDER), 500000, 1500);
+    expect(a).toBe(b);
+  });
+
+  it('haydovchi darajasidagi kelishuv tizim sozlamasidan USTUN', () => {
+    expect(svc.computeCommission(driver(BillingMode.PER_ORDER, { perOrder: 500 }), 50000, 1500)).toBe(500);
+  });
+
+  it('haydovchi uchun 0 kelishilgan bo\'lsa — hech narsa yechilmaydi', () => {
+    expect(svc.computeCommission(driver(BillingMode.PER_ORDER, { perOrder: 0 }), 50000, 1500)).toBe(0);
+  });
+
+  it('sozlama berilmasa 0 (kutilmagan pul yechilmasin)', () => {
+    expect(svc.computeCommission(driver(BillingMode.PER_ORDER), 50000)).toBe(0);
+  });
+
+  it('manfiy sozlama pul QO\'SHIB yubormaydi', () => {
+    expect(svc.computeCommission(driver(BillingMode.PER_ORDER), 50000, -900)).toBe(0);
+  });
+});
 
 describe('BillingService.computeCommission', () => {
   it('OBUNA rejimida per-safar komissiya yo‘q', () => {

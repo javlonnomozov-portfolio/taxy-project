@@ -5,7 +5,12 @@ import { VehicleCategory } from '@tty/shared';
 import { Settings, SettingsConfig } from '../entities/settings.entity';
 import { Tariff } from '../entities/tariff.entity';
 
-const DEFAULTS: SettingsConfig = { surgeMultiplier: 1.0, surgeActive: false, freeCancelSec: 120 };
+const DEFAULTS: SettingsConfig = {
+  surgeMultiplier: 1.0,
+  surgeActive: false,
+  freeCancelSec: 120,
+  perOrderFee: 1000,
+};
 
 @Injectable()
 export class SettingsService {

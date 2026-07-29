@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useI18n } from '../i18n';
 
-interface Config { surgeMultiplier: number; surgeActive: boolean; freeCancelSec: number }
+interface Config {
+  surgeMultiplier: number;
+  surgeActive: boolean;
+  freeCancelSec: number;
+  perOrderFee: number;
+}
 interface Tariff {
   category: string;
   baseFare: number;
@@ -85,6 +90,28 @@ export function Settings() {
           </label>
           <button className="primary" onClick={saveCfg}>{t('save')}</button>
         </div>
+      </div>
+
+      {/* `per_order` billing rejimidagi haydovchidan har yakunlangan zakaz uchun
+          olinadigan summa. Haydovchi darajasida ustidan yozish mumkin
+          (Haydovchilar → Billing → config.perOrder). */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h2>{t('per_order_section')}</h2>
+        <div className="flex" style={{ flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
+          <label className="flex">
+            {t('per_order_fee')}
+            <input
+              type="number"
+              min={0}
+              step={100}
+              style={{ width: 120 }}
+              value={cfg.perOrderFee ?? 0}
+              onChange={(e) => setCfg({ ...cfg, perOrderFee: Number(e.target.value) })}
+            />
+          </label>
+          <button className="primary" onClick={saveCfg}>{t('save')}</button>
+        </div>
+        <div className="lbl" style={{ marginTop: 8 }}>{t('per_order_hint')}</div>
       </div>
 
       <div className="card">

@@ -48,6 +48,8 @@ export enum BillingMode {
   SUBSCRIPTION = 'subscription',
   PERCENT = 'percent',
   HYBRID = 'hybrid',
+  /** Har bir yakunlangan zakaz uchun QAT'IY summa (admin panelidan sozlanadi). */
+  PER_ORDER = 'per_order',
 }
 
 export enum PanelRole {

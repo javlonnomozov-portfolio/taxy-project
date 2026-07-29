@@ -4,6 +4,7 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { BillingMode } from '@tty/shared';
 import { Driver } from '../entities/driver.entity';
 import { Transaction, TransactionType } from '../entities/transaction.entity';
+import { SettingsService } from '../settings/settings.service';
 
 const DEFAULT_PERCENT = 10;
 
@@ -15,15 +16,28 @@ export class BillingService {
     @InjectRepository(Driver) private readonly drivers: Repository<Driver>,
     @InjectRepository(Transaction) private readonly txns: Repository<Transaction>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly settings: SettingsService,
   ) {}
 
-  /** Billing rejimiga qarab safar komissiyasini hisoblash. */
-  computeCommission(driver: Driver, fareTotal: number): number {
-    const cfg = (driver.billingConfig ?? {}) as { percent?: number };
+  /**
+   * Billing rejimiga qarab safar komissiyasini hisoblash.
+   *
+   * `perOrderFee` — `per_order` rejimi uchun tizim sozlamasidan kelgan qat'iy
+   * summa. Haydovchi darajasidagi `billingConfig.perOrder` undan ustun turadi
+   * (ayrim haydovchi bilan boshqacha kelishuv bo'lishi mumkin).
+   *
+   * Sof funksiya — repozitoriysiz test qilinadi.
+   */
+  computeCommission(driver: Driver, fareTotal: number, perOrderFee = 0): number {
+    const cfg = (driver.billingConfig ?? {}) as { percent?: number; perOrder?: number };
     switch (driver.billingMode) {
       case BillingMode.PERCENT:
       case BillingMode.HYBRID:
         return Math.round((fareTotal * (cfg.percent ?? DEFAULT_PERCENT)) / 100);
+      case BillingMode.PER_ORDER: {
+        const fee = cfg.perOrder ?? perOrderFee;
+        return Math.max(0, Math.round(Number(fee) || 0));
+      }
       case BillingMode.SUBSCRIPTION:
       default:
         return 0; // obuna — per-safar komissiya yo'q
@@ -84,15 +98,20 @@ export class BillingService {
   ): Promise<number> {
     const driver = await manager.findOne(Driver, { where: { id: driverId } });
     if (!driver) return 0;
-    const commission = this.computeCommission(driver, fareTotal);
+    const { perOrderFee } = await this.settings.getConfig();
+    const commission = this.computeCommission(driver, fareTotal, perOrderFee);
     if (commission > 0) {
+      // DIQQAT: balans MANFIYGA o'tishi mumkin — ataylab shunday. Haydovchi
+      // qarzda qolsa ham safar yakunlanadi va pul yoziladi; qarzni ofisda
+      // to'ldiradi. Aks holda yakunlash bloklanib, mijoz ham, haydovchi ham
+      // hech nima qila olmay qolardi.
       const bal = await this.adjust(
         manager,
         driverId,
         -commission,
         'commission',
         orderId,
-        'Safar komissiyasi',
+        driver.billingMode === BillingMode.PER_ORDER ? 'Zakaz uchun to‘lov' : 'Safar komissiyasi',
       );
       this.log.log(`Komissiya ${commission} so'm yechildi — haydovchi ${driverId}, balans: ${bal}`);
     }

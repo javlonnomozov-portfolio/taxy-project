@@ -1,4 +1,5 @@
 import {
+  Min,
   IsBoolean,
   IsEnum,
   IsNumber,
@@ -24,6 +25,8 @@ export class SettingsDto {
   @IsOptional() @IsBoolean() surgeActive?: boolean;
   /** Jarimasiz bekor qilish oynasi (sekund). */
   @IsOptional() @IsNumber() freeCancelSec?: number;
+  /** `per_order` rejimida har zakaz uchun olinadigan summa (so'm). */
+  @IsOptional() @IsNumber() @Min(0) perOrderFee?: number;
 }
 
 export class TopUpDto {
