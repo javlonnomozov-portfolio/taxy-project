@@ -102,7 +102,24 @@ Avto-qayta-dispatch yo'lida bu tekshiruv bor, operator yo'lida yo'q — mahsulot
 
 ---
 
-### Sinov tartibi (MAVJUD APK bilan)
+### 🟢 YANGI APK — yangi dizayn bilan (build `2a6f1a0a`, commit `f525ad2`)
+
+```
+https://expo.dev/artifacts/eas/i8i6u4uvKaDIpzqbgXMO2m5-7pcQH0QXR_cl3mTv4sE.apk
+```
+
+Ichi tekshirilgan (ASCII **va** UTF-16 skanerlash bilan):
+Login "Xush kelibsiz!" ✅ · Bugungi daromad ✅ · GPS izlanmoqda ✅ ·
+"Yo'l ko'rsatish" ✅ · "Safarni yakunlash" ✅ · parol jonli tekshiruvi ✅ ·
+polling birinchi ✅ · faqat MaterialIcons.ttf (356 KB), keraksiz shriftlar yo'q ✅
+
+Ichida: **yangi dizayn to'liq** + **GPS tuzatishi** (onlayn bo'lganda darhol
+nuqta + har daqiqada yurak urishi + qayta ulanganda yuborish).
+
+APK 66 MB — 53 MB'i native kutubxonalar (universal APK, barcha ABI'lar uchun).
+Kerak bo'lsa `eas.json` da ABI bo'yicha ajratish mumkin.
+
+### Sinov tartibi (YANGI APK bilan)
 
 1. Ilovada **"Ishni boshlash"** → yashil **"Onlayn"**
 2. Telegram: `@toy_taxy_bot` → `/start` → 🚕 Taksi chaqirish → toifa → lokatsiya → tasdiq
@@ -424,6 +441,12 @@ node apps/api/dist/main.js
   `expo export` ham o'tib ketadi.)
 - **APK ichini tekshirishda** bundle Hermes bayt-kodida — `strings -a -n 4` ishlating,
   `grep -x` EMAS (aniq qator mosligi noto'g'ri natija beradi).
+- **Hermes ASCII bo'lmagan satrlarni UTF-16 da saqlaydi.** `Yo'l ko'rsatish`
+  (`‘`), `GPS izlanmoqda…` (`…`), kirillcha — oddiy `strings` ularni TOPMAYDI va
+  "APK'da yo'q" degan YOLG'ON xulosa beradi. Ikkalasini ham tekshiring:
+  ```bash
+  strings -a -n 4 b.bundle | grep -F "matn" || strings -a -n 4 -e l b.bundle | grep -F "matn"
+  ```
 
 **Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
 sim:online-geo sim:late-driver sim:miniapp sim:miniapp-sync sim:arrived-guard`
