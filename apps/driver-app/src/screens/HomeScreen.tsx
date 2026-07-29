@@ -414,15 +414,45 @@ export function HomeScreen({
     return <CabinetScreen lang={lang} token={token} onClose={() => setShowCabinet(false)} />;
   }
 
-  // Yakuniy narx ekrani
+  // Yakuniy narx ekrani — kuniga 20+ marta ko'riladi, shuning uchun bayramona
+  // emas, tinch: bitta katta son va bitta tugma.
   if (done) {
     return (
-      <View style={[S.screen, S.center]}>
-        <Text style={S.title}>✅ {t('trip_done')}</Text>
-        <Text style={{ color: C.ok, fontSize: 40, fontWeight: '800', marginVertical: 16 }}>
-          {done.price.toLocaleString('ru-RU')} {t('som')}
+      <View style={[S.screen, S.center, { alignItems: 'center' }]}>
+        <View
+          style={{
+            width: 88,
+            height: 88,
+            borderRadius: R.pill,
+            backgroundColor: C.okSoft,
+            borderWidth: 2,
+            borderColor: C.online,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <MaterialIcons name="check" size={44} color={C.online} />
+        </View>
+        <Text
+          style={{ color: C.text, fontSize: F.title, fontWeight: '700', marginTop: SP.xl }}
+        >
+          {t('trip_done')}
         </Text>
-        <TouchableOpacity style={S.btn} onPress={() => setDone(null)}>
+        <Text
+          style={{
+            color: C.online,
+            fontSize: F.hero,
+            fontWeight: '800',
+            marginTop: SP.md,
+            textAlign: 'center',
+          }}
+        >
+          {som(done.price)} <Text style={{ fontSize: F.h2 }}>{t('som')}</Text>
+        </Text>
+        <TouchableOpacity
+          style={[S.btn, { alignSelf: 'stretch', marginTop: SP.xxl * 2 }]}
+          onPress={() => setDone(null)}
+        >
           <Text style={S.btnText}>OK</Text>
         </TouchableOpacity>
       </View>
@@ -447,70 +477,173 @@ export function HomeScreen({
         ];
     const navTarget = !goingToCustomer && trip.dest ? trip.dest : trip.pickup;
     return (
-      <ScrollView style={S.screen} contentContainerStyle={{ paddingBottom: 24 }}>
-        <Text style={S.title}>{trip.stage === 'in_progress' ? t('on_trip') : t('to_customer')}</Text>
-        <View style={[S.card, { marginVertical: 14 }]}>
-          <Text style={S.label}>{t('customer')}</Text>
-          <Text style={{ color: C.text, fontSize: 18, fontWeight: '700' }}>
-            {trip.customer.name || '—'}
-          </Text>
-          <Text style={{ color: C.accent, fontSize: 16, marginTop: 2 }}>{trip.customer.phone}</Text>
-          {trip.stage === 'in_progress' && (
-            <View style={{ marginTop: 14 }}>
-              <Text style={S.label}>{t('meter')}</Text>
-              <Text style={{ color: C.ok, fontSize: 30, fontWeight: '800' }}>
-                {Math.round(liveMeter).toLocaleString('ru-RU')} {t('som')}
-              </Text>
-              <Text style={S.label}>
-                {(distanceM / 1000).toFixed(1)} {t('km')}
-              </Text>
-            </View>
-          )}
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+        <View style={S.topBar}>
+          <View style={[S.row, { gap: SP.sm }]}>
+            <MaterialIcons name="local-taxi" size={22} color={C.accent} />
+            <Text style={S.brand}>
+              {trip.stage === 'in_progress' ? t('on_trip') : t('to_customer')}
+            </Text>
+          </View>
+          <View
+            style={[
+              S.pill,
+              { borderColor: C.online, backgroundColor: C.okSoft },
+            ]}
+          >
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.online }} />
+            <Text style={{ color: C.online, fontSize: F.tiny, fontWeight: '800' }}>
+              {t('online').toUpperCase()}
+            </Text>
+          </View>
         </View>
 
-        <MiniMap height={220} markers={tripMarkers} />
-
-        <View style={{ gap: 10, marginTop: 14 }}>
-          <View style={S.row}>
-            <TouchableOpacity style={[S.btnGhost, { flex: 1, marginRight: 8 }]} onPress={() => navigate(navTarget)}>
-              <Text style={S.btnGhostText}>🧭 {t('navigate')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[S.btnGhost, { flex: 1 }]} onPress={() => call(trip.customer.phone)}>
-              <Text style={S.btnGhostText}>📞 {t('call')}</Text>
+        <ScrollView contentContainerStyle={{ padding: SP.xl, paddingBottom: SP.xxl }}>
+          {/* Mijoz: ism + TELEFON. Telefon shart — haydovchi shu yerdan qo'ng'iroq qiladi. */}
+          <View style={[S.card, { padding: SP.lg }]}>
+            <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 0.6 }}>
+              {t('customer').toUpperCase()}
+            </Text>
+            <Text style={{ color: C.text, fontSize: F.h2, fontWeight: '800', marginTop: 2 }}>
+              {trip.customer.name || '—'}
+            </Text>
+            <TouchableOpacity
+              style={[S.row, { gap: 6, marginTop: SP.sm }]}
+              onPress={() => call(trip.customer.phone)}
+            >
+              <MaterialIcons name="phone" size={16} color={C.accent} />
+              <Text style={{ color: C.accent, fontSize: F.body, fontWeight: '600' }}>
+                {trip.customer.phone}
+              </Text>
             </TouchableOpacity>
           </View>
 
-          {trip.stage === 'accepted' && (
-            <TouchableOpacity style={S.btn} onPress={() => tripAction(EV.tripArrived, 'arrived')}>
-              <Text style={S.btnText}>{t('arrived')}</Text>
-            </TouchableOpacity>
-          )}
-          {trip.stage === 'arrived' && (
-            <TouchableOpacity style={[S.btn, S.btnOk]} onPress={() => tripAction(EV.tripStart, 'in_progress')}>
-              <Text style={S.btnText}>{t('start_trip')}</Text>
-            </TouchableOpacity>
-          )}
+          {/* Taksometr — safarda ekrandagi ENG KATTA element (qo'l uzunligidan o'qilsin). */}
           {trip.stage === 'in_progress' && (
-            <TouchableOpacity style={[S.btn, S.btnOk]} onPress={complete}>
-              <Text style={S.btnText}>{t('finish_trip')}</Text>
-            </TouchableOpacity>
+            <View
+              style={[
+                S.card,
+                { marginTop: SP.md, alignItems: 'center', paddingVertical: SP.xl },
+              ]}
+            >
+              <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 1.2 }}>
+                {t('meter').toUpperCase()}
+              </Text>
+              <Text
+                style={{
+                  color: C.online,
+                  fontSize: F.hero,
+                  fontWeight: '800',
+                  marginTop: SP.xs,
+                }}
+              >
+                {som(liveMeter)} <Text style={{ fontSize: F.h2 }}>{t('som')}</Text>
+              </Text>
+              <View
+                style={[
+                  S.row,
+                  {
+                    gap: 6,
+                    marginTop: SP.md,
+                    backgroundColor: C.panel2,
+                    borderRadius: R.pill,
+                    paddingHorizontal: SP.md,
+                    paddingVertical: 6,
+                  },
+                ]}
+              >
+                <MaterialIcons name="place" size={14} color={C.muted} />
+                <Text style={{ color: C.text, fontSize: F.label, fontWeight: '600' }}>
+                  {(distanceM / 1000).toFixed(1)} {t('km')}
+                </Text>
+              </View>
+            </View>
           )}
-          <TouchableOpacity style={[S.btnGhost]} onPress={cancelTrip}>
-            <Text style={[S.btnGhostText, { color: C.danger }]}>{t('cancel_trip')}</Text>
-          </TouchableOpacity>
 
-          {/* SOS — safar davomida doim qo'l ostida. Tasodifan bosilmasligi
-              uchun tasdiq so'raladi (sendSos). */}
-          <TouchableOpacity
-            style={[S.btnGhost, { borderColor: C.danger }]}
-            onPress={sendSos}
-          >
-            <Text style={[S.btnGhostText, { color: C.danger, fontWeight: '800' }]}>
-              🆘 {t('sos')}
+          <View style={{ marginTop: SP.md, borderRadius: R.lg, overflow: 'hidden' }}>
+            <MiniMap height={220} markers={tripMarkers} />
+          </View>
+
+          <View style={[S.row, { gap: SP.md, marginTop: SP.md }]}>
+            <TouchableOpacity style={[S.btnGhost, { flex: 1 }]} onPress={() => navigate(navTarget)}>
+              <View style={[S.row, { gap: 6 }]}>
+                <MaterialIcons name="navigation" size={18} color={C.text} />
+                <Text style={S.btnGhostText}>{t('navigate')}</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[S.btnGhost, { flex: 1 }]}
+              onPress={() => call(trip.customer.phone)}
+            >
+              <View style={[S.row, { gap: 6 }]}>
+                <MaterialIcons name="phone" size={18} color={C.online} />
+                <Text style={S.btnGhostText}>{t('call')}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Bosqich tugmasi — har bosqichda BITTA, doim shu joyda. */}
+          <View style={{ marginTop: SP.lg }}>
+            {trip.stage === 'accepted' && (
+              <TouchableOpacity style={S.btn} onPress={() => tripAction(EV.tripArrived, 'arrived')}>
+                <MaterialIcons name="where-to-vote" size={22} color="#FFFFFF" />
+                <Text style={[S.btnText, { marginLeft: 6 }]}>{t('arrived')}</Text>
+              </TouchableOpacity>
+            )}
+            {trip.stage === 'arrived' && (
+              <TouchableOpacity
+                style={[S.btn, S.btnOk]}
+                onPress={() => tripAction(EV.tripStart, 'in_progress')}
+              >
+                <MaterialIcons name="play-arrow" size={22} color={C.onOk} />
+                <Text style={[S.btnOkText, { marginLeft: 6 }]}>{t('start_trip')}</Text>
+              </TouchableOpacity>
+            )}
+            {trip.stage === 'in_progress' && (
+              <TouchableOpacity style={[S.btn, S.btnOk]} onPress={complete}>
+                <MaterialIcons name="check-circle-outline" size={22} color={C.onOk} />
+                <Text style={[S.btnOkText, { marginLeft: 6 }]}>{t('finish_trip')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Xavfli amallar asosiy oqimdan CHIZIQ bilan ajratilgan — safar
+              tugatish tugmasining yonida turmasin. */}
+          <View
+            style={{ height: 1, backgroundColor: C.border, marginVertical: SP.xl }}
+          />
+
+          <TouchableOpacity onPress={cancelTrip} style={{ alignItems: 'center', paddingVertical: SP.md }}>
+            <Text style={{ color: C.danger, fontSize: 15, fontWeight: '600' }}>
+              {t('cancel_trip')}
             </Text>
           </TouchableOpacity>
-        </View>
-      </ScrollView>
+
+          {/* SOS — doim qo'l ostida, lekin tasodifan bosilmasin: kichik,
+              markazda, ramkali va tasdiq so'raydi (sendSos). */}
+          <TouchableOpacity
+            style={[
+              S.row,
+              {
+                alignSelf: 'center',
+                gap: SP.sm,
+                marginTop: SP.sm,
+                borderWidth: 1.5,
+                borderColor: C.danger,
+                borderRadius: R.pill,
+                paddingHorizontal: SP.xxl,
+                paddingVertical: SP.md,
+              },
+            ]}
+            onPress={sendSos}
+          >
+            <MaterialIcons name="emergency" size={18} color={C.danger} />
+            <Text style={{ color: C.danger, fontSize: F.body, fontWeight: '800', letterSpacing: 1 }}>
+              {t('sos')}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
     );
   }
 

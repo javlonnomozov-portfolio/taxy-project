@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { api } from '../api';
-import { S, C } from '../theme';
+import { S, C, R, F, SP } from '../theme';
 import { Lang, makeT } from '../i18n';
 
 type Tab = 'balance' | 'trips' | 'stats';
@@ -93,43 +94,121 @@ export function CabinetScreen({
     void load();
   }, [load]);
 
-  const TabBtn = ({ id, label }: { id: Tab; label: string }) => (
-    <TouchableOpacity
-      style={[
-        S.btn,
-        { flex: 1, paddingVertical: 10, backgroundColor: tab === id ? C.accent : C.panel2 },
-      ]}
-      onPress={() => setTab(id)}
-    >
-      <Text style={{ color: tab === id ? '#fff' : C.text, fontWeight: '700', textAlign: 'center' }}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
+  const TabBtn = ({ id, label }: { id: Tab; label: string }) => {
+    const active = tab === id;
+    return (
+      <TouchableOpacity
+        style={{
+          flex: 1,
+          borderRadius: R.pill,
+          paddingVertical: SP.md,
+          alignItems: 'center',
+          backgroundColor: active ? C.accent : 'transparent',
+        }}
+        onPress={() => setTab(id)}
+      >
+        <Text
+          style={{
+            color: active ? '#FFFFFF' : C.muted,
+            fontWeight: '700',
+            fontSize: 14,
+          }}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
-  const Row = ({ left, right, sub }: { left: string; right: string; sub?: string }) => (
-    <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ color: C.text, flex: 1 }}>{left}</Text>
-        <Text style={{ color: C.text, fontWeight: '700' }}>{right}</Text>
+  const Row = ({
+    left,
+    right,
+    sub,
+    rightColor,
+  }: {
+    left: string;
+    right: string;
+    sub?: string;
+    rightColor?: string;
+  }) => (
+    <View
+      style={{
+        paddingVertical: SP.md,
+        borderBottomWidth: 1,
+        borderBottomColor: C.border,
+      }}
+    >
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: SP.md }}>
+        <Text style={{ color: C.text, flex: 1, fontSize: 15 }}>{left}</Text>
+        <Text style={{ color: rightColor ?? C.text, fontWeight: '700', fontSize: 15 }}>
+          {right}
+        </Text>
       </View>
-      {sub ? <Text style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>{sub}</Text> : null}
+      {sub ? (
+        <Text style={{ color: C.muted, fontSize: F.tiny, marginTop: 3 }}>{sub}</Text>
+      ) : null}
     </View>
   );
 
+  /** Foiz ko'rsatkichi — chiziq bilan (raqamni o'qimasdan ham tushunarli). */
+  const Meter = ({ label, value }: { label: string; value: number }) => (
+    <View style={{ marginBottom: SP.lg }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Text style={{ color: C.muted, fontSize: F.label }}>{label}</Text>
+        <Text style={{ color: C.text, fontSize: F.label, fontWeight: '700' }}>
+          {value.toFixed(0)}%
+        </Text>
+      </View>
+      <View
+        style={{
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: C.panel2,
+          marginTop: 6,
+          overflow: 'hidden',
+        }}
+      >
+        <View
+          style={{
+            width: `${Math.max(0, Math.min(100, value))}%`,
+            height: '100%',
+            backgroundColor: value >= 70 ? C.online : value >= 40 ? C.warn : C.danger,
+          }}
+        />
+      </View>
+    </View>
+  );
+
+  const negative = !!balance && balance.balance < 0;
+
   return (
-    <View style={S.screen}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-        <Text style={[S.title, { flex: 1 }]}>{t('cabinet')}</Text>
-        <TouchableOpacity onPress={onClose}>
-          <Text style={{ color: C.accent, fontSize: 16, fontWeight: '700' }}>{t('close')}</Text>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <View style={S.topBar}>
+        <View style={[S.row, { gap: SP.sm }]}>
+          <MaterialIcons name="account-circle" size={22} color={C.accent} />
+          <Text style={S.brand}>{t('cabinet')}</Text>
+        </View>
+        <TouchableOpacity onPress={onClose} hitSlop={12}>
+          <Text style={{ color: C.accent, fontSize: 15, fontWeight: '700' }}>{t('close')}</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-        <TabBtn id="balance" label={t('tab_balance')} />
-        <TabBtn id="trips" label={t('tab_trips')} />
-        <TabBtn id="stats" label={t('tab_stats')} />
+      <View style={{ padding: SP.xl, paddingBottom: 0 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            gap: SP.xs,
+            backgroundColor: C.panel,
+            borderRadius: R.pill,
+            padding: SP.xs,
+            borderWidth: 1,
+            borderColor: C.border,
+          }}
+        >
+          <TabBtn id="balance" label={t('tab_balance')} />
+          <TabBtn id="trips" label={t('tab_trips')} />
+          <TabBtn id="stats" label={t('tab_stats')} />
+        </View>
       </View>
 
       {loading ? (
@@ -139,42 +218,82 @@ export function CabinetScreen({
       ) : (
         <ScrollView
           style={{ flex: 1 }}
+          contentContainerStyle={{ padding: SP.xl, paddingBottom: SP.xxl }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={C.accent} />}
         >
           {tab === 'balance' && balance && (
             <>
-              <View style={[S.card, { alignItems: 'center', paddingVertical: 20 }]}>
-                <Text style={{ color: C.muted }}>{t('balance')}</Text>
+              {/* Manfiy balansda karta butunlay qizil rejimga o'tadi — bu holatda
+                  haydovchiga buyurtma kelmasligi mumkin, ya'ni u darhol ko'rinsin. */}
+              <View
+                style={[
+                  S.card,
+                  {
+                    alignItems: 'center',
+                    paddingVertical: SP.xxl,
+                    borderColor: negative ? C.danger : C.border,
+                    backgroundColor: negative ? C.dangerSoft : C.panel,
+                  },
+                ]}
+              >
+                <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 1 }}>
+                  {t('balance').toUpperCase()}
+                </Text>
                 <Text
                   style={{
-                    // Manfiy balans — haydovchi ofisda to'ldirishi kerak.
-                    color: balance.balance < 0 ? C.danger : C.ok,
-                    fontSize: 34,
+                    color: negative ? C.danger : C.online,
+                    fontSize: F.hero - 6,
                     fontWeight: '800',
-                    marginTop: 4,
+                    marginTop: SP.xs,
                   }}
                 >
                   {som(balance.balance)}
-                  {t('som')}
+                  <Text style={{ fontSize: F.h3 }}>{t('som')}</Text>
                 </Text>
-                <Text style={{ color: C.muted, marginTop: 6 }}>
-                  {t('billing_mode')}: {balance.billingMode}
-                  {balance.billingConfig?.percent ? ` (${balance.billingConfig.percent}%)` : ''}
-                </Text>
-                {balance.balance < 0 && (
-                  <Text style={{ color: C.danger, marginTop: 10, textAlign: 'center' }}>
-                    {t('balance_negative')}
+                <View
+                  style={{
+                    backgroundColor: C.panel2,
+                    borderRadius: R.pill,
+                    paddingHorizontal: SP.md,
+                    paddingVertical: 5,
+                    marginTop: SP.md,
+                  }}
+                >
+                  <Text style={{ color: C.muted, fontSize: F.label }}>
+                    {t('billing_mode')}: {balance.billingMode}
+                    {balance.billingConfig?.percent ? ` (${balance.billingConfig.percent}%)` : ''}
                   </Text>
+                </View>
+                {negative && (
+                  <View style={[S.row, { gap: SP.sm, marginTop: SP.lg, paddingHorizontal: SP.lg }]}>
+                    <MaterialIcons name="warning-amber" size={18} color={C.danger} />
+                    <Text style={{ color: C.danger, fontSize: F.label, flex: 1 }}>
+                      {t('balance_negative')}
+                    </Text>
+                  </View>
                 )}
               </View>
 
-              <Text style={[S.subtitle, { marginTop: 8 }]}>{t('transactions')}</Text>
-              {txns.length === 0 && <Text style={{ color: C.muted }}>{t('no_transactions')}</Text>}
+              <Text
+                style={{
+                  color: C.text,
+                  fontSize: F.h3,
+                  fontWeight: '700',
+                  marginTop: SP.xxl,
+                  marginBottom: SP.sm,
+                }}
+              >
+                {t('transactions')}
+              </Text>
+              {txns.length === 0 && (
+                <Text style={{ color: C.muted, fontSize: F.label }}>{t('no_transactions')}</Text>
+              )}
               {txns.map((x) => (
                 <Row
                   key={x.id}
                   left={t('txn_' + x.type) || x.type}
                   right={`${x.amount > 0 ? '+' : ''}${som(x.amount)}`}
+                  rightColor={x.amount > 0 ? C.online : C.danger}
                   sub={`${shortDate(x.createdAt)} · ${t('balance')}: ${som(x.balanceAfter)}`}
                 />
               ))}
@@ -183,12 +302,15 @@ export function CabinetScreen({
 
           {tab === 'trips' && (
             <>
-              {trips.length === 0 && <Text style={{ color: C.muted }}>{t('no_trips')}</Text>}
+              {trips.length === 0 && (
+                <Text style={{ color: C.muted, fontSize: F.label }}>{t('no_trips')}</Text>
+              )}
               {trips.map((tr) => (
                 <Row
                   key={tr.id}
                   left={`${t('status_' + tr.status) || tr.status}`}
-                  right={som(tr.finalPrice) + ' ' + t('som')}
+                  right={som(tr.finalPrice) + t('som')}
+                  rightColor={tr.status === 'COMPLETED' ? C.online : C.muted}
                   sub={
                     `${shortDate(tr.completedAt ?? tr.createdAt)}` +
                     (tr.distanceM != null ? ` · ${(tr.distanceM / 1000).toFixed(1)} km` : '') +
@@ -201,17 +323,46 @@ export function CabinetScreen({
 
           {tab === 'stats' && stats && (
             <>
-              <View style={[S.card, { alignItems: 'center', paddingVertical: 20 }]}>
-                <Text style={{ color: C.muted }}>{t('rating')}</Text>
-                <Text style={{ color: C.accent, fontSize: 40, fontWeight: '800' }}>
-                  {stats.ratingAvg ? stats.ratingAvg.toFixed(2) : '—'}
+              <View style={[S.card, { alignItems: 'center', paddingVertical: SP.xxl }]}>
+                <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 1 }}>
+                  {t('rating').toUpperCase()}
                 </Text>
+                <View style={[S.row, { gap: SP.sm, marginTop: SP.xs }]}>
+                  <MaterialIcons name="star" size={32} color={C.gold} />
+                  <Text style={{ color: C.gold, fontSize: F.hero - 6, fontWeight: '800' }}>
+                    {stats.ratingAvg ? stats.ratingAvg.toFixed(2) : '—'}
+                  </Text>
+                </View>
               </View>
-              <Row left={t('total_trips')} right={String(stats.totalTrips)} />
-              <Row left={t('earned_total')} right={som(stats.earnedTotal) + ' ' + t('som')} />
-              <Row left={t('acceptance_rate')} right={`${Number(stats.acceptanceRate).toFixed(0)}%`} />
-              <Row left={t('completion_rate')} right={`${Number(stats.completionRate).toFixed(0)}%`} />
-              <Row left={t('cancel_rate')} right={`${Number(stats.cancelRate).toFixed(0)}%`} />
+
+              <View style={[S.row, { gap: SP.md, marginTop: SP.md }]}>
+                <View style={[S.card, { flex: 1, padding: SP.lg }]}>
+                  <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 0.6 }}>
+                    {t('total_trips').toUpperCase()}
+                  </Text>
+                  <Text
+                    style={{ color: C.text, fontSize: F.title, fontWeight: '800', marginTop: 2 }}
+                  >
+                    {stats.totalTrips}
+                  </Text>
+                </View>
+                <View style={[S.card, { flex: 1, padding: SP.lg }]}>
+                  <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 0.6 }}>
+                    {t('earned_total').toUpperCase()}
+                  </Text>
+                  <Text
+                    style={{ color: C.online, fontSize: F.h2, fontWeight: '800', marginTop: 2 }}
+                  >
+                    {som(stats.earnedTotal)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[S.card, { marginTop: SP.md, padding: SP.lg }]}>
+                <Meter label={t('acceptance_rate')} value={Number(stats.acceptanceRate)} />
+                <Meter label={t('completion_rate')} value={Number(stats.completionRate)} />
+                <Meter label={t('cancel_rate')} value={Number(stats.cancelRate)} />
+              </View>
             </>
           )}
         </ScrollView>

@@ -65,7 +65,7 @@ tuzatish bilan: ✅ taklif keldi, DISPATCHING
 `sim:dispatch` (10/10) va `sim:trip` (15/15) ham toza.
 
 **API prod'ga deploy qilindi** (2026-07-29), `/health` ok.
-**APK hali qayta qurilmagan** — foydalanuvchi qarori: avval yangi dizayn (5-bo'lim).
+**APK hali qayta qurilmagan** — dizayn tugadi, build qilish mumkin (4-bo'lim, 2-band).
 
 ### Sinov tartibi (MAVJUD APK bilan)
 
@@ -113,11 +113,17 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 4. Qolgan ishlar
 
 1. **🔴 Zakaz oqimini sinash** (2-bo'lim) — birinchi navbatda.
-2. **🎨 Yangi dizayn → keyin APK build.** Foydalanuvchi Google Stitch'da dizayn
-   yasayapti. Promptlar tayyor: **`docs/DRIVER-APP-DESIGN-PROMPT.md`**.
-   Foydalanuvchi natija fayllarini (PNG / ranglar / Figma) tashlaydi →
-   `apps/driver-app/src/theme.ts` va ekranlar ko'chiriladi → **shundan keyin bitta
-   EAS build** (ilova tomondagi GPS tuzatishi ham o'shanda kiradi).
+2. **🔴 EAS build — endi tayyor.** Yangi dizayn TO'LIQ joriy qilindi (`9c50004`,
+   `<NEXT>`), ilova tomondagi GPS tuzatishi ham shu buildga kiradi.
+   ```bash
+   cd apps/driver-app && eas build --platform android --profile preview
+   ```
+   Dizayn manbasi: Stitch maketlari (2026-07-29) + `docs/DRIVER-APP-DESIGN-PROMPT.md`.
+   Tokenlar `apps/driver-app/src/theme.ts` da — rang/o'lcham o'zgarsa FAQAT shu fayl.
+   Maketda YO'Q edi, ataylab qo'shildi: Oflayn ekranidagi "Ishni boshlash" tugmasi,
+   ONLAYN holati, safar 1/2-bosqichi, yakuniy narx, Kabinet 3 tab.
+   Maketda BOR edi, ataylab olinmadi (backendda ma'lumot yo'q): mijoz surati,
+   mijoz reytingi, "To'lov: Naqd", pastki tab bar, to'liq ekran xarita foni.
 3. **FCM kaliti Expo'ga yuklanishi** — jarayon boshlangan edi, tugadimi noma'lum.
    ```bash
    cd apps/driver-app && eas credentials --platform android
@@ -144,6 +150,9 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+<NEXT>  feat(driver-app): yangi dizayn tugallandi — safar, yakuniy narx, Kabinet
+9c50004 feat(driver-app): yangi dizayn — tokenlar, Login, Parol, asosiy ekran
+22b2cd4 docs: HANDOFF yangilandi + driver-app dizayn promptlari (Google Stitch)
 40d197f fix(dispatch): "Onlayn" haydovchi taklif olmasligi tuzatildi (geo-indeks)
 25cb16d docs: HANDOFF.md — 'Ulanmoqda' sababi topilgani va yangi APK bilan yangilash
 aec3e5f fix(driver-app): transport tartibi — polling BIRINCHI (websocket error tuzatildi)
