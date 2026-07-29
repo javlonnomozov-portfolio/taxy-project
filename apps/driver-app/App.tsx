@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native';
 import './src/location-task'; // fon location task'ini ro'yxatga olish (top-level)
 import { LoginScreen } from './src/screens/LoginScreen';
 import { ChangePasswordScreen } from './src/screens/ChangePasswordScreen';
@@ -50,7 +49,18 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+    // DIQQAT: `react-native` ning `SafeAreaView` i ANDROID'DA HECH NARSA QILMAYDI
+    // (u faqat iOS uchun). Avval shu ishlatilgan edi va yuqori panel status bar
+    // ostiga kirib ketardi — "Kabinet"/"Yopish" tugmalari soat va batareya
+    // ikonkalari bilan ustma-ust tushardi.
+    // Expo'da status bar shaffof, shuning uchun balandligicha padding beramiz.
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: C.bg,
+        paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 0) : 0,
+      }}
+    >
       <StatusBar style="light" />
       {screen === 'loading' && (
         <View style={[S.screen, S.center, { alignItems: 'center' }]}>
@@ -66,6 +76,6 @@ export default function App() {
       {screen === 'home' && token && (
         <HomeScreen lang={lang} token={token} onLogout={logout} />
       )}
-    </SafeAreaView>
+    </View>
   );
 }

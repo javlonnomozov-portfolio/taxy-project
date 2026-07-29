@@ -400,10 +400,38 @@ export function HomeScreen({
     ]);
   }
 
+  /**
+   * Safarni bekor qilish.
+   *
+   * Uchta muammo tuzatildi (haydovchilar "yakunlagan safarim bekor qilingan
+   * deb turibdi" deb shikoyat qilgan edi):
+   *  1. TASDIQ so'ralmasdi — bitta tasodifiy teginish haqiqiy safarni bekor
+   *     qilardi va haydovchi buni sezmasdi ham.
+   *  2. Server javobi TEKSHIRILMASDI (ack callback yo'q edi) — server rad etsa
+   *     ham ilova safar ekranini yopardi. Haydovchi safar tugadi deb o'ylardi,
+   *     serverda esa zakaz hali faol qolardi.
+   *  3. `setTrip(null)` server javobidan OLDIN chaqirilardi.
+   */
   function cancelTrip() {
     if (!trip) return;
-    socketRef.current?.emit(EV.tripCancel, { orderId: trip.orderId });
-    setTrip(null);
+    Alert.alert(t('cancel_trip_title'), t('cancel_trip_confirm'), [
+      { text: t('cancel_trip_no'), style: 'cancel' },
+      {
+        text: t('cancel_trip_yes'),
+        style: 'destructive',
+        onPress: () => {
+          const orderId = trip.orderId;
+          socketRef.current?.emit(EV.tripCancel, { orderId }, (ack?: SocketAck) => {
+            if (ack && ack.ok === false) {
+              Alert.alert(t('error'), ack.message ?? t('error_generic'));
+              return; // safar ekrani OCHIQ qoladi — server holati bilan mos
+            }
+            setTrip(null);
+            setDistanceM(0);
+          });
+        },
+      },
+    ]);
   }
 
   const navigate = (p: { lat: number; lng: number }) =>
@@ -613,11 +641,17 @@ export function HomeScreen({
             style={{ height: 1, backgroundColor: C.border, marginVertical: SP.xl }}
           />
 
-          <TouchableOpacity onPress={cancelTrip} style={{ alignItems: 'center', paddingVertical: SP.md }}>
-            <Text style={{ color: C.danger, fontSize: 15, fontWeight: '600' }}>
-              {t('cancel_trip')}
-            </Text>
-          </TouchableOpacity>
+          {/* Safar BOSHLANGACH bekor qilib bo'lmaydi — server `IN_PROGRESS` dan
+              bekor qilishga ruxsat bermaydi. Tugmani ko'rsatib turish tuzoq edi:
+              bosilardi, server rad etardi, xato yutilardi va safar ekrani
+              yopilardi. Endi bu bosqichda chiqish faqat "Safarni yakunlash". */}
+          {trip.stage !== 'in_progress' && (
+            <TouchableOpacity onPress={cancelTrip} style={{ alignItems: 'center', paddingVertical: SP.md }}>
+              <Text style={{ color: C.danger, fontSize: 15, fontWeight: '600' }}>
+                {t('cancel_trip_btn')}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* SOS — doim qo'l ostida, lekin tasodifan bosilmasin: kichik,
               markazda, ramkali va tasdiq so'raydi (sendSos). */}

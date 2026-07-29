@@ -116,6 +116,16 @@ async function main() {
   console.log('\n--- 3: safar odatdagidek davom etadi ---');
   const started = await emit(s, 'trip:start', { orderId: order.id });
   check('Safar boshlandi', !!started && started.ok === true);
+
+  // Safar BOSHLANGACH bekor qilib bo'lmaydi. Ilova bu bosqichda tugmani
+  // ko'rsatmasligi kerak — avval ko'rsatardi, bosilardi, server rad etardi,
+  // xato yutilardi va safar ekrani yopilib ketardi.
+  const lateCancel = await emit(s, 'trip:cancel', { orderId: order.id });
+  check(
+    'Safar davomida bekor qilish RAD ETILDI (ilova tugmani yashiradi)',
+    !!lateCancel && lateCancel.ok === false,
+    JSON.stringify(lateCancel),
+  );
   const done = await emit(s, 'trip:complete', { orderId: order.id, distanceM: 3000 });
   check('Safar yakunlandi va narx hisoblandi', !!done && typeof done.finalPrice === 'number', JSON.stringify(done));
 
