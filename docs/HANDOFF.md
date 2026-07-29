@@ -1,6 +1,6 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
-> **Holat:** 2026-07-28 kech · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
+> **Holat:** 2026-07-29 · **Branch:** `main` · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -24,59 +24,69 @@ EAS projectId `486e16a1-b012-4256-b121-0ebbfc386cbd`.
 
 ---
 
-## 2. 🔴 KUTILAYOTGAN TASDIQ — birinchi ish shu
+## 2. 🔴 KUTILAYOTGAN SINOV — birinchi ish shu
 
-Haydovchi ilovasidagi **"Ulanmoqda…"** muammosining sababi **topildi va tuzatildi**,
-lekin **foydalanuvchi hali yangi APK'ni sinab ko'rmadi**.
+### 2a. Ulanish ("Ulanmoqda…") — HAL BO'LDI ✅
 
-### Sabab (aniqlangan)
+Sabab: `transports: ['websocket', 'polling']` — Socket.IO shu tartibda sinaydi, WS
+foydalanuvchi tarmog'ida bloklangan edi. Tuzatildi (`aec3e5f`): **polling BIRINCHI**.
+Foydalanuvchi APK bilan sinab tasdiqladi — **yashil "Onlayn" ishlayapti**.
 
-Ilovada `transports: ['websocket', 'polling']` yozilgan edi. Socket.IO transportlarni
-**aynan shu tartibda** sinaydi ⇒ avval WebSocket urinilardi. Foydalanuvchi tarmog'ida WS
-upgrade bloklangan ⇒ ulanish yiqilardi va ilova jimgina "Ulanmoqda…" da qotardi.
+### 2b. "Onlayn, lekin taklif kelmaydi" — TUZATILDI, PROD'GA CHIQDI (`40d197f`)
 
-Sabab faqat ilovaga `connect_error` ko'rsatish qo'shilgandan keyin ko'rindi — ekranda
-**`websocket error`** chiqdi (foydalanuvchi skrinshot yubordi).
+Keyingi muammo: haydovchi Onlayn, botdan zakaz kelyapti, lekin **taklif bormayapti**.
 
-### Tuzatish (`aec3e5f`)
+**Sabab.** Dispatch faqat **Redis geo-indeksidan** (`geo:drivers:<toifa>`) qidiradi, DB
+`status` ustunidan EMAS. Indeksga haydovchi **faqat `driver:location` kelganda** tushardi:
 
-```ts
-transports: ['polling', 'websocket']   // polling BIRINCHI
+- `goOffline()` (va har uzilishdan keyingi 2 daqiqalik grace) indeksdan **o'chiradi**;
+- `goOnline()` esa **qaytarmasdi** (`markIdle()` qaytaradi — asimmetriya shu yerda edi);
+- telefon qimirlamasa `watchPositionAsync` `distanceInterval: 15` sababli yangi GPS
+  nuqtasi **bermaydi**.
+
+Natija: ilovada yashil "Onlayn", DB'da `ONLINE_IDLE`, lekin dispatch uchun haydovchi
+**umuman mavjud emas** → zakaz darhol `NO_DRIVER`.
+
+**Tuzatish:**
+| Joy | Nima |
+|---|---|
+| `drivers.service.goOnline()` | oxirgi ma'lum joylashuvdan geo-indeksni tiklaydi |
+| `dispatch.service.fillWindow()` | nomzod topilmasa SABABNI loglaydi (toifa, radius, indeksdagi soni) |
+| `geo.service.countInIndex()` | shu diagnostika uchun |
+| driver-app `goOnline()` | onlayn bo'lishda **darhol** bitta GPS nuqtasi yuboradi |
+| driver-app | har daqiqada joylashuv "yurak urishi" + qayta ulanganda yuborish |
+
+**Isbotlangan** — `pnpm sim:online-geo` (regressiya simi: haydovchi online → location →
+uzilib qayta ulanadi → zakaz):
 ```
-
-Ulanish oddiy HTTP (polling) orqali o'rnatiladi, so'ng imkon bo'lsa WS'ga ko'tariladi;
-ko'tarilmasa polling'da ishlayveradi.
-
-**Prod'ga qarshi isbotlangan** (WS butunlay bloklangan holat taqlid qilingan):
+tuzatishsiz:  ❌ zakaz holati NO_DRIVER
+tuzatish bilan: ✅ taklif keldi, DISPATCHING
 ```
-transports:['polling'], upgrade:false  →  CONNECT ✅ transport=polling
-driver:online → {"ok":true}
-```
+`sim:dispatch` (10/10) va `sim:trip` (15/15) ham toza.
 
-### Yangi APK (sinash kerak)
+**API prod'ga deploy qilindi** (2026-07-29), `/health` ok.
+**APK hali qayta qurilmagan** — foydalanuvchi qarori: avval yangi dizayn (5-bo'lim).
 
-```
-https://expo.dev/artifacts/eas/evjf3kHqrTWit8oNB7Lin--mhsCawLj3jC-YmX5Qoh0.apk
-```
-Build `59de1d79` · commit `aec3e5ff` · ichi tekshirilgan
-(polling ✅ websocket ✅ connect_error ✅ Kabinet ✅ Firebase ✅).
+### Sinov tartibi (MAVJUD APK bilan)
 
-### Sinov tartibi
-
-1. APK o'rnatilsin → **"Ishni boshlash"** → yashil **"Onlayn"** bo'lishi kerak
-   (qizil `websocket error` yo'qolishi kerak).
+1. Ilovada **"Ishni boshlash"** → yashil **"Onlayn"**
 2. Telegram: `@toy_taxy_bot` → `/start` → 🚕 Taksi chaqirish → toifa → lokatsiya → tasdiq
-3. Ilovada taklif chiqadi → "Qabul"
+3. Ilovada taklif chiqishi kerak → "Qabul"
 4. Safar bosqichlari: yetib keldim → boshladim → yakunladim
 
-**Agar hali ham ishlamasa:** ilova endi xatoni ekranda ko'rsatadi — o'sha matnni oling.
-Server tomondan ham:
+**⚠️ Toifa mos kelishi shart:** botdan tanlangan toifa (standard/comfort/cargo)
+haydovchining mashinasi toifasiga **teng bo'lishi kerak** — geo-indeks toifalarga
+bo'lingan, mos kelmasa taklif bormaydi. Hozirgi yagona haydovchining mashinasini
+admin panelidan tekshiring.
+
+**Agar hali ham taklif kelmasa** — endi sabab loglarda aniq yozilgan:
 ```bash
-railway logs --service api | grep -E "Haydovchi ulandi|socketi uzildi|rad etildi"
+railway logs --service api | grep "Nomzod topilmadi"
+# → toifa=standard, radius=6000m, shu toifadagi geo-indeksda 0 ta haydovchi
 ```
-(Eslatma: 2026-07-28 kuni Railway log API'si uzoq vaqt `operation timed out` berdi.
-Ishlamasa, DB'dan `drivers.last_seen_at` ni tekshiring — `goOnline` muvaffaqiyatli
-bo'lsa u yangilanadi.)
+- `0 ta haydovchi` + to'g'ri toifa ⇒ ilova hech qachon GPS yubormagan
+  (`drivers.last_lat` NULL) ⇒ **APK'ni qayta qurish kerak** (ilova tomondagi tuzatish).
+- boshqa toifa ko'rsatsa ⇒ mijoz noto'g'ri toifa tanlagan.
 
 ---
 
@@ -102,8 +112,13 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 
 ## 4. Qolgan ishlar
 
-1. **🔴 Yangi APK bilan sinov** (2-bo'lim) — birinchi navbatda.
-2. **FCM kaliti Expo'ga yuklanishi** — jarayon boshlangan edi, tugadimi noma'lum.
+1. **🔴 Zakaz oqimini sinash** (2-bo'lim) — birinchi navbatda.
+2. **🎨 Yangi dizayn → keyin APK build.** Foydalanuvchi Google Stitch'da dizayn
+   yasayapti. Promptlar tayyor: **`docs/DRIVER-APP-DESIGN-PROMPT.md`**.
+   Foydalanuvchi natija fayllarini (PNG / ranglar / Figma) tashlaydi →
+   `apps/driver-app/src/theme.ts` va ekranlar ko'chiriladi → **shundan keyin bitta
+   EAS build** (ilova tomondagi GPS tuzatishi ham o'shanda kiradi).
+3. **FCM kaliti Expo'ga yuklanishi** — jarayon boshlangan edi, tugadimi noma'lum.
    ```bash
    cd apps/driver-app && eas credentials --platform android
    ```
@@ -114,21 +129,23 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
    ko'chiring, u `.gitignore` da; ishlatib bo'lgach o'chiring.)
    **Rebuild kerak emas** — kalit Expo serverida turadi. Push faqat ilova yopiq
    bo'lganda kerak; ochiq turganda takliflar socket orqali keladi.
-3. **Haydovchilar qo'shish** — hozir 1 ta approved haydovchi (`+998990051630`, OFFLINE).
-   Botdan zakaz ishlashi uchun **kamida bitta ONLINE haydovchi shart** —
-   aks holda zakaz darhol `NO_DRIVER` bo'ladi.
+4. **Haydovchilar qo'shish** — hozir 1 ta approved haydovchi (`+998990051630`).
+   Botdan zakaz ishlashi uchun **kamida bitta ONLINE haydovchi shart**, VA uning
+   mashinasi toifasi zakaz toifasiga mos bo'lishi kerak — aks holda `NO_DRIVER`.
    (`+998900000097/98/99` — diagnostika uchun yaratilgan, **bloklangan**, o'chirsa bo'ladi.)
-4. **Xarita xizmatlari** (ixtiyoriy) — API'dagi `/geo/*` endpointlari tayyor va
+5. **Xarita xizmatlari** (ixtiyoriy) — API'dagi `/geo/*` endpointlari tayyor va
    testlangan, lekin **hozir hech kim chaqirmaydi** (bot oqimidan manzil olib tashlangan).
    Kerak bo'lmasa o'chirsa bo'ladi.
-5. **Railway healthcheck** — `RAILWAY_CONFIG_PATH` qo'yildi, faollashgani tekshirilmagan.
-6. **In-app xarita** (react-native-maps) — driver-app TODO.
+6. **Railway healthcheck** — `RAILWAY_CONFIG_PATH` qo'yildi, faollashgani tekshirilmagan.
+7. **In-app xarita** (react-native-maps) — driver-app TODO.
 
 ---
 
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+40d197f fix(dispatch): "Onlayn" haydovchi taklif olmasligi tuzatildi (geo-indeks)
+25cb16d docs: HANDOFF.md — 'Ulanmoqda' sababi topilgani va yangi APK bilan yangilash
 aec3e5f fix(driver-app): transport tartibi — polling BIRINCHI (websocket error tuzatildi)
 e957df4 docs: HANDOFF.md ni joriy holatga yangilash
 ccc9e38 fix(driver-app): ulanish xatosi ko'rinadigan bo'ldi
@@ -187,10 +204,14 @@ node apps/api/dist/main.js
 - **TypeORM:** `manager.query()` UPDATE uchun `[rows, affected]`, SELECT uchun `rows`.
 - **Botni `getUpdates` bilan TEKSHIRMANG** — polling slotini o'g'irlab botni yiqitadi.
 - **Bot deploy'da bitta 409 NORMAL** — `launchWithRetry` uni o'tkazadi.
+- **Lokal DB foydalanuvchisi `tty`, port 5434** — `psql -U postgres` ishlamaydi:
+  `docker exec tty_postgres psql -U tty -d tty -c "…"`.
+- **`pkill -f "dist/main.js"` o'zini o'ldiradi** (buyruq matni shablonga tushadi) —
+  `pkill -f "dist/mai[n].js"` yozing.
 - **APK ichini tekshirishda** bundle Hermes bayt-kodida — `strings -a -n 4` ishlating,
   `grep -x` EMAS (aniq qator mosligi noto'g'ri natija beradi).
 
-**Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster`
+**Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster sim:online-geo`
 
 ---
 
@@ -221,3 +242,12 @@ node apps/api/dist/main.js
   WS'ga ko'tariladi" degan edi, lekin massiv tartibi bunga teskari edi.
 - **Diagnostika tizimni buzmasligi kerak.** Botni `getUpdates` bilan tekshirish uni
   yiqitdi.
+- **"Onlayn" ≠ "dispatch ko'radi".** Holat ikki joyda yashardi: Postgres `status` va
+  Redis geo-indeks. UI birinchisini ko'rsatardi, dispatch ikkinchisini o'qirdi — ular
+  bir-biriga bog'lanmagan edi. Bir tushunchani ikki manbada saqlasangiz, ularni
+  sinxronlashtiradigan yagona joy bo'lishi kerak.
+- **`markIdle()` da tuzatilgan bug `goOnline()` da qolib ketgan edi** — hatto izohi
+  ham o'sha muammoni tushuntirardi. Bir xatoni tuzatgach, o'sha shakldagi qo'shni
+  yo'llarni ham qidiring.
+- **Regressiya simi yozing, keyin tuzating.** `sim:online-geo` tuzatishsiz yiqilishi
+  isbotlanmaganda, tuzatish "ishlayotganga o'xshardi" xolos.
