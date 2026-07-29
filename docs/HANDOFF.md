@@ -385,6 +385,11 @@ node apps/api/dist/main.js
   `docker exec tty_postgres psql -U tty -d tty -c "…"`.
 - **`pkill -f "dist/main.js"` o'zini o'ldiradi** (buyruq matni shablonga tushadi) —
   `pkill -f "dist/mai[n].js"` yozing.
+- **`apps/driver-app` package.json'ga bog'liqlik qo'shsangiz `npm install
+  --package-lock-only` ni HAM ishga tushiring.** EAS build `npm ci` ishlatadi va
+  lock fayl ildiz bog'liqliklari mos kelmasa EUSAGE bilan yiqiladi. (Kod lokalda
+  ishlayveradi — `node_modules` da tranzitiv nusxa bo'ladi, shuning uchun
+  `expo export` ham o'tib ketadi.)
 - **APK ichini tekshirishda** bundle Hermes bayt-kodida — `strings -a -n 4` ishlating,
   `grep -x` EMAS (aniq qator mosligi noto'g'ri natija beradi).
 
