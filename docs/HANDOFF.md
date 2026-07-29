@@ -102,11 +102,13 @@ Avto-qayta-dispatch yo'lida bu tekshiruv bor, operator yo'lida yo'q — mahsulot
 
 ---
 
-### 🟢 YANGI APK — yangi dizayn bilan (build `2a6f1a0a`, commit `f525ad2`)
+### 🟢 YANGI APK — yangi dizayn bilan (build `96231075`, commit `73562c2`)
 
 ```
-https://expo.dev/artifacts/eas/i8i6u4uvKaDIpzqbgXMO2m5-7pcQH0QXR_cl3mTv4sE.apk
+https://expo.dev/artifacts/eas/wWdREXWsUcwEwEvYv-9p6oVXiWwCnjttrLgZgIdezTs.apk
 ```
+(build `96231075`, commit `73562c2` — status bar va bekor qilish tuzatishlari bilan.
+Oldingi build `2a6f1a0a` / `f525ad2` — ularsiz.)
 
 Ichi tekshirilgan (ASCII **va** UTF-16 skanerlash bilan):
 Login "Xush kelibsiz!" ✅ · Bugungi daromad ✅ · GPS izlanmoqda ✅ ·
@@ -114,7 +116,8 @@ Login "Xush kelibsiz!" ✅ · Bugungi daromad ✅ · GPS izlanmoqda ✅ ·
 polling birinchi ✅ · faqat MaterialIcons.ttf (356 KB), keraksiz shriftlar yo'q ✅
 
 Ichida: **yangi dizayn to'liq** + **GPS tuzatishi** (onlayn bo'lganda darhol
-nuqta + har daqiqada yurak urishi + qayta ulanganda yuborish).
+nuqta + har daqiqada yurak urishi + qayta ulanganda yuborish) +
+**status bar tuzatishi** + **bekor qilish tuzoqlari** (2i-bo'lim).
 
 APK 66 MB — 53 MB'i native kutubxonalar (universal APK, barcha ABI'lar uchun).
 Kerak bo'lsa `eas.json` da ABI bo'yicha ajratish mumkin.
