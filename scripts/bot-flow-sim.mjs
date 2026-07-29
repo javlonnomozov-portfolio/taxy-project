@@ -28,7 +28,9 @@ bot.botInfo = { id: 1, is_bot: true, first_name: 'TTY', username: 'tty_bot' };
 let mid = 0;
 Object.getPrototypeOf(bot.telegram).callApi = async function (method, payload = {}) {
   if (method === 'sendMessage') {
-    sent.push({ chatId: payload.chat_id, text: payload.text });
+    // `reply_markup` ni ham saqlaymiz — asosiy menyu qaytganini tekshirish uchun
+    // (mijoz baholashni o'tkazib yuborsa menyusiz qolib ketgan edi).
+    sent.push({ chatId: payload.chat_id, text: payload.text, markup: payload.reply_markup });
     return { message_id: ++mid, chat: { id: payload.chat_id }, date: 0, text: payload.text };
   }
   return true;
@@ -100,6 +102,17 @@ async function main() {
   check('Safar yakunlandi + narx xabari', await waitFor(() => anyText('Safar yakunlandi'), 5000));
 
   console.log('\n--- Baholash ---');
+  // Safar yakunlangach ASOSIY MENYU qaytishi SHART. Avval u faqat baho
+  // berilgandan keyin qaytardi — mijoz baholamasa "Taksi chaqirish" tugmasini
+  // ko'rmay qolardi va yangi zakaz bera olmasdi.
+  const hasMainMenu = (m) =>
+    !!m.markup &&
+    JSON.stringify(m.markup.keyboard ?? '').includes('Taksi chaqirish');
+  check(
+    'Safar yakunlangach asosiy menyu qaytdi (baholashdan QAT\'I NAZAR)',
+    await waitFor(() => sent.some(hasMainMenu), 5000),
+  );
+
   await feedCb('rate:5');
   check('Baho uchun rahmat xabari', await waitFor(() => anyText('rahmat')));
 

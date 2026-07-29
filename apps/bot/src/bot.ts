@@ -328,6 +328,10 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
     s.ratingOrderId = undefined;
     // Tugmalarni olib tashlaymiz, lekin xabarni o'chirmaymiz (narx ko'rinib tursin).
     await ctx.editMessageReplyMarkup(undefined).catch(() => {});
+    // ASOSIY MENYUNI QAYTARAMIZ — busiz mijoz "Taksi chaqirish" tugmasini
+    // ko'rmay qolardi. Safar davomida reply-klaviatura almashgan edi va uni
+    // FAQAT baho berish yo'li qaytarardi; "o'tkazib yuborish" da esa yo'q edi.
+    await ctx.reply(t(s.lang, 'use_menu'), mainMenu(s.lang));
   });
 
   // Baholash (1-5)
@@ -365,19 +369,20 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
       customerId,
       lang,
       telegram,
-      onTerminal: (oid, status) => {
-        void store.update(chatId, (ss) => {
+      // Promise QAYTARAMIZ (avval `void` edi) — tracker uni kutadi, shunda
+      // xabar yuborilishidan oldin sessiya yozilib bo'ladi va mijoz darhol
+      // baho bossa ham `ratingOrderId` joyida bo'ladi.
+      onTerminal: (oid, status) =>
+        store.update(chatId, (ss) => {
           if (ss.activeOrderId === oid) ss.activeOrderId = undefined;
           if (status === 'COMPLETED') ss.ratingOrderId = oid;
-        });
-      },
+        }),
       // NO_DRIVER'dan keyin operator (yoki kech onlayn bo'lgan haydovchi)
       // zakazni oldi — sessiyada uni yana faol qilamiz.
-      onAssigned: (oid) => {
-        void store.update(chatId, (ss) => {
+      onAssigned: (oid) =>
+        store.update(chatId, (ss) => {
           if (!ss.activeOrderId) ss.activeOrderId = oid;
-        });
-      },
+        }),
     });
   }
 

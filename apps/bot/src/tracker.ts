@@ -46,9 +46,10 @@ export function trackOrder(opts: {
   customerId: string;
   lang: Lang;
   telegram: Telegram;
-  onTerminal: (orderId: string, status: string) => void;
+  /** Sessiya buxgalteriyasi. Promise qaytarishi mumkin — biz uni KUTAMIZ. */
+  onTerminal: (orderId: string, status: string) => void | Promise<void>;
   /** Zakaz NO_DRIVER'dan keyin jonlandi (operator biriktirdi / haydovchi topildi). */
-  onAssigned?: (orderId: string) => void;
+  onAssigned?: (orderId: string) => void | Promise<void>;
 }): void {
   const { orderId, chatId, customerId, lang, telegram, onTerminal, onAssigned } = opts;
   const socket = io(CONFIG.apiBaseUrl + '/customer', {
@@ -62,12 +63,20 @@ export function trackOrder(opts: {
 
   socket.on('order:status', async (m: StatusMsg) => {
     if (m.orderId !== orderId) return;
+
+    // SESSIYA BUXGALTERIYASI XABARLARDAN OLDIN va KUTIB bajariladi.
+    // Avval u xabarlardan keyin, ustiga `void` bilan (kutilmasdan) chaqirilardi:
+    // mijoz "Safar yakunlandi" xabarini ko'rgan zahoti bahoni bosishi mumkin,
+    // o'shanda `ratingOrderId` hali yozilmagan bo'lib, baho jimgina yo'qolardi.
+    const isTerminal = TERMINAL.includes(m.status);
+    if (isTerminal || m.status === 'NO_DRIVER') await onTerminal(orderId, m.status);
+
     switch (m.status) {
       case 'ACCEPTED':
         // NO_DRIVER'dan keyin kelgan bo'lishi mumkin — sessiyada zakazni
         // yana faol qilamiz, aks holda mijoz uni bekor qila olmay qoladi.
         clearWatchdog(orderId);
-        onAssigned?.(orderId);
+        await onAssigned?.(orderId);
         if (m.driver)
           await send(
             t(lang, 'driver_found', m.driver.name, m.driver.vehicle || '—', m.driver.plate || '—', m.driver.phone, String(m.driver.ratingAvg ?? 0)),
@@ -82,13 +91,16 @@ export function trackOrder(opts: {
         break;
       case 'COMPLETED':
         await send(t(lang, 'completed', priceStr(m.finalPrice)), ratingKeyboard(lang));
+        // Asosiy menyuni DARHOL qaytaramiz — bitta yo'lga tayanib qolmaymiz.
+        // Avval u faqat baho berilgandan keyin qaytardi, ya'ni mijoz baholamasa
+        // "Taksi chaqirish" tugmasi umuman ko'rinmay qolardi.
+        await send(t(lang, 'use_menu'), mainMenu(lang));
         break;
       case 'NO_DRIVER':
         await send(t(lang, 'no_driver'), mainMenu(lang));
-        // Zakazni sessiyada bo'shatamiz (mijoz yangi zakaz bera olsin), LEKIN
-        // kuzatuvni saqlab qolamiz — operator yoki kech onlayn bo'lgan haydovchi
-        // hali ham bu zakazni olishi mumkin.
-        onTerminal(orderId, m.status);
+        // Zakaz sessiyada allaqachon bo'shatildi (mijoz yangi zakaz bera olsin),
+        // LEKIN kuzatuvni saqlab qolamiz — operator yoki kech onlayn bo'lgan
+        // haydovchi hali ham bu zakazni olishi mumkin.
         armWatchdog(orderId);
         return;
       case 'CANCELLED_BY_DRIVER':
@@ -97,10 +109,7 @@ export function trackOrder(opts: {
         await send(t(lang, 'cancelled'), mainMenu(lang));
         break;
     }
-    if (TERMINAL.includes(m.status)) {
-      onTerminal(orderId, m.status);
-      stopTracking(orderId);
-    }
+    if (isTerminal) stopTracking(orderId);
   });
 }
 

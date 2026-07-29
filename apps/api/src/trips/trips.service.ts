@@ -281,11 +281,15 @@ export class TripsService {
     }
     await this.drivers.markIdle(driverId);
     // Haydovchi qabul qilib keyin tashlab ketsa — har doim bekor darajasiga (2.9).
+    // `fromStatus` DIAGNOSTIKA uchun: "yakunlagan safarim bekor qilingan deb
+    // turibdi" shikoyatlarida bekor qilish QAYSI bosqichda bo'lganini ko'rsatadi
+    // (ACCEPTED = hali yo'lda, ARRIVED = mijoz oldida turib bosgan).
     await this.events.record(orderId, 'cancelled', ActorType.DRIVER, {
       actorId: driverId,
       reason: reason ?? 'driver_cancel',
-      payload: { penalized: true },
+      payload: { penalized: true, fromStatus: order.status },
     });
+    this.log.warn(`Haydovchi ${driverId} zakazni bekor qildi (${order.status} bosqichida): ${orderId}`);
     this.notify(order, OrderStatus.CANCELLED_BY_DRIVER);
   }
 

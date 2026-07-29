@@ -206,9 +206,39 @@ export function miniappPage(): string {
   var followDriver = true; // foydalanuvchi xaritani surganda kuzatishni to'xtatamiz
 
   map.on('dragstart', function () { followDriver = false; });
+
+  /*
+   * Qurilma GPS'ini so'rab xaritani shu joyga markazlashtirish.
+   * Tugmani o'zgaruvchidan emas, to'g'ridan qidiramiz — u pastda var bilan
+   * e'lon qilingan va bu funksiya tayinlanishdan oldin ham chaqirilishi mumkin.
+   *
+   * DIQQAT: bu izoh SHABLON SATRI ichida — teskari qo'shtirnoq ishlatmang,
+   * u satrni uzib yuboradi (aynan shunday bo'ldi va build yiqildi).
+   */
+  function centerOnMe() {
+    if (!navigator.geolocation) return;
+    var btn = document.getElementById('recenter');
+    btn.disabled = true;
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        btn.disabled = false;
+        map.setView([pos.coords.latitude, pos.coords.longitude], 16, { animate: true });
+      },
+      function () {
+        btn.disabled = false;
+      },
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  }
+
   document.getElementById('recenter').onclick = function () {
-    followDriver = true;
-    if (driverMarker) map.panTo(driverMarker.getLatLng());
+    // KUZATUV rejimida — taksiga qaytadi; BUYURTMA rejimida — o'z joylashuvimga.
+    if (driverMarker) {
+      followDriver = true;
+      map.panTo(driverMarker.getLatLng());
+    } else {
+      centerOnMe();
+    }
   };
 
   function ago(iso) {
@@ -332,7 +362,10 @@ export function miniappPage(): string {
     elSheet.classList.add('hidden');
     elOrderSheet.classList.remove('hidden');
     elCenterPin.classList.remove('hidden');
-    elRecenter.classList.add('hidden');
+    // "Mening joylashuvim" tugmasi BUYURTMA rejimida ham kerak: xaritani
+    // surgandan keyin o'z joyiga qaytadigan yo'l yo'q edi.
+    elRecenter.classList.remove('hidden');
+    elRecenter.title = t.my_loc;
     document.getElementById('orderTitle').textContent = t.order_title;
     document.getElementById('orderHint').textContent = t.order_hint;
     elOrderBtn.textContent = t.order_btn;
@@ -355,14 +388,8 @@ export function miniappPage(): string {
     // Buyurtma varag'i balandligi o'zgaruvchan — xaritani unga moslaymiz.
     setMapHeight(100 - Math.round((elOrderSheet.offsetHeight / window.innerHeight) * 100) + '%');
 
-    // Boshlang'ich markaz — mijozning GPS'i (ruxsat bersa).
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        function (pos) { map.setView([pos.coords.latitude, pos.coords.longitude], 16); },
-        function () { /* ruxsat yo'q — FALLBACK qoladi */ },
-        { enableHighAccuracy: true, timeout: 8000 },
-      );
-    }
+    // Boshlang'ich markaz — mijozning GPS'i (ruxsat bermasa FALLBACK qoladi).
+    centerOnMe();
 
     elOrderBtn.onclick = submitOrder;
   }
