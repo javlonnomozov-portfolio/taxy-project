@@ -1,19 +1,47 @@
 import { Body, Controller, Get, Header, HttpCode, Post } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { IsString, MaxLength } from 'class-validator';
+import {
+  IsEnum,
+  IsLatitude,
+  IsLongitude,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { VehicleCategory } from '@tty/shared';
 import { MiniappService, TrackView } from './miniapp.service';
 import { miniappPage } from './miniapp.page';
 
-class TrackDto {
+class InitDataDto {
   // Telegram imzolagan query-string. Uzunligi chegaralangan — bu yagona
   // autentifikatsiya kiritmasi, cheksiz katta body qabul qilmaymiz.
   @IsString()
   @MaxLength(4096)
   initData!: string;
+}
 
+class TrackDto extends InitDataDto {
   @IsString()
   @MaxLength(64)
   orderId!: string;
+}
+
+class PickupDto {
+  @IsLatitude()
+  lat!: number;
+
+  @IsLongitude()
+  lng!: number;
+}
+
+class CreateOrderDto extends InitDataDto {
+  @IsEnum(VehicleCategory)
+  category!: VehicleCategory;
+
+  @ValidateNested()
+  @Type(() => PickupDto)
+  pickup!: PickupDto;
 }
 
 /**
@@ -46,5 +74,18 @@ export class MiniappController {
   @HttpCode(200)
   track(@Body() dto: TrackDto): Promise<TrackView> {
     return this.miniapp.track(dto.initData, dto.orderId);
+  }
+
+  /** Sahifa ochilganda: kuzatuv rejimimi yoki yangi buyurtma rejimi? */
+  @Post('state')
+  @HttpCode(200)
+  state(@Body() dto: InitDataDto): Promise<{ orderId: string | null }> {
+    return this.miniapp.activeOrderId(dto.initData);
+  }
+
+  /** Xaritadan tanlangan nuqta bilan buyurtma berish. */
+  @Post('order')
+  create(@Body() dto: CreateOrderDto): Promise<{ orderId: string }> {
+    return this.miniapp.createOrder(dto.initData, dto.category, dto.pickup);
   }
 }

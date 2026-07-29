@@ -11,8 +11,27 @@ export const phoneKeyboard = (lang: Lang) =>
     .resize()
     .oneTime();
 
+/**
+ * Asosiy menyu.
+ *
+ * Mini app mavjud bo'lsa (HTTPS) — birinchi tugma xaritali buyurtma oynasini
+ * ochadi: mijoz olib ketish nuqtasini O'ZI tanlaydi. Telegram'ning lokatsiya
+ * tugmasi faqat telefonning joriy GPS nuqtasini yubora oladi.
+ *
+ * Eski matnli oqim ("🚕 Taksi chaqirish") ATAYLAB QOLDIRILDI — zaxira sifatida:
+ * eski Telegram mijozlarida mini app ochilmaydi, va lokatsiya tugmasi
+ * kam texnologiyali foydalanuvchi uchun bir bosishda ishlaydi.
+ */
 export const mainMenu = (lang: Lang) =>
-  Markup.keyboard([[t(lang, 'menu_order')], [t(lang, 'menu_lang')]]).resize();
+  Markup.keyboard(
+    hasMiniapp
+      ? [
+          [Markup.button.webApp(t(lang, 'menu_order_map'), `${CONFIG.miniappUrl}?lang=${lang}`)],
+          [t(lang, 'menu_order')],
+          [t(lang, 'menu_lang')],
+        ]
+      : [[t(lang, 'menu_order')], [t(lang, 'menu_lang')]],
+  ).resize();
 
 export const categoryKeyboard = (lang: Lang) =>
   Markup.inlineKeyboard([

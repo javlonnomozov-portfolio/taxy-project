@@ -1,8 +1,18 @@
-// Telegram Mini App sahifasi — "Taksi qayerda?" jonli xaritasi.
+// Telegram Mini App sahifasi — IKKI rejim:
+//   1) BUYURTMA — xaritadan olib ketish nuqtasini tanlash va taksi chaqirish
+//   2) KUZATUV  — "Taksi qayerda?" jonli xaritasi (har 5 soniyada yangilanadi)
 //
-// Nega alohida sahifa, botdagi statik joylashuv o'rniga: Telegram'ga yuborilgan
-// joylashuv "muzlab" qoladi (`replyWithLocation` jonli emas) va mijoz har safar
-// tugmani qayta bosishi kerak edi. Bu sahifa har 5 soniyada o'zi yangilanadi.
+// Qaysi rejim ekanini `/miniapp/state` hal qiladi: mijozda faol buyurtma bo'lsa
+// darhol kuzatuv ochiladi.
+//
+// Nega buyurtma ham shu yerda: Telegram'ning lokatsiya tugmasi FAQAT telefonning
+// joriy GPS nuqtasini yuboradi — mijoz boshqa manzilni, ko'cha burchagini yoki
+// GPS noto'g'ri ko'rsatgan binodan tashqarini ko'rsata olmasdi. Xaritada esa
+// nuqtani o'zi qo'yadi.
+//
+// Kuzatuv rejimi nega kerak edi: Telegram'ga yuborilgan joylashuv "muzlab"
+// qoladi (`replyWithLocation` jonli emas) va mijoz har safar tugmani qayta
+// bosishi kerak edi.
 //
 // Xarita — Leaflet + OSM (driver-app'dagi MiniMap bilan bir xil yondashuv,
 // Google Maps API kaliti kerak emas).
@@ -26,6 +36,14 @@ const T = {
     err: 'Ma’lumot olinmadi. Qayta urinilmoqda…',
     you: 'Siz',
     taxi: 'Taksi',
+    order_title: 'Qayerdan olib ketamiz?',
+    order_hint: 'Xaritani suring — nuqta shu yerda qoladi',
+    cat_standard: 'Standart',
+    cat_comfort: 'Komfort',
+    cat_cargo: 'Yuk',
+    order_btn: 'Taksi chaqirish',
+    ordering: 'Yuborilmoqda…',
+    my_loc: 'Mening joylashuvim',
   },
   ru: {
     title: 'Где такси?',
@@ -45,6 +63,14 @@ const T = {
     err: 'Не удалось получить данные. Повторяем…',
     you: 'Вы',
     taxi: 'Такси',
+    order_title: 'Откуда вас забрать?',
+    order_hint: 'Двигайте карту — точка останется здесь',
+    cat_standard: 'Стандарт',
+    cat_comfort: 'Комфорт',
+    cat_cargo: 'Грузовой',
+    order_btn: 'Вызвать такси',
+    ordering: 'Отправляем…',
+    my_loc: 'Моё местоположение',
   },
 };
 
@@ -87,12 +113,43 @@ export function miniappPage(): string {
     border-radius: 50%; width: 42px; height: 42px; font-size: 18px; line-height: 1; }
   .msg { padding: 28px 20px; text-align: center; color: var(--muted); }
   .leaflet-container { background: #0A0F1E; }
+
+  /* --- Buyurtma rejimi --- */
+  /* Nuqta xarita MARKAZIDA qotib turadi, foydalanuvchi xaritani suradi. Bu
+     markerni barmoq bilan sudrashdan ancha aniqroq (barmoq nuqtani yopmaydi). */
+  #centerPin { position: absolute; left: 50%; z-index: 600; pointer-events: none;
+    transform: translate(-50%, -100%); font-size: 34px; line-height: 1;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6)); }
+  #orderSheet { position: absolute; left: 0; right: 0; bottom: 0;
+    background: var(--panel); border-top: 1px solid var(--border);
+    border-radius: 18px 18px 0 0; padding: 18px 20px 22px; }
+  .cats { display: flex; gap: 8px; margin-top: 14px; }
+  .cat { flex: 1; text-align: center; padding: 12px 6px; border-radius: 12px;
+    border: 1px solid var(--border); background: #1B2438; color: var(--muted);
+    font-size: 14px; font-weight: 600; }
+  .cat.on { border-color: var(--accent); background: rgba(91,141,239,0.16); color: var(--text); }
+  #orderBtn { width: 100%; margin-top: 16px; padding: 17px; border: 0;
+    border-radius: 14px; background: var(--accent); color: #fff;
+    font-size: 17px; font-weight: 800; }
+  #orderBtn:disabled { opacity: 0.55; }
+  #orderErr { color: #FF7B72; font-size: 13px; margin-top: 10px; min-height: 16px; }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 <div id="map"></div>
-<button id="recenter" title="center">◎</button>
-<div id="sheet">
+<div id="centerPin" class="hidden">📍</div>
+<button id="recenter" class="hidden" title="center">◎</button>
+
+<div id="orderSheet" class="hidden">
+  <h1 id="orderTitle">…</h1>
+  <div class="sub" id="orderHint"></div>
+  <div class="cats" id="cats"></div>
+  <div id="orderErr"></div>
+  <button id="orderBtn">…</button>
+</div>
+
+<div id="sheet" class="hidden">
   <div class="status"><span class="dot wait" id="dot"></span><h1 id="title">…</h1></div>
   <div class="sub" id="sub"></div>
   <div id="info"></div>
@@ -113,8 +170,12 @@ export function miniappPage(): string {
 
   function fail(text) {
     document.getElementById('map').style.display = 'none';
-    document.getElementById('recenter').style.display = 'none';
-    document.getElementById('sheet').style.height = '100%';
+    document.getElementById('recenter').classList.add('hidden');
+    document.getElementById('centerPin').classList.add('hidden');
+    document.getElementById('orderSheet').classList.add('hidden');
+    var sheet = document.getElementById('sheet');
+    sheet.classList.remove('hidden');
+    sheet.style.height = '100%';
     elTitle.textContent = '';
     elSub.innerHTML = '<div class="msg">' + text + '</div>';
   }
@@ -124,7 +185,9 @@ export function miniappPage(): string {
   tg.expand();
   document.title = t.title;
 
-  var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([41.31, 69.24], 13);
+  // Xizmat hududi markazi (GPS bo'lmasa shu yerdan boshlaymiz).
+  var FALLBACK = [39.7683, 67.2792];
+  var map = L.map('map', { zoomControl: false, attributionControl: false }).setView(FALLBACK, 13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
   function pin(color, label) {
@@ -242,7 +305,143 @@ export function miniappPage(): string {
       });
   }
 
-  poll();
+  // ================= BUYURTMA REJIMI =================
+
+  var elOrderSheet = document.getElementById('orderSheet');
+  var elOrderBtn = document.getElementById('orderBtn');
+  var elOrderErr = document.getElementById('orderErr');
+  var elCenterPin = document.getElementById('centerPin');
+  var elSheet = document.getElementById('sheet');
+  var elRecenter = document.getElementById('recenter');
+  var category = 'standard';
+
+  /** Markazdagi nuqta xarita maydonining o'rtasida tursin. */
+  function placeCenterPin() {
+    var h = document.getElementById('map').clientHeight;
+    elCenterPin.style.top = h / 2 + 'px';
+  }
+
+  function setMapHeight(pct) {
+    document.getElementById('map').style.height = pct;
+    elRecenter.style.top = 'calc(' + pct + ' - 56px)';
+    map.invalidateSize();
+    placeCenterPin();
+  }
+
+  function startOrdering() {
+    elSheet.classList.add('hidden');
+    elOrderSheet.classList.remove('hidden');
+    elCenterPin.classList.remove('hidden');
+    elRecenter.classList.add('hidden');
+    document.getElementById('orderTitle').textContent = t.order_title;
+    document.getElementById('orderHint').textContent = t.order_hint;
+    elOrderBtn.textContent = t.order_btn;
+
+    var cats = [['standard', t.cat_standard], ['comfort', t.cat_comfort], ['cargo', t.cat_cargo]];
+    var box = document.getElementById('cats');
+    box.innerHTML = '';
+    cats.forEach(function (c) {
+      var b = document.createElement('div');
+      b.className = 'cat' + (c[0] === category ? ' on' : '');
+      b.textContent = c[1];
+      b.onclick = function () {
+        category = c[0];
+        Array.prototype.forEach.call(box.children, function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+      };
+      box.appendChild(b);
+    });
+
+    // Buyurtma varag'i balandligi o'zgaruvchan — xaritani unga moslaymiz.
+    setMapHeight(100 - Math.round((elOrderSheet.offsetHeight / window.innerHeight) * 100) + '%');
+
+    // Boshlang'ich markaz — mijozning GPS'i (ruxsat bersa).
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        function (pos) { map.setView([pos.coords.latitude, pos.coords.longitude], 16); },
+        function () { /* ruxsat yo'q — FALLBACK qoladi */ },
+        { enableHighAccuracy: true, timeout: 8000 },
+      );
+    }
+
+    elOrderBtn.onclick = submitOrder;
+  }
+
+  function submitOrder() {
+    var c = map.getCenter();
+    elOrderBtn.disabled = true;
+    elOrderBtn.textContent = t.ordering;
+    elOrderErr.textContent = '';
+    fetch('/miniapp/order', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        initData: tg.initData,
+        category: category,
+        pickup: { lat: c.lat, lng: c.lng },
+      }),
+    })
+      .then(function (r) {
+        return r.json().then(function (b) { return { ok: r.ok, status: r.status, body: b }; });
+      })
+      .then(function (res) {
+        if (!res.ok) {
+          // Server sababini AYNAN ko'rsatamiz (masalan "Sizda allaqachon faol
+          // buyurtma bor") — umumiy "xatolik" hech narsa tushuntirmaydi.
+          elOrderErr.textContent = (res.body && res.body.message) || ('HTTP ' + res.status);
+          elOrderBtn.disabled = false;
+          elOrderBtn.textContent = t.order_btn;
+          return;
+        }
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        startTracking(res.body.orderId);
+      })
+      .catch(function (e) {
+        elOrderErr.textContent = t.err + ' [' + (e && e.message ? e.message : 'network') + ']';
+        elOrderBtn.disabled = false;
+        elOrderBtn.textContent = t.order_btn;
+      });
+  }
+
+  // ================= KUZATUV REJIMI =================
+
+  function startTracking(id) {
+    orderId = id;
+    elOrderSheet.classList.add('hidden');
+    elCenterPin.classList.add('hidden');
+    elSheet.classList.remove('hidden');
+    elRecenter.classList.remove('hidden');
+    setMapHeight('62%');
+    poll();
+  }
+
+  // ================= BOSHLANISH =================
+
+  // Havolada zakaz bo'lsa (botdagi "Taksi qayerda?" tugmasi) — darhol kuzatuv.
+  if (orderId) {
+    startTracking(orderId);
+  } else {
+    fetch('/miniapp/state', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ initData: tg.initData }),
+    })
+      .then(function (r) {
+        if (r.status === 403) throw new Error('denied');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        if (d.orderId) startTracking(d.orderId);
+        else startOrdering();
+      })
+      .catch(function (e) {
+        if (e.message === 'denied') { fail(t.denied); return; }
+        // Holatni bilmasak ham buyurtma berishga to'sqinlik qilmaymiz.
+        startOrdering();
+        elOrderErr.textContent = t.err + ' [' + (e && e.message ? e.message : 'network') + ']';
+      });
+  }
 })();
 </script>
 </body>

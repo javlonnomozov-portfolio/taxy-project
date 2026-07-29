@@ -60,6 +60,13 @@ function signInitData(telegramId, token = TOKEN) {
 // yuboradi. Prod'da aynan shu narsa CORS'ga urilib 500 bergan edi (allowlist'da
 // API'ning o'z domeni yo'q edi). Sim buni takrorlashi uchun biz ham yuboramiz.
 // Ushlash uchun API'ni CORS_ORIGINS o'rnatilgan holda ishga tushiring.
+const post = (path, body) =>
+  fetch(API + path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: API },
+    body: JSON.stringify(body),
+  });
+
 const trackRaw = (initData, orderId) =>
   fetch(API + '/miniapp/track', {
     method: 'POST',
@@ -106,12 +113,77 @@ async function main() {
   ds.emit('driver:offer_response', { orderId: order.id, accept: true });
   await sleep(900);
 
-  console.log('--- Sahifa ---');
+  console.log('--- Buyurtma berish (xaritadan pin) ---');
+  // ALOHIDA mijoz: yuqoridagi zakaz allaqachon faol, u state'ni chalg'itardi.
+  const tgId2 = String(Number(tgId) + 12345);
+  await j(
+    'POST',
+    '/customers/upsert',
+    { telegramId: tgId2, phone: '+998901112244', firstName: 'Mijoz2' },
+    { 'x-internal-key': KEY },
+  );
+
+  // Faol buyurtma yo'q — sahifa buyurtma rejimida ochilishi kerak.
+  const st0 = await (await post('/miniapp/state', { initData: signInitData(tgId2) })).json();
+  check('Faol buyurtma yo\'q → buyurtma rejimi', st0.orderId === null, JSON.stringify(st0));
+
+  // Mijoz JORIY GPS'idan BOSHQA nuqtani ko'rsatadi — bot oqimida bu mumkin emas.
+  const chosen = { lat: pickup.lat + 0.004, lng: pickup.lng + 0.004 };
+  const created = await post('/miniapp/order', {
+    initData: signInitData(tgId2),
+    category: 'standard',
+    pickup: chosen,
+  });
+  check('Buyurtma yaratildi', created.status === 201, String(created.status));
+  const createdBody = await created.json();
+  const miniOrderId = createdBody.orderId;
+  check('Zakaz id qaytdi', typeof miniOrderId === 'string' && miniOrderId.length > 10);
+
+  const st1 = await (await post('/miniapp/state', { initData: signInitData(tgId2) })).json();
+  check('Endi state faol zakazni qaytaradi', st1.orderId === miniOrderId);
+
+  const placed = await (await trackRaw(signInitData(tgId2), miniOrderId)).json();
+  check(
+    'Olib ketish nuqtasi XARITADAN tanlangan joy (GPS emas)',
+    Math.abs(placed.pickup.lat - chosen.lat) < 1e-6,
+    JSON.stringify(placed.pickup),
+  );
+
+  // Ikkinchi faol buyurtma bo'lmasligi kerak (OrdersService qoidasi saqlanadi).
+  const dup = await post('/miniapp/order', {
+    initData: signInitData(tgId2),
+    category: 'standard',
+    pickup: chosen,
+  });
+  check('Ikkinchi faol buyurtma RAD ETILDI', dup.status === 409, String(dup.status));
+
+  // Ro'yxatdan o'tmagan telegram foydalanuvchi buyurtma bera olmaydi.
+  const stranger = await post('/miniapp/order', {
+    initData: signInitData(String(Number(tgId2) + 777)),
+    category: 'standard',
+    pickup: chosen,
+  });
+  check('Ro\'yxatdan o\'tmagan foydalanuvchi 403', stranger.status === 403, String(stranger.status));
+
+  // Noto'g'ri koordinata rad etilsin (validatsiya).
+  const badGeo = await post('/miniapp/order', {
+    initData: signInitData(tgId2),
+    category: 'standard',
+    pickup: { lat: 999, lng: 0 },
+  });
+  check('Noto\'g\'ri koordinata 400', badGeo.status === 400, String(badGeo.status));
+
+  // Tozalash: bu zakazni bekor qilamiz, keyingi testlar toza boshlasin.
+  await j('POST', `/orders/${miniOrderId}/cancel`, { reason: 'sim' }, { 'x-internal-key': KEY });
+  await sleep(400);
+
+  console.log('\n--- Sahifa ---');
   const page = await fetch(API + '/miniapp/track', { headers: { origin: API } });
   const html = await page.text();
   check('GET /miniapp/track HTML qaytardi', page.ok && html.includes('<!DOCTYPE html>'));
   check('Sahifa Telegram WebApp SDK yuklaydi', html.includes('telegram-web-app.js'));
   check('Sahifa Leaflet xaritasini yuklaydi', html.includes('leaflet'));
+  check('Sahifada buyurtma rejimi bor', html.includes('startOrdering') && html.includes('centerPin'));
 
   console.log('\n--- Ijobiy yo\'l ---');
   const ok = await trackRaw(signInitData(tgId), order.id);
