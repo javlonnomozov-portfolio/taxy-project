@@ -81,7 +81,7 @@ export function trackOrder(opts: {
         await send(t(lang, 'in_progress'));
         break;
       case 'COMPLETED':
-        await send(t(lang, 'completed', priceStr(m.finalPrice)), ratingKeyboard());
+        await send(t(lang, 'completed', priceStr(m.finalPrice)), ratingKeyboard(lang));
         break;
       case 'NO_DRIVER':
         await send(t(lang, 'no_driver'), mainMenu(lang));

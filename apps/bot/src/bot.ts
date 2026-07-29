@@ -315,6 +315,15 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
     }
   });
 
+  // Baholashni o'tkazib yuborish — baholash IXTIYORIY.
+  bot.action('rate:skip', async (ctx) => {
+    const s = getSession(ctx);
+    await ctx.answerCbQuery();
+    s.ratingOrderId = undefined;
+    // Tugmalarni olib tashlaymiz, lekin xabarni o'chirmaymiz (narx ko'rinib tursin).
+    await ctx.editMessageReplyMarkup(undefined).catch(() => {});
+  });
+
   // Baholash (1-5)
   bot.action(/^rate:([1-5])$/, async (ctx) => {
     const s = getSession(ctx);

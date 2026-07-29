@@ -63,9 +63,15 @@ export const trackingKeyboard = (lang: Lang, orderId?: string) =>
     [Markup.button.callback(t(lang, 'cancel_order_btn'), 'order:cancel')],
   ]);
 
-export const ratingKeyboard = () =>
+/**
+ * Baholash IXTIYORIY — "o'tkazib yuborish" tugmasi shart. Avval faqat 5 ta
+ * yulduz turardi va chiqish yo'li yo'q edi: mijoz baholashga majbur qilingandek
+ * his qilardi.
+ */
+export const ratingKeyboard = (lang: Lang) =>
   Markup.inlineKeyboard([
     [1, 2, 3, 4, 5].map((n) => Markup.button.callback(`${n}⭐`, `rate:${n}`)),
+    [Markup.button.callback(t(lang, 'skip_rating_btn'), 'rate:skip')],
   ]);
 
 
