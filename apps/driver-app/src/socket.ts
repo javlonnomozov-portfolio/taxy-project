@@ -33,11 +33,12 @@ export interface SocketAck {
 export function connectDriver(token: string): Socket {
   return io(API_URL + '/driver', {
     auth: { token },
-    // MUHIM: faqat 'websocket' MAJBURLANMAYDI. Ba'zi mobil tarmoqlar va korporativ
-    // proksilar WS'ni bloklaydi — o'shanda zaxira yo'l bo'lmasa haydovchi umuman
-    // ulana olmaydi va ilova "Ulanmoqda…" holatida qotib qoladi. Polling bilan
-    // ulanib, imkon bo'lsa WS'ga ko'tariladi.
-    transports: ['websocket', 'polling'],
+    // TARTIB MUHIM: polling BIRINCHI. Socket.IO transportlarni shu tartibda sinaydi.
+    // Avval `['websocket', 'polling']` edi — WS birinchi urinilar, telefon tarmog'ida
+    // u yiqilardi ("websocket error") va ilova "Ulanmoqda…" da qotib qolardi.
+    // Polling oddiy HTTP orqali ishlaydi (u ishlashi isbotlangan), ulangandan keyin
+    // imkon bo'lsa WS'ga ko'tariladi; ko'tarilmasa polling'da ishlayveradi.
+    transports: ['polling', 'websocket'],
     // Tarmoq uzilsa o'zi qayta ulansin (haydovchi kun bo'yi harakatda).
     reconnection: true,
     reconnectionDelay: 1000,
