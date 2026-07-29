@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { VehicleCategory } from '@tty/shared';
 import { PricingService } from './pricing.service';
 import { SettingsService } from '../settings/settings.service';
@@ -17,16 +18,41 @@ const tariff = (over: Partial<Tariff> = {}): Tariff =>
     ...over,
   }) as Tariff;
 
-function makeService(t: Tariff | null, surge = 1) {
+function makeService(t: Tariff | null, surge = 1, maxWait = 30) {
   const settings = {
     getTariff: jest.fn().mockResolvedValue(t),
     currentSurge: jest.fn().mockResolvedValue(surge),
   } as unknown as SettingsService;
-  return new PricingService(settings);
+  const config = { get: jest.fn().mockReturnValue(maxWait) } as unknown as ConfigService;
+  return new PricingService(settings, config);
 }
 
 // Kunduzi (tungi tarif tushmasligi uchun)
 const DAY = new Date('2026-07-27T12:00:00');
+
+describe('kutish haqi chegarasi', () => {
+  it('chegaradan oshgan kutish uchun pul olinmaydi', async () => {
+    // 3 daq bepul, 500/daq, chegara 30 daq → ko'pi bilan (30-3)*500 = 13 500
+    const fare = await makeService(tariff(), 1, 30).computeFare(
+      VehicleCategory.STANDARD, 0, 120, DAY,
+    );
+    expect(fare.waiting).toBe(13500);
+  });
+
+  it('chegaradan past kutish odatdagidek hisoblanadi', async () => {
+    const fare = await makeService(tariff(), 1, 30).computeFare(
+      VehicleCategory.STANDARD, 0, 10, DAY,
+    );
+    expect(fare.waiting).toBe(3500); // (10-3) * 500
+  });
+
+  it('chegara bepul daqiqalardan kichik bo\'lsa manfiy chiqmaydi', async () => {
+    const fare = await makeService(tariff(), 1, 2).computeFare(
+      VehicleCategory.STANDARD, 0, 60, DAY,
+    );
+    expect(fare.waiting).toBe(0);
+  });
+});
 
 describe('PricingService.computeFare', () => {
   it('base + masofa narxini qo‘shadi', async () => {

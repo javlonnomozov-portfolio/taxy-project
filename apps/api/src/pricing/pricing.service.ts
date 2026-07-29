@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { VehicleCategory } from '@tty/shared';
 import { SettingsService } from '../settings/settings.service';
 import { Tariff } from '../entities/tariff.entity';
@@ -15,7 +16,14 @@ export interface FareBreakdown {
 
 @Injectable()
 export class PricingService {
-  constructor(private readonly settings: SettingsService) {}
+  private readonly maxBillableWaitMin: number;
+
+  constructor(
+    private readonly settings: SettingsService,
+    config: ConfigService,
+  ) {
+    this.maxBillableWaitMin = config.get<number>('MAX_BILLABLE_WAIT_MIN') ?? 30;
+  }
 
   /** "hh:mm" → daqiqa (00:00 dan). */
   private toMinutes(hhmm: string): number {
@@ -57,7 +65,12 @@ export class PricingService {
 
     const base = tariff.baseFare;
     const distance = (tariff.perKm * distanceM) / 1000;
-    const billableWait = Math.max(0, waitingMinutes - tariff.freeWaitMin);
+    // Chegara AYNAN shu yerda — `orders.waiting_minutes` da haqiqiy qiymat
+    // saqlanib qolsin (tekshiruv/hisobot uchun), lekin mijozdan olinadigan pul
+    // cheklangan bo'lsin: haydovchi "yetib keldim" bosib ketib qolsa hisob
+    // cheksiz o'smasin.
+    const capped = Math.min(waitingMinutes, this.maxBillableWaitMin);
+    const billableWait = Math.max(0, capped - tariff.freeWaitMin);
     const waiting = billableWait * tariff.waitingPerMin;
     const subtotal = base + distance + waiting;
 

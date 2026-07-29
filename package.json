@@ -28,7 +28,8 @@
     "sim:cluster": "node scripts/cluster-sim.mjs",
     "sim:online-geo": "node scripts/online-geo-sim.mjs",
     "sim:late-driver": "node scripts/late-driver-sim.mjs",
-    "sim:miniapp": "node scripts/miniapp-sim.mjs"
+    "sim:miniapp": "node scripts/miniapp-sim.mjs",
+    "sim:arrived-guard": "node scripts/arrived-guard-sim.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

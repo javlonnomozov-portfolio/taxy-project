@@ -36,6 +36,17 @@ export const envSchema = z.object({
   DISPATCH_OFFER_TIMEOUT_SEC: z.coerce.number().default(120), // taklif oynasi — kamida 2 daqiqa
   DISPATCH_RADIUS_STEPS_M: z.string().default('2000,4000,6000'),
   DISPATCH_NO_DRIVER_TIMEOUT_SEC: z.coerce.number().default(180), // taklif oynasidan uzunroq
+  // "Yetib keldim" tugmasi shu radiusdan uzoqda bosilsa RAD ETILADI — aks holda
+  // haydovchi yo'lda turib bosib, kutish soatini erta ishga tushirardi (mijoz
+  // ortiqcha to'lardi va "taksi keldi" degan yolg'on xabar olardi).
+  // Zich qurilgan joyda GPS 20-50 m adashishi mumkin — qiymat sozlanadigan.
+  ARRIVED_GEOFENCE_M: z.coerce.number().default(150),
+  // Joylashuv shundan eski bo'lsa geofence QO'LLANMAYDI (GPS yo'qolgan halol
+  // haydovchi ishlay olsin), lekin hodisaga `stale: true` yozib qo'yiladi.
+  ARRIVED_LOCATION_STALE_SEC: z.coerce.number().default(120),
+  // Hisoblanadigan kutish vaqtining yuqori chegarasi — haydovchi "Yetib keldim"
+  // bosib ketib qolsa mijoz cheksiz to'lamasin.
+  MAX_BILLABLE_WAIT_MIN: z.coerce.number().default(30),
   // Xarita xizmatlari (ixtiyoriy). Berilmasa manzil qidirish/marshrut o'chiq bo'ladi
   // va 503 qaytaradi — manzil MVP'da ixtiyoriy, taksometr haqiqiy km bo'yicha hisoblaydi.
   NOMINATIM_URL: optionalUrl,

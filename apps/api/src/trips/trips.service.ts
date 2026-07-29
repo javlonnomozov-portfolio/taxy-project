@@ -7,6 +7,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import Redis from 'ioredis';
@@ -22,6 +23,7 @@ import { PricingService } from '../pricing/pricing.service';
 import { SettingsService } from '../settings/settings.service';
 import { BillingService } from '../billing/billing.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { haversineM } from '../dispatch/dispatch.util';
 
 @Injectable()
 export class TripsService {
@@ -40,6 +42,7 @@ export class TripsService {
     private readonly settings: SettingsService,
     private readonly billing: BillingService,
     private readonly realtime: RealtimeService,
+    private readonly config: ConfigService,
   ) {}
 
   private async mustOwn(orderId: string, driverId: string): Promise<Order> {
@@ -94,8 +97,48 @@ export class TripsService {
     this.notify(order, OrderStatus.CONFIRMED);
   }
 
+  /**
+   * "Yetib keldim" tugmasi haqiqatan olib ketish nuqtasida bosilganini tekshiradi.
+   *
+   * Nega kerak: bu tugma (a) kutish soatini ishga tushiradi — mijoz pul to'laydi,
+   * (b) mijozga "Taksi yetib keldi" xabarini yuboradi. Yo'lda turib bosilsa mijoz
+   * ham ortiqcha to'laydi, ham yo'q mashinani ko'chada kutadi.
+   *
+   * GPS eskirgan bo'lsa BLOKLAMAYMIZ — GPS yo'qolgan halol haydovchi ishlay
+   * olmay qolmasin. Bunday holat hodisada `stale: true` bilan belgilanadi.
+   */
+  private async checkArrivalDistance(
+    order: Order,
+    driverId: string,
+  ): Promise<{ distanceM: number | null; stale: boolean }> {
+    const loc = await this.drivers.lastLocation(driverId);
+    const staleSec = this.config.get<number>('ARRIVED_LOCATION_STALE_SEC')!;
+    const fresh = !!loc?.at && Date.now() - new Date(loc.at).getTime() <= staleSec * 1000;
+
+    if (!loc || !fresh) {
+      this.log.warn(
+        `Yetib keldi tekshiruvi o'tkazib yuborildi (zakaz ${order.id}): joylashuv ${loc ? 'eskirgan' : 'yo‘q'}`,
+      );
+      return { distanceM: loc ? haversineM(order.pickupLat, order.pickupLng, loc.lat, loc.lng) : null, stale: true };
+    }
+
+    const distanceM = Math.round(haversineM(order.pickupLat, order.pickupLng, loc.lat, loc.lng));
+    const limit = this.config.get<number>('ARRIVED_GEOFENCE_M')!;
+    if (distanceM > limit) {
+      const shown = distanceM >= 1000 ? `${(distanceM / 1000).toFixed(1)} km` : `${distanceM} m`;
+      throw new BadRequestException(
+        `Siz hali yetib kelmadingiz — mijozdan ${shown} uzoqdasiz. Yaqinlashgach qayta urinib ko‘ring.`,
+      );
+    }
+    return { distanceM, stale: false };
+  }
+
   async arrived(orderId: string, driverId: string): Promise<void> {
     const order = await this.mustOwn(orderId, driverId);
+    // Masofani holatni O'ZGARTIRISHDAN OLDIN tekshiramiz — rad etilsa zakaz
+    // ARRIVED'ga o'tib qolmasin.
+    const { distanceM, stale } = await this.checkArrivalDistance(order, driverId);
+
     // confirm — yumshoq qadam; ACCEPTED'dan ham to'g'ridan yetib kelish mumkin.
     const ok = await this.transition(
       orderId,
@@ -104,7 +147,18 @@ export class TripsService {
     );
     if (!ok) throw new BadRequestException('Holat ARRIVED ga o‘tmadi');
     await this.redis.set(`order:arrived:${orderId}`, new Date().toISOString(), 'EX', 7200);
-    await this.events.record(orderId, 'arrived', ActorType.DRIVER, { actorId: driverId });
+    await this.events.record(orderId, 'arrived', ActorType.DRIVER, {
+      actorId: driverId,
+      // Operator shubhali holatlarni ko'ra olsin (GPS'siz o'tkazilganlar).
+      payload: { distanceM, stale },
+    });
+    if (stale) {
+      this.realtime.emitToOps(SOCKET_EVENTS.ops.alert, {
+        type: 'ARRIVED_NO_GPS',
+        orderId,
+        message: 'Haydovchi "yetib keldim" ni GPS tasdiqisiz bosdi',
+      });
+    }
     this.notify(order, OrderStatus.ARRIVED);
   }
 
