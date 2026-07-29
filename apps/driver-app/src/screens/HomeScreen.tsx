@@ -7,7 +7,8 @@ import { connectDriver, EV, SocketAck } from '../socket';
 import { api } from '../api';
 import { registerForPush, notifyOffer } from '../push';
 import { startBackgroundLocation, stopBackgroundLocation } from '../location-task';
-import { S, C } from '../theme';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { S, C, R, F, SP } from '../theme';
 import { Lang, makeT } from '../i18n';
 import { MiniMap, MapMarker } from '../MapView';
 import { CabinetScreen } from './CabinetScreen';
@@ -43,13 +44,36 @@ interface Trip {
 }
 
 function haversine(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6371000;
+  const EARTH_R = 6371000;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;
   const s =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
+  return 2 * EARTH_R * Math.asin(Math.sqrt(s));
+}
+
+/** Kabinet API'sidan kerak bo'ladigan minimal maydonlar (daromad hisobi uchun). */
+interface FinishedTrip {
+  status: string;
+  finalPrice: number | null;
+  completedAt: string | null;
+}
+
+const som = (v: number) => Math.round(v).toLocaleString('ru-RU');
+
+/**
+ * Bugungi daromad ilovaning O'ZIDA hisoblanadi — API'da bunday endpoint yo'q.
+ * `/drivers/me/trips` oxirgi 50 safarni `completedAt` bo'yicha kamayish tartibida
+ * qaytaradi, ya'ni bugungilar doim ro'yxat boshida — 50 chegarasi hisobni kesmaydi.
+ */
+function todayEarned(trips: FinishedTrip[]): number {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  return trips.reduce((sum, tr) => {
+    if (tr.status !== 'COMPLETED' || !tr.completedAt || tr.finalPrice == null) return sum;
+    return new Date(tr.completedAt) >= start ? sum + Number(tr.finalPrice) : sum;
+  }, 0);
 }
 
 export function HomeScreen({
@@ -74,6 +98,8 @@ export function HomeScreen({
   // Ulanish/ro'yxatdan o'tish xatosi — avval JIMGINA yutilardi va haydovchi
   // sababsiz "Ulanmoqda…" holatida qolardi.
   const [connError, setConnError] = useState<string | null>(null);
+  // Yuqoridagi ko'rsatkichlar (bugungi/umumiy daromad, reyting).
+  const [earn, setEarn] = useState<{ today: number; total: number; rating: number } | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
@@ -104,6 +130,27 @@ export function HomeScreen({
       setOffers(list.map((o) => ({ ...o, expiresAt: Date.now() + (o.timeoutSec ?? 120) * 1000 })));
     } catch {
       /* ignore */
+    }
+  };
+
+  const fetchEarnings = async () => {
+    try {
+      const [trips, stats] = await Promise.all([
+        api<FinishedTrip[]>('GET', '/drivers/me/trips', undefined, token),
+        api<{ earnedTotal: number; ratingAvg: number }>(
+          'GET',
+          '/drivers/me/stats',
+          undefined,
+          token,
+        ),
+      ]);
+      setEarn({
+        today: todayEarned(trips),
+        total: Number(stats.earnedTotal ?? 0),
+        rating: Number(stats.ratingAvg ?? 0),
+      });
+    } catch {
+      /* ko'rsatkichlar ikkinchi darajali — xato ekranni bloklamasin */
     }
   };
 
@@ -227,10 +274,14 @@ export function HomeScreen({
   // Fondan qaytganda va bildirishnoma bosilganda kutilayotgan takliflarni yangilaymiz.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
-      if (st === 'active') void fetchPending();
+      if (st === 'active') {
+        void fetchPending();
+        void fetchEarnings();
+      }
     });
     const nsub = Notifications.addNotificationResponseReceivedListener(() => void fetchPending());
     void fetchPending();
+    void fetchEarnings();
     return () => {
       sub.remove();
       nsub.remove();
@@ -325,6 +376,7 @@ export function HomeScreen({
         }
         setDone({ price: resp?.finalPrice ?? 0 });
         setTrip(null);
+        void fetchEarnings(); // bugungi daromad darhol yangilansin
       },
     );
   }
@@ -463,119 +515,333 @@ export function HomeScreen({
   }
 
   // Asosiy: onlayn/oflayn + takliflar ro'yxati
+  const state: 'online' | 'connecting' | 'offline' = online
+    ? 'online'
+    : intent
+      ? 'connecting'
+      : 'offline';
+  const stateColor = { online: C.online, connecting: C.warn, offline: C.muted }[state];
+  const stateIcon = { online: 'wifi', connecting: 'sync', offline: 'wifi-off' }[state] as
+    keyof typeof MaterialIcons.glyphMap;
+  const stateSub = {
+    online: t('waiting_orders'),
+    connecting: t('network_check'),
+    offline: t('go_online_hint'),
+  }[state];
+
   return (
-    <ScrollView style={S.screen} contentContainerStyle={{ paddingBottom: 24 }}>
-      <View style={[S.row, { justifyContent: 'space-between', marginBottom: 20 }]}>
-        <Text style={S.title}>{t('app_name')}</Text>
-        <View style={[S.row, { gap: 16 }]}>
-          <TouchableOpacity onPress={() => setShowCabinet(true)}>
-            <Text style={{ color: C.accent, fontWeight: '700' }}>{t('cabinet')}</Text>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <View style={S.topBar}>
+        <View style={[S.row, { gap: SP.sm }]}>
+          <MaterialIcons name="local-taxi" size={22} color={C.accent} />
+          <Text style={S.brand}>Toy TaxY</Text>
+        </View>
+        <View style={[S.row, { gap: SP.xl }]}>
+          <TouchableOpacity onPress={() => setShowCabinet(true)} hitSlop={10}>
+            <Text style={{ color: C.accent, fontSize: 15, fontWeight: '700' }}>{t('cabinet')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onLogout}>
-            <Text style={{ color: C.muted }}>{t('logout')}</Text>
+          <TouchableOpacity onPress={onLogout} hitSlop={10}>
+            <Text style={{ color: C.muted, fontSize: 15 }}>{t('logout')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={[S.card, { alignItems: 'center', paddingVertical: 24 }]}>
+      <ScrollView contentContainerStyle={{ padding: SP.xl, paddingBottom: SP.xxl }}>
+        {/* Ko'rsatkichlar: bugungi daromad KATTA, umumiy va reyting kichik yonida. */}
+        <View style={[S.row, { gap: SP.md, marginBottom: SP.lg }]}>
+          <View style={[S.card, { flex: 2, padding: SP.lg }]}>
+            <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 0.6 }}>
+              {t('today_earned').toUpperCase()}
+            </Text>
+            <Text style={{ color: C.text, fontSize: F.title, fontWeight: '800', marginTop: 2 }}>
+              {som(earn?.today ?? 0)} <Text style={{ fontSize: F.body }}>{t('som')}</Text>
+            </Text>
+            <Text style={{ color: C.muted, fontSize: F.tiny, marginTop: 4 }}>
+              {t('total_earned_short')}: {som(earn?.total ?? 0)} {t('som')}
+            </Text>
+          </View>
+          <View style={[S.card, { flex: 1, padding: SP.lg }]}>
+            <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 0.6 }}>
+              {t('rating').toUpperCase()}
+            </Text>
+            <View style={[S.row, { gap: 4, marginTop: 2 }]}>
+              <Text style={{ color: C.gold, fontSize: F.h2, fontWeight: '800' }}>
+                {(earn?.rating ?? 0).toFixed(2)}
+              </Text>
+              <MaterialIcons name="star" size={18} color={C.gold} />
+            </View>
+          </View>
+        </View>
+
+        {/* Holat kartasi — 1 metrdan ko'rinishi kerak, shuning uchun rang butun kartada. */}
         <View
-          style={{
-            width: 14,
-            height: 14,
-            borderRadius: 7,
-            backgroundColor: online ? C.ok : intent ? C.warn : C.muted,
-            marginBottom: 10,
-          }}
-        />
-        <Text style={{ color: online ? C.ok : intent ? C.warn : C.muted, fontSize: 18, fontWeight: '700' }}>
-          {online ? t('online') : intent ? t('connecting') : t('offline')}
-        </Text>
-        {!online && connError && (
-          <Text style={{ color: C.danger, fontSize: 12, marginTop: 8, textAlign: 'center' }}>
-            {connError}
+          style={[
+            S.card,
+            {
+              alignItems: 'center',
+              paddingVertical: SP.xxl + 4,
+              borderColor: stateColor,
+              backgroundColor: state === 'online' ? C.okSoft : C.panel,
+            },
+          ]}
+        >
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: R.pill,
+              borderWidth: 2,
+              borderColor: stateColor,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: SP.lg,
+            }}
+          >
+            <MaterialIcons name={stateIcon} size={34} color={stateColor} />
+          </View>
+          <View style={[S.row, { gap: SP.sm }]}>
+            <View
+              style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: stateColor }}
+            />
+            <Text style={{ color: stateColor, fontSize: F.title, fontWeight: '800' }}>
+              {online ? t('online') : intent ? t('connecting') : t('offline')}
+            </Text>
+          </View>
+          <Text
+            style={{
+              color: C.muted,
+              fontSize: 15,
+              marginTop: SP.sm,
+              textAlign: 'center',
+              paddingHorizontal: SP.lg,
+            }}
+          >
+            {stateSub}
           </Text>
-        )}
-        {online && offers.length === 0 && (
-          <Text style={[S.label, { marginTop: 6 }]}>{t('waiting_orders')}</Text>
-        )}
-      </View>
 
-      <View style={{ marginTop: 16 }}>
-        {intent ? (
-          <TouchableOpacity style={[S.btn, S.btnDanger]} onPress={goOffline}>
-            <Text style={S.btnText}>{t('go_offline')}</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={[S.btn, S.btnOk]} onPress={goOnline}>
-            <Text style={S.btnText}>{t('go_online')}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+          {/* Onlayn, lekin GPS nuqtasi hali yo'q — dispatch bizni shu sababdan
+              ko'rmasligi mumkin, shuning uchun holatni ochiq aytamiz. */}
+          {online && !lastLoc.current && (
+            <View style={[S.row, { gap: 6, marginTop: SP.md }]}>
+              <MaterialIcons name="gps-not-fixed" size={16} color={C.warn} />
+              <Text style={{ color: C.warn, fontSize: F.label }}>{t('gps_searching')}</Text>
+            </View>
+          )}
 
-      {/* Kutilayotgan takliflar RO'YXATI */}
-      {offers.length > 0 && (
-        <View style={{ marginTop: 20 }}>
-          <Text style={[S.title, { fontSize: 18, marginBottom: 10 }]}>
-            {t('new_orders')} ({offers.length})
-          </Text>
-          {offers.map((o) => {
-            const remaining = Math.max(0, Math.ceil((o.expiresAt - Date.now()) / 1000));
-            const expanded = expandedId === o.orderId;
-            return (
-              <View key={o.orderId} style={[S.card, { marginBottom: 12, borderColor: C.accent }]}>
-                <View style={[S.row, { justifyContent: 'space-between', alignItems: 'center' }]}>
-                  <Text style={{ color: C.text, fontSize: 16, fontWeight: '700' }}>
-                    🚕 {(o.distanceM / 1000).toFixed(1)} {t('km')}
-                  </Text>
-                  <Text style={{ color: remaining <= 20 ? C.danger : C.warn, fontSize: 16, fontWeight: '800' }}>
-                    {remaining}s
-                  </Text>
-                </View>
-                {o.pickupAddress ? (
-                  <Text style={{ color: C.text, marginTop: 6 }}>📍 {o.pickupAddress}</Text>
-                ) : null}
-                {o.note ? <Text style={[S.label, { marginTop: 4 }]}>{t('note')}: {o.note}</Text> : null}
-
-                <TouchableOpacity
-                  style={[S.btnGhost, { marginTop: 10 }]}
-                  onPress={() => setExpandedId(expanded ? null : o.orderId)}
+          {/* Ulanish xatosi — DIAGNOSTIKA UCHUN SHART. Yashirmang: aynan shu qator
+              "Ulanmoqda…" muammosining sababini topishga imkon bergan. */}
+          {!online && connError && (
+            <View style={{ marginTop: SP.lg, width: '100%', paddingHorizontal: SP.lg }}>
+              <View style={[S.errBox, S.row, { gap: SP.sm }]}>
+                <MaterialIcons name="error-outline" size={16} color={C.danger} />
+                <Text style={{ color: C.danger, fontSize: F.label, flex: 1 }}>{connError}</Text>
+              </View>
+              {intent && (
+                <Text
+                  style={{
+                    color: C.muted,
+                    fontSize: F.tiny,
+                    fontStyle: 'italic',
+                    textAlign: 'center',
+                    marginTop: 6,
+                  }}
                 >
-                  <Text style={S.btnGhostText}>
-                    {expanded ? '▲ ' + t('hide_map') : '📍 ' + t('show_map')}
-                  </Text>
-                </TouchableOpacity>
-                {expanded && (
-                  <View style={{ marginTop: 10 }}>
-                    <MiniMap
-                      height={180}
-                      markers={
-                        [
-                          { lat: o.pickup.lat, lng: o.pickup.lng, color: '#ff4d4f', label: t('customer') },
-                          ...(lastLoc.current
-                            ? [{ lat: lastLoc.current.lat, lng: lastLoc.current.lng, color: '#3ddc84', label: t('online') }]
-                            : []),
-                        ] as MapMarker[]
-                      }
+                  {t('reconnecting')}
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Eng muhim tugma — doim ko'rinadi va doim bir joyda. */}
+        <View style={{ marginTop: SP.lg }}>
+          {intent ? (
+            <TouchableOpacity style={[S.btn, S.btnDanger]} onPress={goOffline}>
+              <Text style={S.btnText}>{t('go_offline')}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={[S.btn, S.btnOk]} onPress={goOnline}>
+              <MaterialIcons name="play-arrow" size={22} color={C.onOk} />
+              <Text style={[S.btnOkText, { marginLeft: 6 }]}>{t('go_online')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Kutilayotgan takliflar RO'YXATI */}
+        {offers.length > 0 && (
+          <View style={{ marginTop: SP.xxl }}>
+            <Text style={{ color: C.text, fontSize: F.h3, fontWeight: '700', marginBottom: SP.md }}>
+              {t('new_orders')} ({offers.length})
+            </Text>
+            {offers.map((o) => {
+              const remaining = Math.max(0, Math.ceil((o.expiresAt - Date.now()) / 1000));
+              const urgent = remaining <= 20;
+              const expanded = expandedId === o.orderId;
+              const total = o.timeoutSec ?? 120;
+              return (
+                <View
+                  key={o.orderId}
+                  style={[S.card, { marginBottom: SP.md, padding: SP.lg, borderColor: C.border }]}
+                >
+                  <View style={[S.row, { justifyContent: 'space-between', alignItems: 'flex-start' }]}>
+                    <View>
+                      <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 0.6 }}>
+                        {t('distance_away').toUpperCase()}
+                      </Text>
+                      <View style={[S.row, { gap: 6, marginTop: 2 }]}>
+                        <MaterialIcons name="near-me" size={20} color={C.accent} />
+                        <Text style={{ color: C.text, fontSize: F.title, fontWeight: '800' }}>
+                          {(o.distanceM / 1000).toFixed(1)} {t('km')}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text
+                        style={{
+                          color: urgent ? C.danger : C.muted,
+                          fontSize: F.tiny,
+                          letterSpacing: 0.6,
+                        }}
+                      >
+                        {urgent ? t('hurry') : ''}
+                      </Text>
+                      <Text
+                        style={{
+                          color: urgent ? C.danger : C.warn,
+                          fontSize: F.h2,
+                          fontWeight: '800',
+                          marginTop: 2,
+                        }}
+                      >
+                        {remaining}s
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Vaqt tugab borayotgani chiziq bilan ham ko'rinsin (raqamga qaramasdan). */}
+                  <View
+                    style={{
+                      height: 3,
+                      borderRadius: 2,
+                      backgroundColor: C.border,
+                      marginTop: SP.md,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: `${Math.min(100, (remaining / total) * 100)}%`,
+                        height: '100%',
+                        backgroundColor: urgent ? C.danger : C.warn,
+                      }}
                     />
-                    <TouchableOpacity style={[S.btnGhost, { marginTop: 8 }]} onPress={() => navigate(o.pickup)}>
-                      <Text style={S.btnGhostText}>🧭 {t('navigate')}</Text>
+                  </View>
+
+                  {o.pickupAddress ? (
+                    <View style={[S.row, { gap: 6, marginTop: SP.md }]}>
+                      <MaterialIcons name="location-on" size={18} color={C.accent} />
+                      <Text style={{ color: C.text, fontSize: 15, flex: 1 }}>{o.pickupAddress}</Text>
+                    </View>
+                  ) : null}
+
+                  {o.note ? (
+                    <View
+                      style={[
+                        S.row,
+                        {
+                          gap: SP.sm,
+                          marginTop: SP.md,
+                          backgroundColor: C.panel2,
+                          borderRadius: R.sm,
+                          padding: SP.md,
+                        },
+                      ]}
+                    >
+                      <MaterialIcons name="chat-bubble-outline" size={16} color={C.warn} />
+                      <Text style={{ color: C.text, fontSize: 14, flex: 1 }}>
+                        {t('note')}: {o.note}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  <TouchableOpacity
+                    style={[S.btnGhost, { marginTop: SP.md }]}
+                    onPress={() => setExpandedId(expanded ? null : o.orderId)}
+                  >
+                    <View style={[S.row, { gap: 6 }]}>
+                      <MaterialIcons
+                        name={expanded ? 'expand-less' : 'map'}
+                        size={18}
+                        color={C.text}
+                      />
+                      <Text style={S.btnGhostText}>
+                        {expanded ? t('hide_map') : t('show_map')}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {expanded && (
+                    <View style={{ marginTop: SP.md }}>
+                      <MiniMap
+                        height={180}
+                        markers={
+                          [
+                            {
+                              lat: o.pickup.lat,
+                              lng: o.pickup.lng,
+                              color: C.danger,
+                              label: t('customer'),
+                            },
+                            ...(lastLoc.current
+                              ? [
+                                  {
+                                    lat: lastLoc.current.lat,
+                                    lng: lastLoc.current.lng,
+                                    color: C.online,
+                                    label: t('online'),
+                                  },
+                                ]
+                              : []),
+                          ] as MapMarker[]
+                        }
+                      />
+                      <TouchableOpacity
+                        style={[S.btnGhost, { marginTop: SP.sm }]}
+                        onPress={() => navigate(o.pickup)}
+                      >
+                        <View style={[S.row, { gap: 6 }]}>
+                          <MaterialIcons name="navigation" size={18} color={C.text} />
+                          <Text style={S.btnGhostText}>{t('navigate')}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* "Rad etish" tor va rangsiz, "Qabul qilish" keng va yashil —
+                      ular tasodifan almashtirilmasligi kerak. */}
+                  <View style={[S.row, { marginTop: SP.lg, gap: SP.md }]}>
+                    <TouchableOpacity
+                      style={[
+                        S.btnGhost,
+                        { flex: 1, borderColor: C.danger, backgroundColor: 'transparent' },
+                      ]}
+                      onPress={() => respond(o.orderId, false)}
+                    >
+                      <Text style={[S.btnGhostText, { color: C.danger }]}>{t('decline')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[S.btn, S.btnOk, { flex: 2 }]}
+                      onPress={() => respond(o.orderId, true)}
+                    >
+                      <Text style={S.btnOkText}>{t('accept')}</Text>
                     </TouchableOpacity>
                   </View>
-                )}
-
-                <View style={[S.row, { marginTop: 12 }]}>
-                  <TouchableOpacity style={[S.btnGhost, { flex: 1, marginRight: 8 }]} onPress={() => respond(o.orderId, false)}>
-                    <Text style={[S.btnGhostText, { color: C.danger }]}>{t('decline')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[S.btn, S.btnOk, { flex: 2 }]} onPress={() => respond(o.orderId, true)}>
-                    <Text style={S.btnText}>{t('accept')}</Text>
-                  </TouchableOpacity>
                 </View>
-              </View>
-            );
-          })}
-        </View>
-      )}
-    </ScrollView>
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
