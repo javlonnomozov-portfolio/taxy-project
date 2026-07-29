@@ -343,6 +343,38 @@ Tekshirildi: `pnpm sim:per-order` 9/9 + 6 unit test.
 
 ---
 
+### 2k. Baholashdan keyin menyu qaytmasligi + mini app savollari (`9a09d3e`)
+
+**Baholashni o'tkazib yuborsa "Taksi chaqirish" yo'qolardi.** Asosiy menyu FAQAT
+baho berish yo'lida qaytarilardi. "O'tkazib yuborish" tugmasi qo'shilganda menyu
+qaytarilmadi — mijoz menyusiz qolib, yangi zakaz bera olmasdi.
+→ skip handler menyuni qaytaradi **va** tracker safar yakunlanganda ham
+qaytaradi (asosiy himoya — bitta yo'lga tayanmaymiz).
+
+**POYGA tuzatildi:** sessiya buxgalteriyasi xabarlardan KEYIN va kutilmasdan
+bajarilardi. Mijoz "Safar yakunlandi" ni ko'rgan zahoti baho bossa
+`ratingOrderId` hali yozilmagan bo'lib **baho jimgina yo'qolardi**. Endi
+`onTerminal`/`onAssigned` promise qaytaradi, tracker ularni **kutadi** va
+xabarlardan **oldin** bajaradi.
+
+**Mini app "joylashuvimga qaytish"** — buyurtma rejimida tugma yo'q edi (faqat
+kuzatuvda). Endi ikki rejimda ham: buyurtmada qurilma GPS'iga, kuzatuvda
+taksiga qaytaradi.
+
+**Mijoz taksini JONLI ko'radi** — sahifa har 5 soniyada `/miniapp/track` ga
+so'rov yuboradi va markerni suradi; "yangilandi: Ns oldin" yangilikni
+ko'rsatadi. Cheklov: serverdagi nuqta haydovchi ilovasi GPS yuborganda
+yangilanadi (harakatda ~15 m da bir, turganda 60 s yurak urishi bilan) —
+turgan taksi 60 s gacha eski ko'rinishi mumkin.
+
+**Diagnostika:** haydovchi bekor qilganda hodisaga `fromStatus` yoziladi va
+log'ga chiqadi — "yakunlagan safarim bekor qilingan" shikoyatida bekor qilish
+qaysi bosqichda bo'lganini ko'rsatadi.
+
+Tekshirildi: `sim:bot-flow` **12/12** (menyu qaytishi endi qoplangan).
+
+---
+
 ---
 
 ## 3. Production holati
@@ -404,6 +436,9 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+9a09d3e fix(bot,miniapp): baholashdan keyin menyu + joylashuvim tugmasi
+4525219 docs: HANDOFF — yangi APK havolasi
+4157102 docs: HANDOFF — per_order billing rejimi
 7419a9d feat(billing): "har zakaz uchun to'lov" (per_order) rejimi
 97dfe1a docs: HANDOFF — status bar va bekor qilish tuzatishlari
 73562c2 fix(driver-app): status bar ustma-ustligi + bekor qilish tuzoqlari
@@ -499,6 +534,8 @@ node apps/api/dist/main.js
 - **`SafeAreaView` `react-native`dan ANDROID'DA HECH NARSA QILMAYDI** (faqat iOS).
   Expo'da status bar shaffof — yuqori panel uning ostiga kirib ketadi. Yechim:
   `paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0`.
+- **`miniapp.page.ts` — sahifa SHABLON SATRI ichida.** Izohlarda ham teskari
+  qo'shtirnoq (backtick) ishlatmang: satrni uzib build'ni yiqitadi.
 - **APK ichini tekshirishda** bundle Hermes bayt-kodida — `strings -a -n 4` ishlating,
   `grep -x` EMAS (aniq qator mosligi noto'g'ri natija beradi).
 - **Hermes ASCII bo'lmagan satrlarni UTF-16 da saqlaydi.** `Yo'l ko'rsatish`
