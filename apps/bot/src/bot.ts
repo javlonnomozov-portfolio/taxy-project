@@ -5,14 +5,17 @@ import { apiClient } from './api';
 import { Lang, t } from './i18n';
 import {
   cancelOrderKeyboard,
-  categoryKeyboard,
   confirmKeyboard,
   langKeyboard,
   mainMenu,
+  miniappUrl,
+  orderStartKeyboard,
   phoneKeyboard,
   pickupKeyboard,
 } from './keyboards';
+import { hasMiniapp } from './config';
 import { createSessionStore, resetDraft, Session, SessionStore } from './session';
+import { listenMiniappOrders } from './miniapp-events';
 import { trackOrder, stopTracking } from './tracker';
 
 // Yakuniy (terminal) holatlar — bulardan keyin zakaz faol emas.
@@ -116,6 +119,32 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
     }
   }
 
+  /**
+   * Chat menyu tugmasi (matn maydoni yonidagi) mini app'ni ochsin.
+   *
+   * Bu — mini app uchun eng ko'rinadigan kirish nuqtasi VA u `initData` beradi
+   * (reply klaviatura tugmasi bermaydi). Til tanlangach yangilaymiz.
+   */
+  async function setMenuButton(
+    telegram: Telegraf['telegram'],
+    chatId: number,
+    lang: Lang,
+  ): Promise<void> {
+    if (!hasMiniapp) return;
+    await telegram
+      .setChatMenuButton({
+        chatId,
+        menuButton: {
+          type: 'web_app',
+          text: t(lang, 'menu_order_map'),
+          web_app: { url: miniappUrl(lang) },
+        },
+      })
+      .catch(() => {
+        /* eski mijoz yoki ruxsat yo'q — menyu tugmasisiz ham hammasi ishlaydi */
+      });
+  }
+
   // /start → til tanlash
   bot.start(async (ctx) => {
     const s = getSession(ctx);
@@ -128,6 +157,7 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
     const s = getSession(ctx);
     s.lang = ctx.match[1] as Lang;
     await ctx.answerCbQuery();
+    await setMenuButton(ctx.telegram, ctx.chat!.id, s.lang);
     if (!s.customerId || !s.phone) {
       await ctx.reply(t(s.lang, 'ask_phone'), phoneKeyboard(s.lang));
     } else {
@@ -180,12 +210,12 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
       s.activeOrderId = undefined;
       s.step = 'category';
       s.draft = {};
-      return ctx.reply(t(s.lang, 'choose_category'), categoryKeyboard(s.lang));
+      return ctx.reply(t(s.lang, 'choose_category'), orderStartKeyboard(s.lang));
     }
 
     // 3) Oqim qadamlari: manzil va izoh (ikkalasi ham ixtiyoriy — o'tkazib yuborsa bo'ladi).
     // 4) Noto'g'ri kiritish — tegishli tugmadan foydalanishni so'raymiz
-    if (s.step === 'category') return ctx.reply(t(s.lang, 'use_category_btn'), categoryKeyboard(s.lang));
+    if (s.step === 'category') return ctx.reply(t(s.lang, 'use_category_btn'), orderStartKeyboard(s.lang));
     if (s.step === 'pickup') return ctx.reply(t(s.lang, 'use_location_btn'), pickupKeyboard(s.lang));
     if (s.step === 'confirm') return ctx.reply(t(s.lang, 'use_confirm_btn'), confirmKeyboard(s.lang));
     // Idle holatda tushunarsiz matn → menyuni ko'rsatamiz
@@ -229,31 +259,7 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
       // "Qidirilyapti" xabari bilan birga bekor qilish tugmasi — haydovchi
       // topilmasa ham mijoz zakazni bekor qila olsin.
       await ctx.reply(t(s.lang, 'searching'), cancelOrderKeyboard(s.lang));
-      trackOrder({
-        orderId: order.id,
-        chatId: ctx.chat!.id,
-        customerId: s.customerId,
-        lang: s.lang,
-        telegram: ctx.telegram,
-        // DIQQAT: bu socket callback'i update tugagandan KEYIN ishlaydi, ya'ni
-        // middleware sessiyani allaqachon saqlab bo'lgan. Shuning uchun `ctx.state`
-        // dagi nusxani o'zgartirish yetarli emas — store orqali qayta yozamiz.
-        onTerminal: (oid, status) => {
-          const chatId = ctx.chat!.id;
-          void store.update(chatId, (ss) => {
-            if (ss.activeOrderId === oid) ss.activeOrderId = undefined;
-            if (status === 'COMPLETED') ss.ratingOrderId = oid;
-          });
-        },
-        // NO_DRIVER'dan keyin operator (yoki kech onlayn bo'lgan haydovchi)
-        // zakazni oldi — sessiyada uni yana faol qilamiz.
-        onAssigned: (oid) => {
-          const chatId = ctx.chat!.id;
-          void store.update(chatId, (ss) => {
-            if (!ss.activeOrderId) ss.activeOrderId = oid;
-          });
-        },
-      });
+      startTracking(ctx.telegram, ctx.chat!.id, s.customerId, s.lang, order.id);
     } catch (e) {
       const msg = (e as Error).message.includes('409') ? t(s.lang, 'active_exists') : t(s.lang, 'err');
       await ctx.reply(msg);
@@ -337,6 +343,64 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
     } catch {
       await ctx.reply(t(s.lang, 'err'));
     }
+  });
+
+  /**
+   * Zakazni Telegram'da kuzatishni boshlash.
+   *
+   * DIQQAT: tracker callback'lari update tugagandan KEYIN ishlaydi, ya'ni
+   * middleware sessiyani allaqachon saqlab bo'lgan. Shuning uchun `ctx.state`
+   * dagi nusxani o'zgartirish yetarli emas — store orqali qayta yozamiz.
+   */
+  function startTracking(
+    telegram: Telegraf['telegram'],
+    chatId: number,
+    customerId: string,
+    lang: Lang,
+    orderId: string,
+  ): void {
+    trackOrder({
+      orderId,
+      chatId,
+      customerId,
+      lang,
+      telegram,
+      onTerminal: (oid, status) => {
+        void store.update(chatId, (ss) => {
+          if (ss.activeOrderId === oid) ss.activeOrderId = undefined;
+          if (status === 'COMPLETED') ss.ratingOrderId = oid;
+        });
+      },
+      // NO_DRIVER'dan keyin operator (yoki kech onlayn bo'lgan haydovchi)
+      // zakazni oldi — sessiyada uni yana faol qilamiz.
+      onAssigned: (oid) => {
+        void store.update(chatId, (ss) => {
+          if (!ss.activeOrderId) ss.activeOrderId = oid;
+        });
+      },
+    });
+  }
+
+  /**
+   * Mini app'dan berilgan buyurtmani ham botda kuzatamiz.
+   *
+   * Busiz mijoz mini app'da zakaz berib, Telegram'da HECH QANDAY xabar
+   * olmasdi — na "haydovchi topildi", na bekor qilish tugmasi. API bu haqda
+   * Redis pub/sub orqali xabar beradi (ikkalasi bitta Redis'ni bo'lishadi).
+   */
+  listenMiniappOrders(async (telegramId, orderId) => {
+    // Shaxsiy chatda chat id = foydalanuvchi id.
+    const chatId = Number(telegramId);
+    if (!Number.isFinite(chatId)) return;
+    const s = await store.get(chatId);
+    if (!s.customerId) return; // botda ro'yxatdan o'tmagan — kuzatib bo'lmaydi
+    if (s.activeOrderId === orderId) return; // allaqachon kuzatilmoqda
+    s.activeOrderId = orderId;
+    await store.set(chatId, s);
+    await bot.telegram
+      .sendMessage(chatId, t(s.lang, 'searching'), cancelOrderKeyboard(s.lang))
+      .catch(() => {});
+    startTracking(bot.telegram, chatId, s.customerId, s.lang, orderId);
   });
 
   // Handler xatolarini yutamiz — bot hech qachon yiqilmasin (masalan eskirgan callback).

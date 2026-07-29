@@ -34,6 +34,9 @@ export interface TrackView {
 // Bir daqiqada nechta buyurtma yaratishga ruxsat (yarat/bekor qil tsikliga qarshi).
 const MAX_ORDERS_PER_MIN = 5;
 
+/** Bot shu kanalni tinglaydi va zakazni Telegram'da kuzatishni boshlaydi. */
+export const BOT_TRACK_CHANNEL = 'bot:track';
+
 const FINISHED: OrderStatus[] = [
   OrderStatus.COMPLETED,
   OrderStatus.CANCELLED_BY_CUSTOMER,
@@ -116,6 +119,18 @@ export class MiniappService {
       category,
       pickup,
     });
+
+    // Botga xabar beramiz — busiz mini app'dan berilgan zakaz uchun mijoz
+    // Telegram'da HECH QANDAY xabar olmasdi ("haydovchi topildi", "yetib keldi",
+    // bekor qilish tugmasi). Bot buyurtmani faqat O'ZI yaratganida kuzatardi.
+    // Redis pub/sub — bot va API allaqachon bitta Redis'ni bo'lishadi, yangi
+    // HTTP yuzasi ochish shart emas.
+    if (customer.telegramId) {
+      await this.redis
+        .publish(BOT_TRACK_CHANNEL, JSON.stringify({ telegramId: String(customer.telegramId), orderId: order.id }))
+        .catch((e) => this.log.error(`Botga xabar berib bo'lmadi: ${(e as Error).message}`));
+    }
+
     this.log.log(`Mini app'dan buyurtma: ${order.id} (mijoz ${customer.id})`);
     return { orderId: order.id };
   }

@@ -11,27 +11,33 @@ export const phoneKeyboard = (lang: Lang) =>
     .resize()
     .oneTime();
 
-/**
- * Asosiy menyu.
- *
- * Mini app mavjud bo'lsa (HTTPS) — birinchi tugma xaritali buyurtma oynasini
- * ochadi: mijoz olib ketish nuqtasini O'ZI tanlaydi. Telegram'ning lokatsiya
- * tugmasi faqat telefonning joriy GPS nuqtasini yubora oladi.
- *
- * Eski matnli oqim ("🚕 Taksi chaqirish") ATAYLAB QOLDIRILDI — zaxira sifatida:
- * eski Telegram mijozlarida mini app ochilmaydi, va lokatsiya tugmasi
- * kam texnologiyali foydalanuvchi uchun bir bosishda ishlaydi.
- */
 export const mainMenu = (lang: Lang) =>
-  Markup.keyboard(
-    hasMiniapp
-      ? [
-          [Markup.button.webApp(t(lang, 'menu_order_map'), `${CONFIG.miniappUrl}?lang=${lang}`)],
-          [t(lang, 'menu_order')],
-          [t(lang, 'menu_lang')],
-        ]
-      : [[t(lang, 'menu_order')], [t(lang, 'menu_lang')]],
-  ).resize();
+  Markup.keyboard([[t(lang, 'menu_order')], [t(lang, 'menu_lang')]]).resize();
+
+/** Mini app havolasi (til bilan). */
+export const miniappUrl = (lang: Lang, orderId?: string) =>
+  `${CONFIG.miniappUrl}?lang=${lang}` + (orderId ? `&order=${encodeURIComponent(orderId)}` : '');
+
+/**
+ * Buyurtma boshlanishi: xaritadan tanlash (mini app) YOKI toifa tanlab
+ * joriy GPS bilan davom etish (eski oqim, zaxira).
+ *
+ * DIQQAT — TUGMA TURI MUHIM: `web_app` REPLY klaviaturada `initData` BERMAYDI
+ * (Telegram uni faqat inline tugma / menyu tugmasi / to'g'ridan havola uchun
+ * beradi). Reply klaviaturaga qo'yilganda mini app "Bu sahifa Telegram ilovasi
+ * ichida ochilishi kerak" deb ochilardi. Shuning uchun bu yerda faqat INLINE.
+ */
+export const orderStartKeyboard = (lang: Lang) =>
+  Markup.inlineKeyboard(
+    (hasMiniapp
+      ? [[Markup.button.webApp(t(lang, 'menu_order_map'), miniappUrl(lang))]]
+      : ([] as ReturnType<typeof Markup.button.callback>[][])
+    ).concat([
+      [Markup.button.callback(t(lang, 'cat_standard'), 'cat:standard')],
+      [Markup.button.callback(t(lang, 'cat_comfort'), 'cat:comfort')],
+      [Markup.button.callback(t(lang, 'cat_cargo'), 'cat:cargo')],
+    ]),
+  );
 
 export const categoryKeyboard = (lang: Lang) =>
   Markup.inlineKeyboard([

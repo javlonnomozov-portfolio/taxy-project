@@ -29,13 +29,15 @@
     "sim:online-geo": "node scripts/online-geo-sim.mjs",
     "sim:late-driver": "node scripts/late-driver-sim.mjs",
     "sim:miniapp": "node scripts/miniapp-sim.mjs",
-    "sim:arrived-guard": "node scripts/arrived-guard-sim.mjs"
+    "sim:arrived-guard": "node scripts/arrived-guard-sim.mjs",
+    "sim:miniapp-sync": "node scripts/miniapp-bot-sync-sim.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.8.0",
+    "ioredis": "^5.4.1",
     "prettier": "^3.3.3",
     "socket.io-client": "^4.8.0",
     "typescript": "^5.6.3",

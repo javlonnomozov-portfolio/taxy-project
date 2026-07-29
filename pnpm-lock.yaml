@@ -20,6 +20,9 @@ importers:
       globals:
         specifier: ^17.8.0
         version: 17.8.0
+      ioredis:
+        specifier: ^5.4.1
+        version: 5.11.1
       prettier:
         specifier: ^3.3.3
         version: 3.9.6
