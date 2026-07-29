@@ -312,6 +312,34 @@ endi qoplangan).
 
 ---
 
+### 2j. "Har zakaz uchun to'lov" — yangi billing rejimi (`7419a9d`)
+
+Haydovchidan **har yakunlangan zakaz uchun qat'iy summa** yechiladi — safar
+narxiga bog'liq emas (foiz rejimidan farqi shu).
+
+| Nima | Qayerda |
+|---|---|
+| Rejim | `BillingMode.PER_ORDER` (`per_order`) |
+| Summa (tizim) | Admin → Sozlamalar → "Har zakaz uchun to'lov" (`settings.config.perOrderFee`, default 1000) |
+| Summa (haydovchi) | `billingConfig.perOrder` — tizim sozlamasidan **ustun** |
+| Haydovchiga qo'yish | Admin → Haydovchilar → Billing → `per_order` |
+
+**BALANS MANFIYGA O'TADI — ataylab shunday.** Haydovchi qarzda bo'lsa ham safar
+yakunlanadi va pul yoziladi; qarzni ofisda to'ldiradi. Aks holda yakunlash
+bloklanib, mijoz ham, haydovchi ham osilib qolardi. Balans hech qayerda
+dispatch'ni bloklamaydi (tekshirilgan).
+
+**Migratsiya 8** (`1722500000000-BillingPerOrder`) — `billing_mode` **ENUM turi**,
+yangi qiymat `ALTER TYPE` bilan qo'shiladi. Migratsiyasiz
+`PUT /ops/drivers/:id/billing` **500** beradi (sim'da aynan shunday bo'ldi).
+Prod'da qo'llandi: `[migrations] 1 ta migratsiya bajarildi`.
+Eslatma: `ALTER TYPE ... ADD VALUE` tranzaksiya ichida faqat **PG 12+** da
+ishlaydi (lokal va Railway — PG 16).
+
+Tekshirildi: `pnpm sim:per-order` 9/9 + 6 unit test.
+
+---
+
 ---
 
 ## 3. Production holati
@@ -321,7 +349,7 @@ endi qoplangan).
 | **api** | https://api-production-13444.up.railway.app · `/health` ok · eng so'nggi kod |
 | **admin** | https://admin-production-42e5.up.railway.app · uz/ru i18n + metrikalar |
 | **bot** | `@toy_taxy_bot` · polling · barqaror · qisqartirilgan oqim bilan |
-| Postgres + Redis | Railway plugin · migratsiya 7 qo'llangan |
+| Postgres + Redis | Railway plugin · migratsiya **8** qo'llangan |
 
 Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 **GitHub'ga ulanmagan** — merge deploy qilmaydi, qo'lda ishga tushiriladi.
@@ -373,6 +401,8 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+7419a9d feat(billing): "har zakaz uchun to'lov" (per_order) rejimi
+97dfe1a docs: HANDOFF — status bar va bekor qilish tuzatishlari
 73562c2 fix(driver-app): status bar ustma-ustligi + bekor qilish tuzoqlari
 5561f93 docs: HANDOFF — yangi APK havolasi va Hermes UTF-16 tuzog'i
 19db54e docs: HANDOFF — mini app kirish nuqtasi va bot sinxronligi
@@ -476,7 +506,7 @@ node apps/api/dist/main.js
   ```
 
 **Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
-sim:online-geo sim:late-driver sim:miniapp sim:miniapp-sync sim:arrived-guard`
+sim:online-geo sim:late-driver sim:miniapp sim:miniapp-sync sim:arrived-guard sim:per-order`
 
 - **Socket handler qiymat qaytarmasa ack KELMAYDI** — `driver:offer_response`
   va `driver:location` shunday. Ularni sim'da `await emit(...)` bilan kutsangiz
