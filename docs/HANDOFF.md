@@ -246,6 +246,34 @@ Tekshirildi: `pnpm sim:miniapp` **25/25**.
 
 ---
 
+### 2h. Mini App reply klaviaturadan ochilmasdi + bot sinxronligi (`d99b117`)
+
+**Muammo 1 — "Bu sahifa Telegram ilovasi ichida ochilishi kerak".**
+Mini app tugmasi REPLY klaviaturaga qo'yilgan edi. **Telegram `initData` ni FAQAT
+inline tugma, chat menyu tugmasi va to'g'ridan havola uchun beradi** — reply
+klaviatura tugmasida u printsipial ravishda YO'Q (u yerda `sendData()` naqshi
+ishlatiladi, lekin unda imzo bo'lmaydi ⇒ ikkalasini birga ishlatib bo'lmaydi).
+
+Shuning uchun "Taksi qayerda?" (inline) ISHLARDI, menyudagi yangi tugma esa yo'q.
+
+Tuzatish: reply klaviaturadan olib tashlandi →
+- "🚕 Taksi chaqirish" bosilganda **inline** klaviatura: xaritadan tanlash
+  (mini app) yoki toifa tanlab eski oqim
+- **chat menyu tugmasi** (matn maydoni yonida) ham mini app'ni ochadi
+
+**Muammo 2 — bot va mini app sinxron emasdi.** Mini app'dan berilgan zakazni bot
+KUZATMASDI: mijozga na "haydovchi topildi", na bekor qilish tugmasi kelardi.
+
+Tuzatish: API zakaz yaratilgach Redis **`bot:track`** kanaliga xabar beradi
+(`{telegramId, orderId}`), bot obuna bo'lib kuzatishni boshlaydi.
+Redis tanlandi — bot va API allaqachon bitta Redis'ni bo'lishadi, yangi HTTP
+yuzasi ochib uni himoyalash shart emas. Bot log'ida ko'rinadi:
+`[bot] mini app buyurtmalari kuzatilmoqda`.
+
+Tekshirildi: `pnpm sim:miniapp-sync` 4/4.
+
+---
+
 ---
 
 ## 3. Production holati
@@ -307,6 +335,10 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+d99b117 fix(bot,miniapp): reply klaviatura muammosi + bot sinxronligi
+786b0da docs: HANDOFF — EAS build uchun package-lock sinxronligi tuzog'i
+f525ad2 chore(driver-app): package-lock @expo/vector-icons bilan sinxronlandi
+e0c7b3b docs: HANDOFF — mini app'dan buyurtma va ixtiyoriy baholash
 8bd3923 feat(miniapp): xaritadan buyurtma berish (nuqta GPS bilan cheklanmaydi)
 91f0815 fix(bot): haydovchini baholash IXTIYORIY ekani ko'rinadigan bo'ldi
 1d234eb docs: HANDOFF — 'Yetib keldim' himoyasi
@@ -394,11 +426,13 @@ node apps/api/dist/main.js
   `grep -x` EMAS (aniq qator mosligi noto'g'ri natija beradi).
 
 **Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
-sim:online-geo sim:late-driver sim:miniapp sim:arrived-guard`
+sim:online-geo sim:late-driver sim:miniapp sim:miniapp-sync sim:arrived-guard`
 
 - **Socket handler qiymat qaytarmasa ack KELMAYDI** — `driver:offer_response`
   va `driver:location` shunday. Ularni sim'da `await emit(...)` bilan kutsangiz
   sim abadiy osiladi (ilova ham bu yerlarda ack kutmaydi).
+- **Telegram `web_app` tugmasi REPLY klaviaturada `initData` BERMAYDI** — faqat
+  inline tugma / chat menyu tugmasi / to'g'ridan havola beradi.
 - **`sim:miniapp` uchun API `TELEGRAM_BOT_TOKEN` bilan ishga tushirilishi kerak**
   (istalgan qiymat, masalan `123:TEST` — sim ham o'shani ishlatadi).
 - **Simlar orasida API'ni QAYTA ISHGA TUSHIRING.** Dispatch holati xotirada (taymerlar
