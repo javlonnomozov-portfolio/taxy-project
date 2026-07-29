@@ -291,6 +291,27 @@ Tekshirildi: `pnpm sim:miniapp-sync` 4/4.
 
 ---
 
+### 2i. Driver-app: status bar va "bekor qilingan" muammosi (`73562c2`)
+
+**Yuqori panel status bar ostida qolardi** — `App.tsx` da `SafeAreaView`
+`react-native`dan olingan edi (Android'da ishlamaydi). Tuzatildi.
+
+**"Yakunlagan safarim bekor qilingan deb turibdi"** — uchta kamchilik birga:
+1. Bekor qilish tugmasi **safar davomida ham ko'rinardi**, lekin server
+   `IN_PROGRESS` dan bekor qilishga ruxsat bermaydi (`cancellable` ro'yxatida
+   u yo'q). Bosilardi → server rad etardi → **xato yutilardi** (ack callback
+   yo'q edi) → ilova safar ekranini baribir yopardi.
+2. **Tasdiq so'ralmasdi** — bitta tasodifiy teginish haqiqiy safarni bekor
+   qilardi va haydovchi buni sezmasdi ham.
+3. Server javobi tekshirilmasdi; `setTrip(null)` javobdan oldin chaqirilardi.
+
+Endi: safar boshlangach tugma **ko'rsatilmaydi**, tasdiq so'raladi
+(ko'rsatkichlarga yozilishi aytiladi), ack kutiladi — rad etilsa ekran ochiq
+qoladi. `sim:arrived-guard` 9/9 (safar davomida bekor qilish rad etilishi
+endi qoplangan).
+
+---
+
 ---
 
 ## 3. Production holati
@@ -352,6 +373,9 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+73562c2 fix(driver-app): status bar ustma-ustligi + bekor qilish tuzoqlari
+5561f93 docs: HANDOFF — yangi APK havolasi va Hermes UTF-16 tuzog'i
+19db54e docs: HANDOFF — mini app kirish nuqtasi va bot sinxronligi
 d99b117 fix(bot,miniapp): reply klaviatura muammosi + bot sinxronligi
 786b0da docs: HANDOFF — EAS build uchun package-lock sinxronligi tuzog'i
 f525ad2 chore(driver-app): package-lock @expo/vector-icons bilan sinxronlandi
@@ -439,6 +463,9 @@ node apps/api/dist/main.js
   lock fayl ildiz bog'liqliklari mos kelmasa EUSAGE bilan yiqiladi. (Kod lokalda
   ishlayveradi — `node_modules` da tranzitiv nusxa bo'ladi, shuning uchun
   `expo export` ham o'tib ketadi.)
+- **`SafeAreaView` `react-native`dan ANDROID'DA HECH NARSA QILMAYDI** (faqat iOS).
+  Expo'da status bar shaffof — yuqori panel uning ostiga kirib ketadi. Yechim:
+  `paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0`.
 - **APK ichini tekshirishda** bundle Hermes bayt-kodida — `strings -a -n 4` ishlating,
   `grep -x` EMAS (aniq qator mosligi noto'g'ri natija beradi).
 - **Hermes ASCII bo'lmagan satrlarni UTF-16 da saqlaydi.** `Yo'l ko'rsatish`
