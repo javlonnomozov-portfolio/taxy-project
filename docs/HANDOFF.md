@@ -181,6 +181,34 @@ xatosidan ajratadi — avval ikkalasi ham bir xil "Ma'lumot olinmadi" berardi.
 
 ---
 
+### 2f. "Yetib keldim" himoyasi (`8193311`)
+
+Haydovchi yo'lda turib "Yetib keldim" bosishi mumkin edi — joylashuv **umuman
+tekshirilmasdi**. Ikki zarar: kutish soati erta ishga tushib mijoz ortiqcha
+to'lardi, va mijozga "Taksi yetib keldi" yolg'on xabari borib u ko'chada yo'q
+mashinani kutardi.
+
+| Qatlam | Env | Default |
+|---|---|---|
+| Geofence — uzoqdan bosilsa RAD ETILADI | `ARRIVED_GEOFENCE_M` | **150** m |
+| GPS eskirgan bo'lsa bloklamaymiz, belgilaymiz | `ARRIVED_LOCATION_STALE_SEC` | 120 s |
+| Kutish haqiga yuqori chegara | `MAX_BILLABLE_WAIT_MIN` | 30 daq |
+
+- Masofa tekshiruvi holat o'zgarishidan **OLDIN** — rad etilsa zakaz ARRIVED'ga o'tmaydi.
+- Xato ilovaga ack bo'lib boradi va `Alert` bilan ko'rsatiladi:
+  *"Siz hali yetib kelmadingiz — mijozdan 1.1 km uzoqdasiz"*.
+- GPS'siz o'tkazilgan holatlar hodisaga `stale: true` + masofa bilan yoziladi va
+  operatorga `ARRIVED_NO_GPS` ogohlantirishi ketadi.
+- Chegara **narx hisobida** — `orders.waiting_minutes` da haqiqiy qiymat qoladi.
+
+**150 m — foydalanuvchi tanlovi** (men 300 m tavsiya qilgandim: zich qurilgan
+joyda GPS 20–50 m adashadi). Halol haydovchilar shikoyat qilsa — `ARRIVED_GEOFENCE_M`
+ni Railway'dan oshiring, kod o'zgartirish shart emas.
+
+Tekshirildi: `pnpm sim:arrived-guard` 8/8 + pricing chegarasiga 3 unit test.
+
+---
+
 ---
 
 ## 3. Production holati
@@ -242,6 +270,8 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+8193311 feat(trips): "Yetib keldim" geofence + kutish haqiga chegara
+7dfcdc3 docs: HANDOFF — Mini App CORS tuzatishi
 b3be366 fix(cors): API o'z domenini ham allowlist'ga qo'shsin (Mini App 500)
 67ca7bb docs: HANDOFF — Telegram Mini App jonli xaritasi
 162bf75 feat(miniapp): "Taksi qayerda?" — Telegram Mini App jonli xaritasi
@@ -319,8 +349,11 @@ node apps/api/dist/main.js
   `grep -x` EMAS (aniq qator mosligi noto'g'ri natija beradi).
 
 **Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
-sim:online-geo sim:late-driver sim:miniapp`
+sim:online-geo sim:late-driver sim:miniapp sim:arrived-guard`
 
+- **Socket handler qiymat qaytarmasa ack KELMAYDI** — `driver:offer_response`
+  va `driver:location` shunday. Ularni sim'da `await emit(...)` bilan kutsangiz
+  sim abadiy osiladi (ilova ham bu yerlarda ack kutmaydi).
 - **`sim:miniapp` uchun API `TELEGRAM_BOT_TOKEN` bilan ishga tushirilishi kerak**
   (istalgan qiymat, masalan `123:TEST` — sim ham o'shani ishlatadi).
 - **Simlar orasida API'ni QAYTA ISHGA TUSHIRING.** Dispatch holati xotirada (taymerlar
