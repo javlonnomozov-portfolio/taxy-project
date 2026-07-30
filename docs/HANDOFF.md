@@ -102,13 +102,13 @@ Avto-qayta-dispatch yo'lida bu tekshiruv bor, operator yo'lida yo'q — mahsulot
 
 ---
 
-### 🟢 YANGI APK — yangi dizayn bilan (build `96231075`, commit `73562c2`)
+### 🟢 YANGI APK (build `f93f1ae0`, commit `7458e0a`)
 
 ```
-https://expo.dev/artifacts/eas/wWdREXWsUcwEwEvYv-9p6oVXiWwCnjttrLgZgIdezTs.apk
+https://expo.dev/artifacts/eas/lb71xPeZJo8dIChQuaTrQH5_J7aQqixd5X6jcfW_Re8.apk
 ```
-(build `96231075`, commit `73562c2` — status bar va bekor qilish tuzatishlari bilan.
-Oldingi build `2a6f1a0a` / `f525ad2` — ularsiz.)
+(build `f93f1ae0`, commit `7458e0a` — ENG SO'NGGISI: oflayn taklif tuzatishi +
+ErrorBoundary. Oldingilar: `96231075`/`73562c2`, `2a6f1a0a`/`f525ad2`.)
 
 Ichi tekshirilgan (ASCII **va** UTF-16 skanerlash bilan):
 Login "Xush kelibsiz!" ✅ · Bugungi daromad ✅ · GPS izlanmoqda ✅ ·
@@ -117,7 +117,11 @@ polling birinchi ✅ · faqat MaterialIcons.ttf (356 KB), keraksiz shriftlar yo'
 
 Ichida: **yangi dizayn to'liq** + **GPS tuzatishi** (onlayn bo'lganda darhol
 nuqta + har daqiqada yurak urishi + qayta ulanganda yuborish) +
-**status bar tuzatishi** + **bekor qilish tuzoqlari** (2i-bo'lim).
+**status bar tuzatishi** + **bekor qilish tuzoqlari** (2i) +
+**oflayn taklif tuzatishi** va **ErrorBoundary** (2n).
+
+Ichi tekshirilgan: ErrorBoundary ✅ · bekor qilishda tasdiq ✅ · status bar
+padding ✅ · yangi dizayn ✅ · ko'rsatkichlar ✅
 
 APK 66 MB — 53 MB'i native kutubxonalar (universal APK, barcha ABI'lar uchun).
 Kerak bo'lsa `eas.json` da ABI bo'yicha ajratish mumkin.
