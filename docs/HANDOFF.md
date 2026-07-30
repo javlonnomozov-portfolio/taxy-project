@@ -511,7 +511,13 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 4. Qolgan ishlar
 
 1. **🔴 Zakaz oqimini sinash** (2-bo'lim) — birinchi navbatda.
-2. **🔴 EAS build — endi tayyor.** Yangi dizayn TO'LIQ joriy qilindi (`9c50004`, `fd3b0cd`), ilova tomondagi GPS tuzatishi ham shu buildga kiradi.
+2. **🎨 Admin panel dizayni.** Promptlar tayyor: **`docs/ADMIN-DESIGN-PROMPT.md`**
+   (mavjud paneldan o'qib yozilgan — har ustun/tugma haqiqiy). Foydalanuvchi
+   Stitch natijalarini tashlaydi → `apps/admin/src/styles.css` va sahifalar
+   ko'chiriladi. Promptda **QAT'IY cheklovlar** bor: yangi sahifa/grafik/KPI
+   qo'shmaslik (driver-app dizaynida Stitch mavjud bo'lmagan ma'lumotlarni
+   o'ylab topgan edi).
+3. **🔴 EAS build — endi tayyor.** Yangi dizayn TO'LIQ joriy qilindi (`9c50004`, `fd3b0cd`), ilova tomondagi GPS tuzatishi ham shu buildga kiradi.
    ```bash
    cd apps/driver-app && eas build --platform android --profile preview
    ```
