@@ -395,6 +395,30 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Haydovchi ishni tugatdi (yoki uzilib oflayn bo'ldi) — unga yuborilgan
+   * KUTILAYOTGAN takliflarni qaytarib olamiz.
+   *
+   * Busiz ikki zarar bor edi:
+   *  1. Taklif 120 soniya davomida javob bera olmaydigan haydovchida "band"
+   *     bo'lib turardi — dispatch oynasidagi joy bekorga egallanib, zakaz
+   *     boshqa haydovchiga kechikib borardi.
+   *  2. `/offers/pending` uni qaytarishda davom etardi, ilova esa fondan
+   *     qaytganda o'sha ro'yxatni olardi — natijada ekranda "Oflayn" yozuvi
+   *     bilan birga taklif kartasi turardi.
+   *
+   * `decline()` slotni bo'shatadi va `fillWindow()` orqali keyingi nomzodga
+   * o'tadi — ya'ni zakaz to'xtab qolmaydi.
+   */
+  async withdrawDriver(driverId: string): Promise<void> {
+    // Nusxa olamiz: `decline` → `fillWindow` → `onNoDriver` states'ni
+    // o'zgartirishi mumkin, iteratsiya paytida mutatsiya bo'lmasin.
+    for (const state of [...this.states.values()]) {
+      if (!state.active || !state.offered.has(driverId)) continue;
+      await this.decline(state, driverId, 'went_offline');
+    }
+  }
+
   /** Toifa uchun real taksometr sozlamasi (tarifdan; bo'lmasa default). */
   private async meterFor(category: VehicleCategory): Promise<{
     baseFare: number;

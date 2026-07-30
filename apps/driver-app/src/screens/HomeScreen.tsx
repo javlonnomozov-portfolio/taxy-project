@@ -125,6 +125,13 @@ export function HomeScreen({
   // Kutilayotgan takliflarni backend'dan olamiz (bildirishnoma bosilganda / fondan qaytganda).
   const fetchPending = async () => {
     if (tripRef.current) return;
+    // ISHNI BOSHLAMAGAN bo'lsa taklif so'ramaymiz. Avval so'rardi va ilova
+    // qayta ishga tushganda (yoki fondan qaytganda) serverdagi eski
+    // kutilayotgan taklif "Oflayn" ekranida paydo bo'lardi.
+    if (!wantOnlineRef.current) {
+      setOffers([]);
+      return;
+    }
     try {
       const list = await api<Offer[]>('GET', '/offers/pending', undefined, token);
       setOffers(list.map((o) => ({ ...o, expiresAt: Date.now() + (o.timeoutSec ?? 120) * 1000 })));
@@ -341,6 +348,10 @@ export function HomeScreen({
     watchRef.current = null;
     void stopBackgroundLocation();
     setOnline(false);
+    // Takliflarni ham tozalaymiz — "Oflayn" yozuvi bilan birga taklif kartasi
+    // turib qolardi. Server ham ularni qaytarib oladi (`withdrawDriver`).
+    setOffers([]);
+    setExpandedId(null);
   }
 
   function respond(orderId: string, accept: boolean) {
@@ -834,8 +845,11 @@ export function HomeScreen({
           )}
         </View>
 
-        {/* Kutilayotgan takliflar RO'YXATI */}
-        {offers.length > 0 && (
+        {/* Kutilayotgan takliflar RO'YXATI.
+            `intent` sharti MUHIM: ishni tugatgan haydovchiga taklif
+            ko'rsatilmasin. `online` emas, `intent` — chunki tarmoq bir zumga
+            uzilganda (online=false, intent=true) takliflar yo'qolmasligi kerak. */}
+        {intent && offers.length > 0 && (
           <View style={{ marginTop: SP.xxl }}>
             <Text style={{ color: C.text, fontSize: F.h3, fontWeight: '700', marginBottom: SP.md }}>
               {t('new_orders')} ({offers.length})

@@ -101,7 +101,9 @@ export class DriverGateway
       driverId,
       setTimeout(() => {
         this.offlineTimers.delete(driverId);
-        void this.drivers.goOffline(driverId);
+        void this.goOfflineAndWithdraw(driverId).catch((e) =>
+          this.log.error(`Oflayn qilishda xato: ${(e as Error).message}`),
+        );
       }, this.OFFLINE_GRACE_MS),
     );
   }
@@ -128,8 +130,21 @@ export class DriverGateway
 
   @SubscribeMessage(SOCKET_EVENTS.driver.offline)
   async offline(client: Socket) {
-    await this.drivers.goOffline(this.driverId(client));
+    await this.goOfflineAndWithdraw(this.driverId(client));
     return { ok: true };
+  }
+
+  /**
+   * Oflayn qilish + kutilayotgan takliflarni QAYTARIB OLISH.
+   *
+   * Ikkisi doim birga bo'lishi kerak: avval faqat `goOffline()` chaqirilardi va
+   * taklif javob bermaydigan haydovchida 120 soniya "band" bo'lib turardi
+   * (`/offers/pending` uni qaytarishda davom etib, ilovada "Oflayn" yozuvi
+   * bilan birga taklif kartasi ko'rinardi).
+   */
+  private async goOfflineAndWithdraw(driverId: string): Promise<void> {
+    await this.drivers.goOffline(driverId);
+    await this.dispatch.withdrawDriver(driverId);
   }
 
   @SubscribeMessage(SOCKET_EVENTS.driver.location)

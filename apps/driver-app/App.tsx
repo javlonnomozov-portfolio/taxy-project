@@ -9,6 +9,7 @@ import { storage } from './src/storage';
 import { Lang } from './src/i18n';
 import { C, S } from './src/theme';
 import { LoginResult } from './src/api';
+import { ErrorBoundary } from './src/ErrorBoundary';
 
 type Screen = 'loading' | 'login' | 'change' | 'home';
 
@@ -49,11 +50,14 @@ export default function App() {
   }
 
   return (
+    // ErrorBoundary — ilova jimgina yopilib ketmasin: xato matni ekranda qoladi
+    // ("keeps stopping" oynasi sababni ko'rsatmaydi).
     // DIQQAT: `react-native` ning `SafeAreaView` i ANDROID'DA HECH NARSA QILMAYDI
     // (u faqat iOS uchun). Avval shu ishlatilgan edi va yuqori panel status bar
     // ostiga kirib ketardi — "Kabinet"/"Yopish" tugmalari soat va batareya
     // ikonkalari bilan ustma-ust tushardi.
     // Expo'da status bar shaffof, shuning uchun balandligicha padding beramiz.
+    <ErrorBoundary>
     <View
       style={{
         flex: 1,
@@ -77,5 +81,6 @@ export default function App() {
         <HomeScreen lang={lang} token={token} onLogout={logout} />
       )}
     </View>
+    </ErrorBoundary>
   );
 }
