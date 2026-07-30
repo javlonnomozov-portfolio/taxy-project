@@ -208,27 +208,99 @@ export function miniappPage(): string {
   map.on('dragstart', function () { followDriver = false; });
 
   /*
-   * Qurilma GPS'ini so'rab xaritani shu joyga markazlashtirish.
-   * Tugmani o'zgaruvchidan emas, to'g'ridan qidiramiz — u pastda var bilan
-   * e'lon qilingan va bu funksiya tayinlanishdan oldin ham chaqirilishi mumkin.
+   * O'Z JOYLASHUVI — BIR MARTA so'raladi, keyin keshdan ishlatiladi.
+   *
+   * NEGA: Telegram WebView geolokatsiya ruxsatini ESLAB QOLMAYDI — har
+   * getCurrentPosition chaqiruvida "Allow Toy TaxY to access your location?"
+   * oynasi qaytadan chiqadi. Tugma har bosilganda so'ralardi va bu juda
+   * bezor qilardi.
+   *
+   * YECHIM: watchPosition BIR MARTA ishga tushiriladi (ruxsat bir marta
+   * so'raladi), nuqta keshda yangilanib turadi. Tugma esa faqat keshdagi
+   * nuqtaga suradi — hech qanday yangi ruxsat so'ramaydi.
    *
    * DIQQAT: bu izoh SHABLON SATRI ichida — teskari qo'shtirnoq ishlatmang,
    * u satrni uzib yuboradi (aynan shunday bo'ldi va build yiqildi).
    */
-  function centerOnMe() {
-    if (!navigator.geolocation) return;
+  var myLoc = null;
+  var geoWatchId = null;
+  var geoDenied = false;
+
+  function startGeoWatch(onFirstFix) {
+    if (!navigator.geolocation || geoDenied) return;
+    if (geoWatchId !== null) {
+      // Allaqachon kuzatilyapti — nuqta bo'lsa darhol beramiz.
+      if (myLoc && onFirstFix) onFirstFix(myLoc);
+      return;
+    }
     var btn = document.getElementById('recenter');
     btn.disabled = true;
-    navigator.geolocation.getCurrentPosition(
+    geoWatchId = navigator.geolocation.watchPosition(
       function (pos) {
         btn.disabled = false;
-        map.setView([pos.coords.latitude, pos.coords.longitude], 16, { animate: true });
+        var first = !myLoc;
+        myLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        if (first && onFirstFix) onFirstFix(myLoc);
       },
       function () {
         btn.disabled = false;
+        // Rad etildi yoki GPS yo'q — QAYTA SO'RAMAYMIZ.
+        geoDenied = true;
+        if (geoWatchId !== null) {
+          navigator.geolocation.clearWatch(geoWatchId);
+          geoWatchId = null;
+        }
       },
-      { enableHighAccuracy: true, timeout: 8000 },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
     );
+  }
+
+  function stopGeoWatch() {
+    if (geoWatchId !== null) {
+      navigator.geolocation.clearWatch(geoWatchId);
+      geoWatchId = null;
+    }
+  }
+
+  /*
+   * Joylashuvni so'rash. Ikki yo'l:
+   *
+   * 1) Telegram LocationManager (Bot API 8.0+) — ENG YAXSHISI: ruxsatni
+   *    Telegram o'z sozlamalarida eslab qoladi, ya'ni mini app har ochilganda
+   *    qayta so'ralmaydi.
+   * 2) Zaxira — brauzer geolokatsiyasi. Bu yerda ruxsat mini app har
+   *    ochilganda bir marta so'raladi (Telegram WebView uni saqlamaydi).
+   */
+  function requestMyLoc(cb) {
+    var lm = tg.LocationManager;
+    if (lm && typeof lm.getLocation === 'function') {
+      var ask = function () {
+        lm.getLocation(function (loc) {
+          if (loc && loc.latitude != null) {
+            myLoc = { lat: loc.latitude, lng: loc.longitude };
+            if (cb) cb(myLoc);
+          } else {
+            geoDenied = true; // rad etildi — bezor qilmaymiz
+          }
+        });
+      };
+      if (lm.isInited) ask();
+      else lm.init(ask);
+      return;
+    }
+    startGeoWatch(cb);
+  }
+
+  /** Xaritani o'z joylashuvimga surish — keshdan, ruxsat so'ramasdan. */
+  function centerOnMe() {
+    if (myLoc) {
+      map.setView([myLoc.lat, myLoc.lng], 16, { animate: true });
+      return;
+    }
+    // Hali nuqta yo'q — bir marta so'raymiz.
+    requestMyLoc(function (loc) {
+      map.setView([loc.lat, loc.lng], 16, { animate: true });
+    });
   }
 
   document.getElementById('recenter').onclick = function () {
@@ -389,6 +461,8 @@ export function miniappPage(): string {
     setMapHeight(100 - Math.round((elOrderSheet.offsetHeight / window.innerHeight) * 100) + '%');
 
     // Boshlang'ich markaz — mijozning GPS'i (ruxsat bermasa FALLBACK qoladi).
+    // Ruxsat FAQAT shu yerda bir marta so'raladi; keyingi tugma bosishlari
+    // keshdagi nuqtani ishlatadi.
     centerOnMe();
 
     elOrderBtn.onclick = submitOrder;
@@ -438,6 +512,10 @@ export function miniappPage(): string {
     elCenterPin.classList.add('hidden');
     elSheet.classList.remove('hidden');
     elRecenter.classList.remove('hidden');
+    elRecenter.title = t.taxi;
+    // Kuzatuvda o'z joylashuvimiz kerak emas (taksini ko'rsatamiz) — GPS
+    // kuzatuvini to'xtatamiz, batareyani bekorga yemasin.
+    stopGeoWatch();
     setMapHeight('62%');
     poll();
   }
