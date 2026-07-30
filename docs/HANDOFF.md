@@ -459,6 +459,33 @@ tuzatish bilan 5/5.
 
 ---
 
+### 2o. "Safarlar ro'yxatida hammasi bekor qilingan" — NULLS FIRST (`e700826`)
+
+Haydovchi ro'yxatni ochganda faqat bekor qilinganlarni ko'rardi. Rasmdagi hal
+qiluvchi dalil: **sanalar tartibsiz** — 29.07 → 30.07 → 30.07 → 27.07 → 30.07.
+
+**Sabab:** `ORDER BY completed_at DESC`. Postgres'da DESC uchun default
+**`NULLS FIRST`**, bekor qilingan zakazlarda `completed_at` **bo'sh**. Natijada
+bekor qilinganlar ro'yxat boshini egallardi, ular orasida tartib aniqlanmagan
+edi, yakunlangan safarlar esa pastga surilib ko'rinmay qolardi.
+
+**Tuzatish:** `ORDER BY COALESCE(completed_at, created_at) DESC` — ilovada
+ko'rsatilayotgan sana bilan bir xil.
+
+**Yon ta'siri MUHIM edi:** "bugungi daromad" hisobi shu tartibga tayangan
+(`todayEarned`). Izohda "bugungilar doim ro'yxat boshida" deb yozilgan edi —
+**noto'g'ri**. Bekor qilinganlar 50 chegarasidan oshsa bugungi daromad kam
+ko'rsatilishi mumkin edi.
+
+Boshqa nullable ustun bo'yicha DESC tartib yo'qligi tekshirildi (yo'q).
+
+`pnpm sim:trip-history` — tuzatishsiz 3 ta tekshiruv yiqiladi, tuzatish bilan 4/4.
+
+> ⚠️ **Naqsh:** nullable ustun bo'yicha `DESC` tartiblashda Postgres NULL'ni
+> BIRINCHI qo'yadi. `COALESCE` yoki `NULLS LAST` ishlatilishi shart.
+
+---
+
 ---
 
 ## 3. Production holati
@@ -634,7 +661,7 @@ node apps/api/dist/main.js
   ```
 
 **Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
-sim:online-geo sim:late-driver sim:miniapp sim:miniapp-sync sim:arrived-guard sim:per-order sim:customer-cancel sim:offline-withdraw`
+sim:online-geo sim:late-driver sim:miniapp sim:miniapp-sync sim:arrived-guard sim:per-order sim:customer-cancel sim:offline-withdraw sim:trip-history`
 
 - **Socket handler qiymat qaytarmasa ack KELMAYDI** — `driver:offer_response`
   va `driver:location` shunday. Ularni sim'da `await emit(...)` bilan kutsangiz
