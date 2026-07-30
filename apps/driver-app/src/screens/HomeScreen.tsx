@@ -64,8 +64,15 @@ const som = (v: number) => Math.round(v).toLocaleString('ru-RU');
 
 /**
  * Bugungi daromad ilovaning O'ZIDA hisoblanadi — API'da bunday endpoint yo'q.
- * `/drivers/me/trips` oxirgi 50 safarni `completedAt` bo'yicha kamayish tartibida
- * qaytaradi, ya'ni bugungilar doim ro'yxat boshida — 50 chegarasi hisobni kesmaydi.
+ *
+ * `/drivers/me/trips` oxirgi 50 safarni `COALESCE(completed_at, created_at)`
+ * bo'yicha kamayish tartibida qaytaradi, ya'ni bugungilar ro'yxat boshida va
+ * 50 chegarasi bugungi hisobni kesmaydi.
+ *
+ * DIQQAT: bu server tartibiga BOG'LIQ. Avval `ORDER BY completed_at DESC` edi va
+ * Postgres NULL'ni birinchi qo'yganidan bekor qilingan zakazlar ro'yxat boshini
+ * egallab, bugungi yakunlangan safarlar 50 chegarasidan tashqariga chiqib
+ * ketishi mumkin edi (daromad kam ko'rsatilardi).
  */
 function todayEarned(trips: FinishedTrip[]): number {
   const start = new Date();

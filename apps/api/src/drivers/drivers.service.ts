@@ -295,13 +295,30 @@ export class DriversService {
     return this.txns.find({ where: { driverId }, order: { createdAt: 'DESC' }, take: 50 });
   }
 
-  /** Yakunlangan/tugagan safarlar tarixi. */
+  /**
+   * Yakunlangan/tugagan safarlar tarixi — VAQT bo'yicha, eng yangisi birinchi.
+   *
+   * DIQQAT: `ORDER BY completed_at DESC` ISHLAMAYDI. Postgres'da DESC uchun
+   * default `NULLS FIRST`, bekor qilingan zakazlarda esa `completed_at` BO'SH.
+   * Natijada barcha bekor qilinganlar ro'yxat BOSHINI egallab, yakunlangan
+   * safarlar pastga surilardi (va ular orasida sanalar ham tartibsiz chiqardi).
+   * Haydovchi "hamma safarim bekor qilingan deb turibdi" deb shikoyat qilgan —
+   * aslida yakunlanganlari ro'yxatning pastida yoki 50 chegarasidan tashqarida
+   * qolgan edi.
+   *
+   * `COALESCE` bekor qilinganlar uchun yaratilgan vaqtni oladi — bu ilovada
+   * ko'rsatilayotgan sana bilan bir xil (`completedAt ?? createdAt`).
+   */
   tripHistory(driverId: string): Promise<Order[]> {
-    return this.orders.find({
-      where: { driverId, status: In(FINISHED_STATUSES) },
-      order: { completedAt: 'DESC' },
-      take: 50,
-    });
+    return this.orders
+      .createQueryBuilder('o')
+      .where('o.driver_id = :driverId AND o.status IN (:...st)', {
+        driverId,
+        st: FINISHED_STATUSES,
+      })
+      .orderBy('COALESCE(o.completed_at, o.created_at)', 'DESC')
+      .take(50)
+      .getMany();
   }
 
   /**

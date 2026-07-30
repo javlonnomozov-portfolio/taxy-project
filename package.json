@@ -33,7 +33,8 @@
     "sim:miniapp-sync": "node scripts/miniapp-bot-sync-sim.mjs",
     "sim:per-order": "node scripts/per-order-billing-sim.mjs",
     "sim:customer-cancel": "node scripts/customer-cancel-sim.mjs",
-    "sim:offline-withdraw": "node scripts/offline-withdraw-sim.mjs"
+    "sim:offline-withdraw": "node scripts/offline-withdraw-sim.mjs",
+    "sim:trip-history": "node scripts/trip-history-sim.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
