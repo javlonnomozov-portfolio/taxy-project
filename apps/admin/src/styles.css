@@ -285,3 +285,31 @@ td.neg { color: var(--danger); font-weight: 600; }
 }
 .toast.ok { border-color: var(--ok); color: var(--ok); }
 .toast.err { border-color: var(--danger); color: var(--danger); }
+
+/* ---------- Modal ---------- */
+/* Brauzerning prompt()/confirm() oynalari o'rniga — dizaynga mos va
+   ro'yxatdan tanlash imkoniyati bilan (matn yozish o'rniga). */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(4, 8, 14, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal { width: 420px; max-width: 100%; padding: 0; }
+.modal-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.modal-head h2 { margin: 0; }
+.modal-x { background: transparent; border: 0; color: var(--muted); padding: 4px 8px; font-size: 14px; }
+.modal-x:hover { color: var(--text); }
+.modal-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.modal-body .hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 13px 16px;
+  border-top: 1px solid var(--border);
+}

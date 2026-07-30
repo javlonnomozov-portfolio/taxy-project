@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, auth } from '../api';
 import { Page, BillingLabel, money } from '../ui';
 import { useI18n } from '../i18n';
+import { Modal } from '../Modal';
 
 interface Driver {
   id: string;
@@ -64,34 +65,53 @@ export function Drivers() {
   async function act(id: string, path: string, body?: unknown) {
     try {
       await api('POST', `/ops/drivers/${id}/${path}`, body);
+      setActErr('');
       load();
     } catch (e) {
-      alert(t('error') + ': ' + (e as Error).message);
+      // Avval `alert()` edi — dizayndan chetda ko'rinardi va brauzer bloklashi
+      // mumkin. Endi xato sahifada qoladi.
+      setActErr((e as Error).message || t('error'));
     }
   }
-  async function topup(id: string) {
-    const amount = Number(prompt(t('topup_q')));
-    if (!amount) return;
-    await act(id, 'topup', { amount });
-  }
-  async function billing(id: string) {
-    const mode = prompt(t('billing_q'), 'percent');
-    if (!mode) return;
-    const percent = mode !== 'subscription' ? Number(prompt(t('percent_q'), '10')) : undefined;
+
+  async function saveBilling() {
+    if (!billingFor) return;
+    // `per_order` da haydovchi bilan alohida kelishuv bo'lsa — tizim
+    // sozlamasidan ustun turadigan summa.
+    const config: Record<string, number> = {};
+    if (bMode === 'percent' || bMode === 'hybrid') config.percent = Number(bPercent) || 0;
+    if (bMode === 'per_order' && bPerOrder !== '') config.perOrder = Number(bPerOrder) || 0;
     try {
-      await api('PUT', `/ops/drivers/${id}/billing`, {
-        mode,
-        config: percent ? { percent } : {},
-      });
+      await api('PUT', `/ops/drivers/${billingFor.id}/billing`, { mode: bMode, config });
+      setBillingFor(null);
+      setActErr('');
       load();
     } catch (e) {
-      alert(t('error') + ': ' + (e as Error).message);
+      setActErr((e as Error).message || t('error'));
     }
+  }
+
+  async function saveTopup() {
+    if (!topupFor) return;
+    const amount = Number(tAmount);
+    if (!amount) return;
+    await act(topupFor.id, 'topup', { amount, note: tNote || undefined });
+    setTopupFor(null);
   }
 
   // reyting past / bekor yuqori → flag
   const flagged = (d: Driver) =>
     Number(d.ratingAvg) > 0 && (Number(d.ratingAvg) < 3.5 || Number(d.cancelRate) > 30);
+
+  // Modal holatlari (brauzer prompt() o'rniga)
+  const [billingFor, setBillingFor] = useState<Driver | null>(null);
+  const [bMode, setBMode] = useState('percent');
+  const [bPercent, setBPercent] = useState('10');
+  const [bPerOrder, setBPerOrder] = useState('');
+  const [topupFor, setTopupFor] = useState<Driver | null>(null);
+  const [tAmount, setTAmount] = useState('');
+  const [tNote, setTNote] = useState('');
+  const [actErr, setActErr] = useState('');
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -176,8 +196,19 @@ export function Drivers() {
                   {d.approvalStatus !== 'blocked' && (
                     <button className="danger" onClick={() => act(d.id, 'block')}>{t('block')}</button>
                   )}
-                  <button onClick={() => billing(d.id)}>{t('th_billing')}</button>
-                  <button onClick={() => topup(d.id)}>{t('topup')}</button>
+                  <button
+                    onClick={() => {
+                      setBillingFor(d);
+                      setBMode(d.billingMode || 'percent');
+                      setBPercent('10');
+                      setBPerOrder('');
+                    }}
+                  >
+                    {t('th_billing')}
+                  </button>
+                  <button onClick={() => { setTopupFor(d); setTAmount(''); setTNote(''); }}>
+                    {t('topup')}
+                  </button>
                   </div></td>
               </tr>
             ))}
@@ -187,6 +218,98 @@ export function Drivers() {
           </tbody>
         </table>
       </div>
+
+      {actErr && <div className="toast err">{actErr}</div>}
+
+      {/* Billing rejimi — RO'YXATDAN tanlanadi. Avval `prompt()` da qo'lda
+          yozish kerak edi: xato terilsa server 500 berardi (ENUM turi). */}
+      {billingFor && (
+        <Modal
+          title={`${t('th_billing')} — ${billingFor.firstName || billingFor.phone}`}
+          onClose={() => setBillingFor(null)}
+          footer={
+            <>
+              <button onClick={() => setBillingFor(null)}>{t('cancel')}</button>
+              <button className="primary" onClick={saveBilling}>{t('save')}</button>
+            </>
+          }
+        >
+          <label className="field">
+            <span>{t('billing_mode_label')}</span>
+            <select value={bMode} onChange={(e) => setBMode(e.target.value)}>
+              <option value="subscription">{t('bm_subscription')}</option>
+              <option value="percent">{t('bm_percent')}</option>
+              <option value="hybrid">{t('bm_hybrid')}</option>
+              <option value="per_order">{t('bm_per_order')}</option>
+            </select>
+          </label>
+
+          {(bMode === 'percent' || bMode === 'hybrid') && (
+            <label className="field">
+              <span>{t('percent_label')}</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={bPercent}
+                onChange={(e) => setBPercent(e.target.value)}
+              />
+            </label>
+          )}
+
+          {bMode === 'per_order' && (
+            <label className="field">
+              <span>{t('per_order_label')}</span>
+              <input
+                type="number"
+                min={0}
+                step={100}
+                placeholder={t('per_order_placeholder')}
+                value={bPerOrder}
+                onChange={(e) => setBPerOrder(e.target.value)}
+              />
+              <span className="hint">{t('per_order_hint_driver')}</span>
+            </label>
+          )}
+
+          {bMode === 'subscription' && <div className="hint">{t('bm_subscription_hint')}</div>}
+        </Modal>
+      )}
+
+      {/* Balansni to'ldirish */}
+      {topupFor && (
+        <Modal
+          title={`${t('topup')} — ${topupFor.firstName || topupFor.phone}`}
+          onClose={() => setTopupFor(null)}
+          footer={
+            <>
+              <button onClick={() => setTopupFor(null)}>{t('cancel')}</button>
+              <button className="primary" onClick={saveTopup} disabled={!Number(tAmount)}>
+                {t('save')}
+              </button>
+            </>
+          }
+        >
+          <div className="hint">
+            {t('th_balance')}: <b>{money(topupFor.balance)}</b>
+          </div>
+          <label className="field">
+            <span>{t('topup_amount_label')}</span>
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              autoFocus
+              value={tAmount}
+              onChange={(e) => setTAmount(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>{t('topup_note_label')}</span>
+            <input value={tNote} onChange={(e) => setTNote(e.target.value)} />
+          </label>
+        </Modal>
+      )}
     </Page>
   );
 }
