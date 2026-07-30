@@ -223,8 +223,31 @@ export function miniappPage(): string {
    * u satrni uzib yuboradi (aynan shunday bo'ldi va build yiqildi).
    */
   var myLoc = null;
+  var meMarker = null;
   var geoWatchId = null;
   var geoDenied = false;
+
+  /*
+   * "Siz shu yerdasiz" belgisi. Markazdagi qizil nuqta TANLANGAN olib ketish
+   * joyi, bu esa mijozning HAQIQIY joylashuvi — ikkisi farq qilishi mumkin
+   * (aynan shu uchun xarita bor). Ikkisini ko'rmasa mijoz nuqtani qayerga
+   * qo'yayotganini tushunmaydi.
+   */
+  function updateMeMarker() {
+    if (!myLoc) return;
+    if (!meMarker) {
+      meMarker = L.marker([myLoc.lat, myLoc.lng], { icon: pin('#5B8DEF', '🧍'), zIndexOffset: -100 })
+        .addTo(map)
+        .bindTooltip(t.you);
+    } else {
+      meMarker.setLatLng([myLoc.lat, myLoc.lng]);
+    }
+  }
+
+  function setMyLoc(lat, lng) {
+    myLoc = { lat: lat, lng: lng };
+    updateMeMarker();
+  }
 
   function startGeoWatch(onFirstFix) {
     if (!navigator.geolocation || geoDenied) return;
@@ -239,7 +262,7 @@ export function miniappPage(): string {
       function (pos) {
         btn.disabled = false;
         var first = !myLoc;
-        myLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setMyLoc(pos.coords.latitude, pos.coords.longitude);
         if (first && onFirstFix) onFirstFix(myLoc);
       },
       function () {
@@ -277,7 +300,7 @@ export function miniappPage(): string {
       var ask = function () {
         lm.getLocation(function (loc) {
           if (loc && loc.latitude != null) {
-            myLoc = { lat: loc.latitude, lng: loc.longitude };
+            setMyLoc(loc.latitude, loc.longitude);
             if (cb) cb(myLoc);
           } else {
             geoDenied = true; // rad etildi — bezor qilmaymiz
@@ -513,9 +536,14 @@ export function miniappPage(): string {
     elSheet.classList.remove('hidden');
     elRecenter.classList.remove('hidden');
     elRecenter.title = t.taxi;
-    // Kuzatuvda o'z joylashuvimiz kerak emas (taksini ko'rsatamiz) — GPS
-    // kuzatuvini to'xtatamiz, batareyani bekorga yemasin.
+    // Kuzatuvda o'z joylashuvimiz kerak emas (olib ketish nuqtasi allaqachon
+    // 🧍 bilan ko'rsatiladi) — ikkinchi odamcha chalkashtirardi.
+    // GPS kuzatuvini ham to'xtatamiz, batareyani bekorga yemasin.
     stopGeoWatch();
+    if (meMarker) {
+      map.removeLayer(meMarker);
+      meMarker = null;
+    }
     setMapHeight('62%');
     poll();
   }

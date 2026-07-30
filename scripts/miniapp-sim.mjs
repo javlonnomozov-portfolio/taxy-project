@@ -184,6 +184,14 @@ async function main() {
   check('Sahifa Telegram WebApp SDK yuklaydi', html.includes('telegram-web-app.js'));
   check('Sahifa Leaflet xaritasini yuklaydi', html.includes('leaflet'));
   check('Sahifada buyurtma rejimi bor', html.includes('startOrdering') && html.includes('centerPin'));
+  // Mijoz o'zi qayerdaligini ko'rishi kerak: markazdagi nuqta TANLANGAN joy,
+  // odamcha esa HAQIQIY joylashuv — ikkisi farq qilishi mumkin.
+  check('Sahifada "siz shu yerdasiz" odamcha belgisi bor', html.includes('meMarker'));
+  // Ruxsat har bosishda so'ralmasligi uchun getCurrentPosition ISHLATILMAYDI.
+  check(
+    'Takroriy ruxsat so\'rovi yo\'q (getCurrentPosition chaqirilmaydi)',
+    !/navigator\.geolocation\.getCurrentPosition/.test(html),
+  );
 
   console.log('\n--- Ijobiy yo\'l ---');
   const ok = await trackRaw(signInitData(tgId), order.id);
