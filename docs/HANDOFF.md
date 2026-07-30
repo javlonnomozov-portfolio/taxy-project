@@ -511,7 +511,16 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 4. Qolgan ishlar
 
 1. **🔴 Zakaz oqimini sinash** (2-bo'lim) — birinchi navbatda.
-2. **🎨 Admin panel dizayni.** Promptlar tayyor: **`docs/ADMIN-DESIGN-PROMPT.md`**
+2. **✅ Admin panel dizayni JORIY QILINDI** (`ca46c09`) va deploy qilindi.
+   Manba: Stitch maketlari (2026-07-30) + `docs/ADMIN-DESIGN-PROMPT.md`.
+   Tokenlar `apps/admin/src/styles.css` da — rang/o'lcham o'zgarsa FAQAT shu fayl.
+   Ikonkalar `src/icons.tsx` da INLINE SVG (paket ham, CDN ham yo'q — maketda
+   Material Symbols nomlari matn bo'lib chiqib ketgan edi).
+   Maketda bor edi, **ataylab olinmadi**: Billing ustunida "Uzcard/Humo/Naqd"
+   (bizda billing REJIMI), Rejalashtirilganda qidiruv/filtr/"+Yangi"/qo'ng'iroq/
+   avatar/"Arxiv", Mijozlarda "Tizim Onlayn"/"v2.1.4"/pastdagi statistika,
+   xarita o'rniga stock rasm, "..." menyulari, "Biznes" toifasi.
+   Eski prompt hujjati: **`docs/ADMIN-DESIGN-PROMPT.md`**
    (mavjud paneldan o'qib yozilgan — har ustun/tugma haqiqiy). Foydalanuvchi
    Stitch natijalarini tashlaydi → `apps/admin/src/styles.css` va sahifalar
    ko'chiriladi. Promptda **QAT'IY cheklovlar** bor: yangi sahifa/grafik/KPI
