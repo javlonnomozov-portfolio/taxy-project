@@ -23,6 +23,7 @@ import { PricingService } from '../pricing/pricing.service';
 import { SettingsService } from '../settings/settings.service';
 import { BillingService } from '../billing/billing.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { DispatchService } from '../dispatch/dispatch.service';
 import { haversineM } from '../dispatch/dispatch.util';
 
 @Injectable()
@@ -43,6 +44,7 @@ export class TripsService {
     private readonly billing: BillingService,
     private readonly realtime: RealtimeService,
     private readonly config: ConfigService,
+    private readonly dispatch: DispatchService,
   ) {}
 
   private async mustOwn(orderId: string, driverId: string): Promise<Order> {
@@ -318,6 +320,17 @@ export class TripsService {
     if (!(await this.transition(orderId, order.status, OrderStatus.CANCELLED_BY_CUSTOMER))) {
       throw new ConflictException('Buyurtma holati o‘zgardi — bekor qilib bo‘lmadi');
     }
+
+    // DISPATCH'NI TO'XTATAMIZ — busiz mijoz bekor qilgandan keyin ham taklif
+    // haydovchilar ekranida taymer bilan turib qolardi (va yangi haydovchilarga
+    // ham yuborilardi). `abort()` barcha taklif olganlarga
+    // `order:offer_cancelled` yuboradi va taymerlarni tozalaydi.
+    // Operatorning `close()` metodi buni allaqachon qilardi — mijoz yo'lida
+    // esa tushib qolgan edi (aynan shu asimmetriya).
+    // Tranzaksiyadan KEYIN: o'tish yiqilsa yaroqli dispatch'ni o'ldirmasin.
+    this.dispatch.abort(orderId);
+    this.dispatch.cancelOperatorFallback(orderId);
+
     if (order.driverId) {
       await this.drivers.markIdle(order.driverId);
       // Haydovchi ilovasiga xabar beramiz — safar ekrani yopilib, yana buyurtma qabul qilsin.

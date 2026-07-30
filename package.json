@@ -31,7 +31,8 @@
     "sim:miniapp": "node scripts/miniapp-sim.mjs",
     "sim:arrived-guard": "node scripts/arrived-guard-sim.mjs",
     "sim:miniapp-sync": "node scripts/miniapp-bot-sync-sim.mjs",
-    "sim:per-order": "node scripts/per-order-billing-sim.mjs"
+    "sim:per-order": "node scripts/per-order-billing-sim.mjs",
+    "sim:customer-cancel": "node scripts/customer-cancel-sim.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

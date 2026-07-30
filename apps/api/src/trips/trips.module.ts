@@ -9,6 +9,7 @@ import { OrdersEventsModule } from '../orders/order-events.module';
 import { DriversModule } from '../drivers/drivers.module';
 import { PricingModule } from '../pricing/pricing.module';
 import { BillingModule } from '../billing/billing.module';
+import { DispatchModule } from '../dispatch/dispatch.module';
 
 @Module({
   imports: [
@@ -17,6 +18,9 @@ import { BillingModule } from '../billing/billing.module';
     DriversModule,
     PricingModule,
     BillingModule,
+    // Mijoz bekor qilganda faol dispatch'ni to'xtatish uchun.
+    // Sikl YO'Q: DispatchModule TripsModule'ni import qilmaydi.
+    DispatchModule,
   ],
   providers: [TripsService],
   exports: [TripsService],
