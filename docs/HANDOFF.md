@@ -397,6 +397,31 @@ tasdiqlashi kerak.
 
 ---
 
+### 2m. Mijoz bekor qilsa taksida taklif turib qolardi (`7cb6af1`)
+
+Mijoz zakazni bekor qilganda taklif **haydovchi ekranida taymer bilan turib
+qolardi** — haydovchi uchun zakaz bekor qilinganga o'xshamasdi. Dispatch holati
+ham ishlashda davom etib, taklifni yangi haydovchilarga yuborishi mumkin edi.
+
+**Sabab:** `cancelByCustomer()` `dispatch.abort()` ni **chaqirmasdi**.
+Operatorning `close()` metodi esa chaqirardi — **aynan shu asimmetriya**
+(`goOnline` va `markIdle` bilan bo'lgan holatning takrori).
+
+Endi holat o'tishi muvaffaqiyatli bo'lgach:
+- `dispatch.abort()` → taklif olganlarga `order:offer_cancelled` + taymerlar tozalanadi
+- `dispatch.cancelOperatorFallback()` → keraksiz "taksi yo'q" xabari ketmasin
+
+Tranzaksiyadan **keyin** chaqiriladi: o'tish yiqilsa yaroqli dispatch o'ldirilmasin.
+Modul: `TripsModule → DispatchModule` (sikl yo'q).
+
+`pnpm sim:customer-cancel` — tuzatishsiz yiqiladi, tuzatish bilan 6/6.
+
+> ⚠️ **NAQSH:** zakaz holatini tashqi sabab bilan tugatadigan HAR QANDAY yangi
+> yo'l `dispatch.abort()` ni ham chaqirishi kerak. Hozir buni qiladigan joylar:
+> `ops.close()`, `ops.assign()`, `dispatch.offerToDriver()`, `cancelByCustomer()`.
+
+---
+
 ---
 
 ## 3. Production holati
@@ -458,6 +483,8 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+7cb6af1 fix(trips): mijoz bekor qilganda dispatch ham to'xtatilsin
+5d688e4 docs: HANDOFF — joylashuv ruxsati tuzatishi
 50f80e4 fix(miniapp): joylashuv ruxsati har bosishda so'ralmasin
 ad4d2dd docs: HANDOFF — menyu qaytishi va jonli kuzatuv izohi
 9a09d3e fix(bot,miniapp): baholashdan keyin menyu + joylashuvim tugmasi
@@ -570,7 +597,7 @@ node apps/api/dist/main.js
   ```
 
 **Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
-sim:online-geo sim:late-driver sim:miniapp sim:miniapp-sync sim:arrived-guard sim:per-order`
+sim:online-geo sim:late-driver sim:miniapp sim:miniapp-sync sim:arrived-guard sim:per-order sim:customer-cancel`
 
 - **Socket handler qiymat qaytarmasa ack KELMAYDI** — `driver:offer_response`
   va `driver:location` shunday. Ularni sim'da `await emit(...)` bilan kutsangiz
