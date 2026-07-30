@@ -375,6 +375,28 @@ Tekshirildi: `sim:bot-flow` **12/12** (menyu qaytishi endi qoplangan).
 
 ---
 
+### 2l. Joylashuv ruxsati har bosishda so'ralardi (`50f80e4`)
+
+Mijoz "joylashuvimga qaytish" tugmasini bosganida Telegram HAR SAFAR
+*"Allow Toy TaxY to access your location?"* oynasini ko'rsatardi.
+
+**Sabab:** Telegram WebView geolokatsiya ruxsatini **eslab qolmaydi** — har
+`getCurrentPosition` chaqiruvi yangi so'rov hisoblanadi.
+
+**Yechim — ikki qatlam:**
+1. `Telegram.WebApp.LocationManager` (Bot API 8.0+) — ruxsatni **Telegram o'z
+   sozlamalarida saqlaydi**, mini app keyingi ochilishlarida ham so'ralmaydi.
+2. Zaxira (eski mijozlar): brauzer `watchPosition` **bir marta** ishga tushadi,
+   nuqta keshda yangilanadi, tugma faqat keshdan foydalanadi.
+
+Rad etilsa `geoDenied` bilan belgilanadi va qayta so'ralmaydi. Kuzatuv rejimiga
+o'tganda GPS kuzatuvi to'xtatiladi (batareya).
+
+⚠️ Telegram ichidagi ruxsat oynasini men sinab ko'ra olmadim — foydalanuvchi
+tasdiqlashi kerak.
+
+---
+
 ---
 
 ## 3. Production holati
@@ -436,6 +458,8 @@ Deploy: `railway up --service api|admin|bot --ci` (repo rootdan).
 ## 5. Bu sessiyada bajarilgan ish
 
 ```
+50f80e4 fix(miniapp): joylashuv ruxsati har bosishda so'ralmasin
+ad4d2dd docs: HANDOFF — menyu qaytishi va jonli kuzatuv izohi
 9a09d3e fix(bot,miniapp): baholashdan keyin menyu + joylashuvim tugmasi
 4525219 docs: HANDOFF — yangi APK havolasi
 4157102 docs: HANDOFF — per_order billing rejimi
