@@ -422,6 +422,39 @@ Modul: `TripsModule → DispatchModule` (sikl yo'q).
 
 ---
 
+### 2n. Oflayn holatda taklif ko'rinardi + ilova qulashi (`7458e0a`)
+
+Ekranda "Oflayn" yozuvi bilan BIRGA taklif kartasi turardi. **Uchta bo'shliq
+birga ishlagan:**
+
+1. **Server:** `goOffline()` kutilayotgan taklifni **qaytarib olmasdi**. Taklif
+   120 soniya davomida javob bera olmaydigan haydovchida "band" bo'lib turardi
+   (dispatch oynasidagi joy bekorga egallanardi) va `/offers/pending` uni
+   qaytarishda davom etardi.
+   → `DispatchService.withdrawDriver()` — takliflarni qaytarib oladi va
+   `fillWindow()` orqali keyingi nomzodga o'tadi. Gateway'da
+   `goOfflineAndWithdraw()`: ishni tugatishda HAM, uzilish grace taymerida HAM.
+2. **Ilova:** `goOffline()` taklif ro'yxatini tozalamasdi.
+3. **Ilova:** `fetchPending()` onlayn holatni tekshirmasdi — ilova qayta ishga
+   tushganda eski taklifni qayta chizardi (aynan qulashdan keyin ko'ringan).
+
+Takliflar ro'yxati endi `intent` shartiga bog'langan — `online` emas, chunki
+tarmoq bir zumga uzilganda takliflar yo'qolmasligi kerak.
+
+> Bu **`dispatch.abort()` naqshining takrori**: holatni o'zgartiradigan yo'l
+> dispatch'dagi yon ta'sirni ham bajarishi kerak. Ro'yxatga `goOffline` ham
+> qo'shildi.
+
+**"Toy TaxY Haydovchi keeps stopping"** — sabab ko'rinmayotgani uchun taxmin
+qilinmadi. Buning o'rniga `ErrorBoundary` qo'shildi: xato matni + stack ekranda
+qoladi va haydovchi uni skrinshot qilib yuboradi. Keyingi qulashda sabab darhol
+ma'lum bo'ladi.
+
+Tekshirildi: `pnpm sim:offline-withdraw` — tuzatishsiz 2 ta tekshiruv yiqiladi,
+tuzatish bilan 5/5.
+
+---
+
 ---
 
 ## 3. Production holati
@@ -597,7 +630,7 @@ node apps/api/dist/main.js
   ```
 
 **Simlar:** `sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
-sim:online-geo sim:late-driver sim:miniapp sim:miniapp-sync sim:arrived-guard sim:per-order sim:customer-cancel`
+sim:online-geo sim:late-driver sim:miniapp sim:miniapp-sync sim:arrived-guard sim:per-order sim:customer-cancel sim:offline-withdraw`
 
 - **Socket handler qiymat qaytarmasa ack KELMAYDI** — `driver:offer_response`
   va `driver:location` shunday. Ularni sim'da `await emit(...)` bilan kutsangiz
