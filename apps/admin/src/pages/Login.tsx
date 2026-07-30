@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, auth } from '../api';
 import { useI18n } from '../i18n';
+import { IconTaxi, IconWarn } from '../icons';
 
 export function Login() {
   const { t, lang, setLang } = useI18n();
@@ -31,8 +32,16 @@ export function Login() {
     <div className="login-wrap">
       <form className="card login-card" onSubmit={submit}>
         <div className="brand">
-          Toy TaxY <small>{t('brand_sub')}</small>
+          <IconTaxi size={22} />
+          <span>Toy TaxY</span>
         </div>
+        {/* Xato POPUP emas — kartada qoladi (masalan 429 "juda ko'p urinish"). */}
+        {err && (
+          <div className="err">
+            <IconWarn size={15} />
+            <span>{err}</span>
+          </div>
+        )}
         <input placeholder={t('login')} value={login} onChange={(e) => setLogin(e.target.value)} />
         <input
           placeholder={t('password')}
@@ -40,13 +49,12 @@ export function Login() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        {err && <div className="err">{err}</div>}
-        <button className="primary" style={{ width: '100%' }} type="submit">
+        <button className="primary" type="submit">
           {t('sign_in')}
         </button>
         <button
           type="button"
-          style={{ width: '100%', marginTop: 8 }}
+          style={{ marginTop: 8 }}
           onClick={() => setLang(lang === 'uz' ? 'ru' : 'uz')}
         >
           {t('lang_switch')}

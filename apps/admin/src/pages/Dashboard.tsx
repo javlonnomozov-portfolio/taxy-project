@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import { api } from '../api';
 import { connectOps } from '../socket';
-import { StatusBadge, money, time } from '../ui';
+import { Page, shortId, CategoryLabel, StatusBadge, money, time } from '../ui';
 import { useI18n } from '../i18n';
+import { IconWarn } from '../icons';
 
 interface Order {
   id: string;
@@ -174,90 +175,61 @@ export function Dashboard() {
       : null;
 
   return (
-    <>
-      <div className="topbar">
-        <h1>{t('dashboard_title')}</h1>
-      </div>
+    <Page title={t('dashboard_title')}>
 
-      {toast && (
-        <div
-          className="card"
-          style={{
-            marginBottom: 12,
-            borderColor: toast.kind === 'ok' ? COLOR.idle : COLOR.noDriver,
-            color: toast.kind === 'ok' ? COLOR.idle : COLOR.noDriver,
-          }}
-        >
-          {toast.kind === 'ok' ? '✅ ' : '⚠️ '}
-          {toast.text}
-        </div>
-      )}
+      {toast && <div className={`toast ${toast.kind}`}>{toast.text}</div>}
 
-      <div className="stat" style={{ marginBottom: 16 }}>
+      <div className="stat">
         <div className="card">
-          <div className="big">{orders.length}</div>
           <div className="lbl">{t('stat_active_orders')}</div>
+          <div className="big">{orders.length}</div>
         </div>
-        <div className="card">
-          <div className="big">{activeDrivers.length}</div>
+        <div className="card good">
           <div className="lbl">{t('stat_online_drivers')}</div>
+          <div className="big">{activeDrivers.length}</div>
         </div>
-        <div className="card">
-          <div className="big" style={{ color: alerts.length ? 'var(--danger)' : undefined }}>
-            {alerts.length}
-          </div>
+        {/* Ogohlantirish bo'lsa karta butunlay qizil rejimga o'tadi — dispatcher
+            shuni birinchi ko'rishi kerak. */}
+        <div className={'card' + (alerts.length ? ' alarm' : '')}>
           <div className="lbl">{t('stat_alerts')}</div>
+          <div className="big">{alerts.length}</div>
         </div>
       </div>
 
       {/* Oxirgi 24 soat ko'rsatkichlari — avval bu sonlar faqat loglarda edi. */}
       {metrics && (
-        <div className="stat" style={{ marginBottom: 16 }}>
+        <div className="stat small">
           <div className="card">
-            <div className="big">{metrics.total}</div>
             <div className="lbl">{t('m_total_24h')}</div>
+            <div className="big">{metrics.total}</div>
           </div>
-          <div className="card">
-            <div
-              className="big"
-              style={{ color: metrics.noDriverRate > 15 ? 'var(--danger)' : undefined }}
-            >
-              {metrics.noDriverRate}%
-            </div>
+          {/* 15% dan oshsa — muammo: dispatch yetarli haydovchi topmayapti. */}
+          <div className={'card' + (metrics.noDriverRate > 15 ? ' alarm' : '')}>
             <div className="lbl">{t('m_no_driver')}</div>
+            <div className="big">{metrics.noDriverRate}%</div>
           </div>
-          <div className="card">
-            <div className="big">{metrics.completionRate}%</div>
+          <div className="card good">
             <div className="lbl">{t('m_completed')}</div>
+            <div className="big">{metrics.completionRate}%</div>
           </div>
           <div className="card">
-            <div className="big">
-              {metrics.avgAcceptSec != null ? `${metrics.avgAcceptSec}s` : '—'}
-            </div>
             <div className="lbl">{t('m_accept_time')}</div>
+            <div className="big">{metrics.avgAcceptSec != null ? `${metrics.avgAcceptSec}s` : '—'}</div>
           </div>
           <div className="card">
-            <div className="big">{metrics.avgFare != null ? money(metrics.avgFare) : '—'}</div>
             <div className="lbl">{t('m_avg_fare')}</div>
+            <div className="big">{metrics.avgFare != null ? money(metrics.avgFare) : '—'}</div>
           </div>
         </div>
       )}
 
       {dispatchMode && (
-        <div
-          className="card"
-          style={{
-            marginBottom: 12,
-            borderColor: COLOR.dispatching,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-          }}
-        >
+        <div className="dispatch-bar">
+          <IconWarn />
           <span>
             <b>{t('dispatch_hint_1')}</b> {t('dispatch_hint_2')} <b>{t('dispatch_hint_3')}</b>.
           </span>
+          <div className="spacer" />
           <button className="danger" onClick={() => { setSelectedId(null); setSelectedDriverId(null); }}>
             {t('cancel')}
           </button>
@@ -387,11 +359,13 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 16 }}>
-        <h2>{t('stat_active_orders')}</h2>
+      <div className="card pad0" style={{ marginTop: 16 }}>
+        <div className="card-head"><h2>{t('stat_active_orders')}</h2></div>
         <table>
           <thead>
             <tr>
+              {/* ID — dispatcher zakazni server loglari bilan solishtirishi uchun. */}
+              <th>{t('th_id')}</th>
               <th>{t('th_status')}</th>
               <th>{t('th_category')}</th>
               <th>{t('th_price')}</th>
@@ -413,11 +387,12 @@ export function Dashboard() {
                     outline: sel ? `2px solid ${COLOR.dispatching}` : undefined,
                   }}
                 >
+                  <td className="mono">{shortId(o.id)}</td>
                   <td><StatusBadge status={o.status} /></td>
-                  <td>{o.vehicleCategory}</td>
-                  <td>{money(o.finalPrice)}</td>
-                  <td>{time(o.createdAt)}</td>
-                  <td className="flex" onClick={(e) => e.stopPropagation()}>
+                  <td><CategoryLabel category={o.vehicleCategory} /></td>
+                  <td className="num">{money(o.finalPrice)}</td>
+                  <td className="num">{time(o.createdAt)}</td>
+                  <td onClick={(e) => e.stopPropagation()}><div className="cell-actions">
                     {assignable && (
                       <button className="primary" onClick={() => setSelectedId(sel ? null : o.id)}>
                         {sel ? t('selected') : t('select_taxi')}
@@ -431,18 +406,18 @@ export function Dashboard() {
                     ) : (
                       <button className="danger" onClick={() => setConfirmCloseId(o.id)}>{t('close')}</button>
                     )}
-                  </td>
+                  </div></td>
                 </tr>
               );
             })}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={5} className="lbl">{t('no_active_orders')}</td>
+                <td colSpan={6} className="empty">{t('no_active_orders')}</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-    </>
+    </Page>
   );
 }

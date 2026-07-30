@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, auth } from '../api';
-import { money } from '../ui';
+import { Page, BillingLabel, money } from '../ui';
 import { useI18n } from '../i18n';
 
 interface Driver {
@@ -96,15 +96,16 @@ export function Drivers() {
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   return (
-    <>
-      <div className="topbar">
-        <h1>{t('drivers_title')}</h1>
-        {isSuperAdmin && (
+    <Page
+      title={t('drivers_title')}
+      actions={
+        isSuperAdmin && (
           <button className="primary" onClick={() => { setShowForm((s) => !s); setCreated(null); }}>
             {showForm ? t('close') : t('add_driver')}
           </button>
-        )}
-      </div>
+        )
+      }
+    >
 
       {created && (
         <div className="card" style={{ marginBottom: 16, borderColor: 'var(--ok)' }}>
@@ -161,14 +162,14 @@ export function Drivers() {
             {drivers.map((d) => (
               <tr key={d.id} className={flagged(d) ? 'row-red' : ''}>
                 <td>{d.firstName || '—'} {flagged(d) && <span className="badge danger">flag</span>}</td>
-                <td>{d.phone}</td>
-                <td><span className="badge muted">{d.status}</span></td>
+                <td className="mono">{d.phone}</td>
+                <td><span className={'badge ' + (d.status === 'OFFLINE' ? 'muted' : 'ok')}>{d.status}</span></td>
                 <td>{approvalBadge(d.approvalStatus)}</td>
-                <td>{d.billingMode}</td>
+                <td><BillingLabel mode={d.billingMode} /></td>
                 <td>{Number(d.ratingAvg).toFixed(2)}</td>
                 <td>{Number(d.cancelRate).toFixed(0)}%</td>
-                <td style={{ color: Number(d.balance) < 0 ? 'var(--danger)' : undefined }}>{money(d.balance)}</td>
-                <td className="flex">
+                <td className={Number(d.balance) < 0 ? 'num neg' : 'num'}>{money(d.balance)}</td>
+                <td><div className="cell-actions">
                   {d.approvalStatus !== 'approved' && (
                     <button className="ok" onClick={() => act(d.id, 'approve')}>{t('approve')}</button>
                   )}
@@ -177,15 +178,15 @@ export function Drivers() {
                   )}
                   <button onClick={() => billing(d.id)}>{t('th_billing')}</button>
                   <button onClick={() => topup(d.id)}>{t('topup')}</button>
-                </td>
+                  </div></td>
               </tr>
             ))}
             {drivers.length === 0 && (
-              <tr><td colSpan={9} className="lbl">{t('no_drivers')}</td></tr>
+              <tr><td colSpan={9} className="empty">{t('no_drivers')}</td></tr>
             )}
           </tbody>
         </table>
       </div>
-    </>
+    </Page>
   );
 }

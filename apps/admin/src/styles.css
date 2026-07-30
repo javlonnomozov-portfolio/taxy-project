@@ -1,99 +1,287 @@
+/* Toy TaxY admin paneli — dizayn tokenlari (Google Stitch maketlaridan, 2026-07-30).
+   Rang/o'lcham o'zgarsa FAQAT shu fayl tahrirlanadi. */
 :root {
-  --bg: #0f1420;
-  --panel: #182031;
-  --panel2: #1f2940;
-  --border: #2a3550;
+  --bg: #0b1018;
+  --panel: #131a26;
+  --panel2: #1a2331;
+  --border: #26303f;
   --text: #e6ebf5;
   --muted: #8a96b0;
   --accent: #4c8dff;
+  --accent-soft: rgba(76, 141, 255, 0.14);
   --danger: #ff5a5f;
+  --danger-soft: rgba(255, 90, 95, 0.13);
   --ok: #3ddc84;
+  --ok-soft: rgba(61, 220, 132, 0.13);
   --warn: #ffb020;
+  --warn-soft: rgba(255, 176, 32, 0.13);
+  --radius: 12px;
+  --row-h: 44px;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
+  font-size: 14px;
 }
 a { color: var(--accent); text-decoration: none; }
+
+/* ---------- Tugmalar ---------- */
 button {
   cursor: pointer;
   border: 1px solid var(--border);
   background: var(--panel2);
   color: var(--text);
-  padding: 7px 12px;
+  padding: 7px 13px;
   border-radius: 8px;
   font-size: 13px;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: border-color 0.12s, background 0.12s;
 }
 button:hover { border-color: var(--accent); }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
-button.ok { background: var(--ok); border-color: var(--ok); color: #06210f; }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary:hover { filter: brightness(1.08); }
+button.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+button.danger:hover { background: var(--danger-soft); }
+button.ok { background: transparent; border-color: var(--ok); color: var(--ok); }
+button.ok:hover { background: var(--ok-soft); }
+
 input, select {
-  background: var(--panel);
+  background: var(--panel2);
   border: 1px solid var(--border);
   color: var(--text);
-  padding: 8px 10px;
+  padding: 9px 11px;
   border-radius: 8px;
   font-size: 13px;
+  font-family: inherit;
 }
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+input::placeholder { color: var(--muted); }
+label.field { display: flex; flex-direction: column; gap: 5px; }
+label.field > span { color: var(--muted); font-size: 12px; }
 
+/* ---------- Karkas ---------- */
 .layout { display: flex; min-height: 100vh; }
 .sidebar {
-  width: 210px;
+  width: 232px;
+  flex: none;
   background: var(--panel);
   border-right: 1px solid var(--border);
-  padding: 16px 12px;
+  padding: 18px 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
-.brand { font-size: 18px; font-weight: 700; padding: 8px 10px 16px; }
-.brand small { color: var(--muted); font-weight: 400; display: block; font-size: 11px; }
-.nav a {
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 2px 10px 20px;
+  color: var(--accent);
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+.brand .role {
   display: block;
-  padding: 9px 12px;
-  border-radius: 8px;
-  color: var(--text);
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  margin-top: 2px;
+}
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav a {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 11px;
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 14px;
+  border-left: 2px solid transparent;
+}
+.nav a:hover { background: var(--panel2); color: var(--text); }
+.nav a.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+.nav a svg { flex: none; }
+.side-bottom { border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 2px; }
+.side-bottom button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  padding: 9px 11px;
+  border-radius: 9px;
   font-size: 14px;
 }
-.nav a.active, .nav a:hover { background: var(--panel2); }
-.main { flex: 1; padding: 20px 24px; overflow: auto; }
-.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-h1 { font-size: 20px; margin: 0 0 4px; }
-h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-weight: 600; }
+.side-bottom button:hover { background: var(--panel2); color: var(--text); }
 
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pagehead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.pagehead h1 { font-size: 19px; margin: 0; font-weight: 700; }
+.pagehead .spacer { flex: 1; }
+.content { padding: 20px 24px 32px; overflow: auto; }
+
+h2 { font-size: 15px; margin: 0 0 12px; font-weight: 600; }
+
+/* ---------- Kartalar ---------- */
 .grid { display: grid; gap: 16px; }
-.card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.card.pad0 { padding: 0; overflow: hidden; }
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.card-head h2 { margin: 0; }
+.card-head .spacer { flex: 1; }
 
+/* Ko'rsatkich kartalari */
+.stat { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.stat .card { flex: 1; min-width: 150px; }
+.stat .lbl {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+.stat .big { font-size: 27px; font-weight: 700; margin-top: 6px; line-height: 1.1; }
+.stat .card.alarm { border-color: var(--danger); }
+.stat .card.alarm .big { color: var(--danger); }
+.stat .card.good .big { color: var(--ok); }
+/* Ikkinchi qator — mayda ko'rsatkichlar */
+.stat.small .card { padding: 13px 16px; min-width: 130px; }
+.stat.small .big { font-size: 20px; margin-top: 4px; }
+.lbl { color: var(--muted); font-size: 12px; }
+
+/* ---------- Jadval ---------- */
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-th { color: var(--muted); font-weight: 600; }
-tr:hover td { background: var(--panel2); }
+th, td { text-align: left; padding: 0 12px; height: var(--row-h); }
+thead th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel2);
+  height: 38px;
+}
+tbody tr { border-bottom: 1px solid var(--border); }
+tbody tr:last-child { border-bottom: 0; }
+tbody tr:hover td { background: var(--panel2); }
+td.num { font-variant-numeric: tabular-nums; }
+td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); }
+/* Diqqat talab qiladigan qator — dispatcher shuni izlaydi */
+tr.row-red td { background: var(--danger-soft) !important; }
+tr.row-red td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+td.neg { color: var(--danger); font-weight: 600; }
+.cell-actions { display: flex; gap: 6px; align-items: center; }
 
-.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-.badge.ok { background: rgba(61,220,132,.15); color: var(--ok); }
-.badge.warn { background: rgba(255,176,32,.15); color: var(--warn); }
-.badge.danger { background: rgba(255,90,95,.15); color: var(--danger); }
+/* ---------- Yorliqlar ---------- */
+.badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.badge.ok { background: var(--ok-soft); color: var(--ok); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.danger { background: var(--danger-soft); color: var(--danger); }
 .badge.muted { background: var(--panel2); color: var(--muted); }
+.badge.accent { background: var(--accent-soft); color: var(--accent); }
 
-.row-red td { background: rgba(255,90,95,.08) !important; }
+/* ---------- Ogohlantirishlar ---------- */
+.alerts { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow: auto; }
+.alert {
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  border-left: 3px solid var(--warn);
+  background: var(--panel2);
+}
+.alert.NO_DRIVER, .alert.SOS, .alert.ARRIVED_NO_GPS { border-left-color: var(--danger); }
+.alert .when { color: var(--muted); font-size: 11px; float: right; }
 
-.login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-.login-card { width: 320px; }
+/* Dispatch rejimi chizig'i */
+.dispatch-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--warn);
+  background: var(--warn-soft);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+.dispatch-bar .spacer { flex: 1; }
+.dispatch-bar svg { color: var(--warn); flex: none; }
+
+/* Bo'sh holat — bitta xira qator, rasm/illyustratsiya YO'Q */
+.empty { color: var(--muted); font-size: 13px; padding: 22px 12px; text-align: center; }
+
+/* ---------- Kirish ---------- */
+.login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+.login-card { width: 340px; }
+.login-card .brand { justify-content: center; padding: 0 0 18px; font-size: 21px; }
 .login-card input { width: 100%; margin-bottom: 10px; }
-.err { color: var(--danger); font-size: 13px; margin: 6px 0; }
+.login-card button { width: 100%; }
+.err {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--danger);
+  font-size: 13px;
+  background: var(--danger-soft);
+  border: 1px solid rgba(255, 90, 95, 0.3);
+  border-radius: 8px;
+  padding: 8px 11px;
+  margin-bottom: 12px;
+}
 
-.alerts { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow: auto; }
-.alert { padding: 8px 10px; border-radius: 8px; font-size: 13px; border-left: 3px solid var(--warn); background: var(--panel2); }
-.alert.NO_DRIVER { border-color: var(--danger); }
-.alert.SOS { border-color: var(--danger); }
-.stat { display: flex; gap: 16px; flex-wrap: wrap; }
-.stat .card { flex: 1; min-width: 130px; }
-.stat .big { font-size: 26px; font-weight: 700; }
-.stat .lbl { color: var(--muted); font-size: 12px; }
-.leaflet-container { border-radius: 12px; }
+/* ---------- Boshqa ---------- */
+.leaflet-container { border-radius: var(--radius); }
 .flex { display: flex; gap: 8px; align-items: center; }
 .spacer { flex: 1; }
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 900;
+  padding: 11px 15px;
+  border-radius: 9px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.toast.ok { border-color: var(--ok); color: var(--ok); }
+.toast.err { border-color: var(--danger); color: var(--danger); }

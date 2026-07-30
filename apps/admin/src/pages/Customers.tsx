@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useI18n } from '../i18n';
-import { time } from '../ui';
+import { Page, time } from '../ui';
 
 interface Customer {
   id: string;
@@ -33,8 +33,8 @@ export function Customers() {
   });
 
   return (
-    <>
-      <div className="topbar"><h1>{t('customers_title')}</h1></div>
+    <Page title={t('customers_title')}>
+
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <div className="lbl">{t('total')}: {rows.length}</div>
@@ -61,20 +61,20 @@ export function Customers() {
             {filtered.map((c) => (
               <tr key={c.id}>
                 <td>{[c.firstName, c.lastName].filter(Boolean).join(' ') || '—'}</td>
-                <td>{c.phone || '—'}</td>
+                <td className="mono">{c.phone || '—'}</td>
                 <td>{c.language}</td>
                 <td>{c.ratingAvg ?? 0}</td>
                 <td>{c.noShowCount ?? 0}</td>
-                <td>{c.isBlocked ? t('blocked') : t('active')}</td>
+                <td><span className={'badge ' + (c.isBlocked ? 'danger' : 'ok')}>{c.isBlocked ? t('blocked') : t('active')}</span></td>
                 <td>{time(c.createdAt)}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="lbl">{t('no_customers')}</td></tr>
+              <tr><td colSpan={7} className="empty">{t('no_customers')}</td></tr>
             )}
           </tbody>
         </table>
       </div>
-    </>
+    </Page>
   );
 }

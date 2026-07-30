@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useI18n } from '../i18n';
-import { time } from '../ui';
+import { CategoryLabel, Page, time } from '../ui';
 
 interface Order {
   id: string;
@@ -28,8 +28,8 @@ export function Scheduled() {
   }
 
   return (
-    <>
-      <div className="topbar"><h1>{t('scheduled_title')}</h1></div>
+    <Page title={t('scheduled_title')}>
+
       <div className="card">
         <p className="lbl" style={{ marginTop: 0 }}>
           {t('scheduled_hint')}
@@ -41,17 +41,17 @@ export function Scheduled() {
           <tbody>
             {orders.map((o) => (
               <tr key={o.id}>
-                <td>{o.vehicleCategory}</td>
+                <td><CategoryLabel category={o.vehicleCategory} /></td>
                 <td><b>{time(o.scheduledAt)}</b></td>
                 <td>{o.note || '—'}</td>
                 <td>{time(o.createdAt)}</td>
                 <td><button className="primary" onClick={() => confirm(o.id)}>{t('confirm')}</button></td>
               </tr>
             ))}
-            {orders.length === 0 && <tr><td colSpan={5} className="lbl">{t('no_scheduled')}</td></tr>}
+            {orders.length === 0 && <tr><td colSpan={5} className="empty">{t('no_scheduled')}</td></tr>}
           </tbody>
         </table>
       </div>
-    </>
+    </Page>
   );
 }

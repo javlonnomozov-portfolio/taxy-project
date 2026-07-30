@@ -1,6 +1,17 @@
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import { auth } from './api';
 import { useI18n } from './i18n';
+import {
+  IconCustomers,
+  IconDrivers,
+  IconLang,
+  IconLogout,
+  IconOrders,
+  IconPanel,
+  IconScheduled,
+  IconSettings,
+  IconTaxi,
+} from './icons';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Drivers } from './pages/Drivers';
@@ -18,28 +29,51 @@ function Layout({ children }: { children: React.ReactNode }) {
     <div className="layout">
       <aside className="sidebar">
         <div className="brand">
-          Toy TaxY <small>{role}</small>
+          <IconTaxi />
+          <span>
+            Toy TaxY
+            <span className="role">{role}</span>
+          </span>
         </div>
         <nav className="nav">
-          <NavLink to="/" end>{t('nav_dashboard')}</NavLink>
-          <NavLink to="/orders">{t('nav_orders')}</NavLink>
-          <NavLink to="/customers">{t('nav_customers')}</NavLink>
-          <NavLink to="/scheduled">{t('nav_scheduled')}</NavLink>
-          {isAdmin && <NavLink to="/drivers">{t('nav_drivers')}</NavLink>}
-          {isAdmin && <NavLink to="/settings">{t('nav_settings')}</NavLink>}
+          <NavLink to="/" end>
+            <IconPanel /> {t('nav_dashboard')}
+          </NavLink>
+          <NavLink to="/orders">
+            <IconOrders /> {t('nav_orders')}
+          </NavLink>
+          <NavLink to="/customers">
+            <IconCustomers /> {t('nav_customers')}
+          </NavLink>
+          <NavLink to="/scheduled">
+            <IconScheduled /> {t('nav_scheduled')}
+          </NavLink>
+          {/* Operator rolida bu ikkisi KO'RINMAYDI (server ham 403 beradi). */}
+          {isAdmin && (
+            <NavLink to="/drivers">
+              <IconDrivers /> {t('nav_drivers')}
+            </NavLink>
+          )}
+          {isAdmin && (
+            <NavLink to="/settings">
+              <IconSettings /> {t('nav_settings')}
+            </NavLink>
+          )}
         </nav>
-        <div className="spacer" style={{ flex: 1 }} />
-        <button onClick={() => setLang(lang === 'uz' ? 'ru' : 'uz')} style={{ marginBottom: 8 }}>
-          {t('lang_switch')}
-        </button>
-        <button
-          onClick={() => {
-            auth.clear();
-            nav('/login');
-          }}
-        >
-          {t('logout')}
-        </button>
+        <div className="spacer" />
+        <div className="side-bottom">
+          <button onClick={() => setLang(lang === 'uz' ? 'ru' : 'uz')}>
+            <IconLang /> {t('lang_switch')}
+          </button>
+          <button
+            onClick={() => {
+              auth.clear();
+              nav('/login');
+            }}
+          >
+            <IconLogout /> {t('logout')}
+          </button>
+        </div>
       </aside>
       <main className="main">{children}</main>
     </div>

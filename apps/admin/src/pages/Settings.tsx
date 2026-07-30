@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { Page } from '../ui';
 import { useI18n } from '../i18n';
 
 interface Config {
@@ -52,11 +53,7 @@ export function Settings() {
   if (!cfg) return <div className="lbl">{t('loading')}</div>;
 
   return (
-    <>
-      <div className="topbar">
-        <h1>{t('settings_title')}</h1>
-        {saved && <span className="badge ok">{saved}</span>}
-      </div>
+    <Page title={t('settings_title')} actions={saved ? <span className="badge ok">{saved}</span> : null}>
 
       <div className="card" style={{ marginBottom: 16 }}>
         <h2>{t('surge_section')}</h2>
@@ -145,6 +142,6 @@ export function Settings() {
           </tbody>
         </table>
       </div>
-    </>
+    </Page>
   );
 }

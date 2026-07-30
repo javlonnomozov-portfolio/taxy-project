@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { useI18n } from '../i18n';
-import { StatusBadge, money, time } from '../ui';
+import { shortId, CategoryLabel, Page, StatusBadge, money, time } from '../ui';
 
 interface Order {
   id: string;
@@ -50,8 +50,8 @@ export function Orders() {
   }, [rows, tab]);
 
   return (
-    <>
-      <div className="topbar"><h1>{t('orders_title')}</h1></div>
+    <Page title={t('orders_title')}>
+
       <div className="card">
         <div className="flex" style={{ gap: 8, marginBottom: 12 }}>
           {TAB_KEYS.map((tb) => (
@@ -69,6 +69,7 @@ export function Orders() {
           <thead>
             <tr>
               <th>{t('th_status')}</th>
+              <th>{t('th_id')}</th>
               <th>{t('th_category')}</th>
               <th>{t('th_price')}</th>
               <th>{t('th_created')}</th>
@@ -79,18 +80,19 @@ export function Orders() {
             {filtered.map((o) => (
               <tr key={o.id} className={o.status === 'NO_DRIVER' ? 'row-red' : ''}>
                 <td><StatusBadge status={o.status} /></td>
-                <td>{o.vehicleCategory}</td>
-                <td>{money(o.finalPrice)}</td>
-                <td>{time(o.createdAt)}</td>
-                <td>{o.completedAt ? time(o.completedAt) : '—'}</td>
+                <td className="mono">{shortId(o.id)}</td>
+                <td><CategoryLabel category={o.vehicleCategory} /></td>
+                <td className="num">{money(o.finalPrice)}</td>
+                <td className="num">{time(o.createdAt)}</td>
+                <td className="num">{o.completedAt ? time(o.completedAt) : '—'}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="lbl">{t('no_orders')}</td></tr>
+              <tr><td colSpan={6} className="empty">{t('no_orders')}</td></tr>
             )}
           </tbody>
         </table>
       </div>
-    </>
+    </Page>
   );
 }
