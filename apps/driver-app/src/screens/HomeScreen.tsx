@@ -607,7 +607,7 @@ export function HomeScreen({
           )}
 
           <View style={{ marginTop: SP.md, borderRadius: R.lg, overflow: 'hidden' }}>
-            <MiniMap height={220} markers={tripMarkers} />
+            <MiniMap height={220} markers={tripMarkers} lang={lang} />
           </View>
 
           <View style={[S.row, { gap: SP.md, marginTop: SP.md }]}>
@@ -972,6 +972,7 @@ export function HomeScreen({
                     <View style={{ marginTop: SP.md }}>
                       <MiniMap
                         height={180}
+                        lang={lang}
                         markers={
                           [
                             {
