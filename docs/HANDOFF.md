@@ -47,14 +47,40 @@ Migratsiyalar konteyner startida **avtomatik** ishlaydi (`Dockerfile` CMD).
 - `ARRIVED_GEOFENCE_M=150` · `ARRIVED_LOCATION_STALE_SEC=120` · `MAX_BILLABLE_WAIT_MIN=30`
 - `NOMINATIM_URL` / `OSRM_URL` — **bo'sh** (manzil nomlari/marshrut o'chiq, ataylab).
 
-### 🟢 Eng so'nggi APK (build `f93f1ae0`, commit `7458e0a`)
+### 🟢 Eng so'nggi APK (LOKAL build, commit `1778381`)
 
 ```
-https://expo.dev/artifacts/eas/lb71xPeZJo8dIChQuaTrQH5_J7aQqixd5X6jcfW_Re8.apk
+apps/driver-app/toy-taxy-driver-1778381-fullscreen-map.apk   (66 MB, .gitignore'da)
 ```
 Ichida: yangi dizayn · GPS tuzatishi · status bar · bekor qilish himoyasi ·
-oflayn taklif tuzatishi · `ErrorBoundary`.
-APK 66 MB (53 MB native kutubxonalar — universal APK).
+oflayn taklif tuzatishi · `ErrorBoundary` · **xaritani to'liq ekranga ochish**.
+Keystore `-4G8G19GPE` (bulut buildlari bilan bir xil) — eski APK ustiga
+**o'chirmasdan** o'rnatiladi.
+
+Oldingi bulut APK (commit `7458e0a`):
+`https://expo.dev/artifacts/eas/lb71xPeZJo8dIChQuaTrQH5_J7aQqixd5X6jcfW_Re8.apk`
+
+#### Lokal build (bepul, limitsiz) — Expo Free tarifi tugaganda
+
+Free tarifda oylik Android build limiti bor; tugasa bulut buildi
+`Error: build command failed` bilan darhol yiqiladi (kod aybdor emas).
+Lokal build limitga kirmaydi va **bir xil keystore** bilan imzolaydi:
+
+```bash
+export ANDROID_HOME=$HOME/Android/Sdk ANDROID_SDK_ROOT=$HOME/Android/Sdk
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export PATH=$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH
+cd apps/driver-app && eas build -p android --profile preview --local
+```
+
+Talab: `platforms;android-34` + `build-tools;34.0.0` + `platform-tools`
+(`~/Android/Sdk` ichida, `sdkmanager --sdk_root=$ANDROID_HOME` bilan o'rnatiladi
+— **sudo kerak emas**). JDK 21 yetarli, 17 shart emas. NDK **kerak emas**
+(bog'liqliklarning hammasi tayyor AAR). `/usr/lib/android-sdk` (apt) —
+chalg'ituvchi, ishlatilmaydi.
+
+Log'da `npx -y expo-doctor exited with non-zero code: 1` chiqishi **normal** —
+bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 
 ---
 
@@ -188,10 +214,17 @@ node apps/api/dist/main.js
   qo'shtirnoq ishlatmang, build yiqiladi.
 - **driver-app'ga bog'liqlik qo'shsangiz** `npm install --package-lock-only`
   ni ham ishga tushiring — EAS `npm ci` ishlatadi, lock mos kelmasa yiqiladi.
-- **APK ichini tekshirishda** `strings -a -n 4` ishlating. **Hermes ASCII
-  bo'lmagan satrlarni UTF-16 da saqlaydi** — `‘`, `…`, kirillcha satrlar oddiy
-  `strings` bilan TOPILMAYDI. Ikkalasini tekshiring:
-  `strings -a -n 4 b | grep -F "matn" || strings -a -n 4 -e l b | grep -F "matn"`
+- **APK ichini tekshirishda** `strings -a -n 4` faqat ASCII uchun ishonchli.
+  **Hermes ASCII bo'lmagan satrlarni UTF-16LE da saqlaydi** va `strings -e l`
+  ham kirillchani TOPMAYDI (tekshirildi: `Скрыть карту` bundle ichida bor, lekin
+  `strings -e l` nol natija beradi). Bayt darajasida qidiring:
+  ```bash
+  unzip -o app.apk assets/index.android.bundle
+  python3 -c "d=open('assets/index.android.bundle','rb').read()
+  print(any(d.count('MATN'.encode(e)) for e in ('utf-8','utf-16-le')))"
+  ```
+  **Nazorat namunasi ishlating:** o'zgarishdan OLDIN ham mavjud bo'lgan satrni
+  qidiring — u topilmasa, muammo APK'da emas, qidiruv usulida.
 - `SafeAreaView` **`react-native`dan Android'da hech narsa qilmaydi** (faqat iOS).
   `paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0`.
 - **Telegram `web_app` tugmasi REPLY klaviaturada `initData` BERMAYDI** —
