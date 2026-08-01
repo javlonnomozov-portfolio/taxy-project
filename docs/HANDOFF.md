@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
-> **Holat:** 2026-07-30 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `a957dc6`
+> **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
+> **Oxirgi commit:** `9df6411`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -21,8 +21,9 @@ React/Vite admin · Expo driver-app · Railway deploy.
 (workspace'dan **chiqarilgan** — o'z `node_modules`, npm, EAS bilan quriladi),
 `packages/shared`.
 
-Driver-app: owner `javl9n`, package `uz.toytaxy.driver`,
-EAS projectId `486e16a1-b012-4256-b121-0ebbfc386cbd`.
+Driver-app: owner `jav1on`, package `uz.toytaxy.driver`,
+EAS projectId `862b155e-1193-4c77-87fb-0cb63e29ee9e`
+(eski hisob `javl9n` build limitini tugatgan — 2026-08-01 da ko'chirildi).
 
 ---
 
@@ -30,7 +31,7 @@ EAS projectId `486e16a1-b012-4256-b121-0ebbfc386cbd`.
 
 | Servis | URL / holat |
 |---|---|
-| **api** | https://api-production-13444.up.railway.app · `/health` ok |
+| **api** | https://api-production-13444.up.railway.app · `/health` ok · `/trips/active` + `/miniapp/rate` deploy qilingan (2026-08-01) |
 | **admin** | https://admin-production-42e5.up.railway.app · yangi dizayn |
 | **bot** | `@toy_taxy_bot` · polling · barqaror |
 | Postgres + Redis | Railway plugin · **migratsiya 8** qo'llangan |
@@ -38,6 +39,12 @@ EAS projectId `486e16a1-b012-4256-b121-0ebbfc386cbd`.
 **Deploy:** `railway up --service api|admin|bot --ci` (repo rootdan).
 **GitHub'ga ulanmagan** — merge deploy qilmaydi, qo'lda ishga tushiriladi.
 Migratsiyalar konteyner startida **avtomatik** ishlaydi (`Dockerfile` CMD).
+
+> ⚠️ **Ilova yangi endpoint ishlatsa, API'ni DEPLOY QILING.** APK prod API'ga
+> qaraydi (`app.json` → `extra.apiUrl`). Safar tiklash APK'da tayyor turib,
+> prod'da `/trips/active` yo'qligi sababli **jimgina ishlamay turgan** edi:
+> ilova 404 oladi, `catch` ga tushadi va hech narsa ko'rsatmaydi. APK'ni
+> yig'ishdan oldin emas, **birga** deploy qiling.
 
 **Muhim env:**
 - `CORS_ORIGINS=https://admin-production-42e5.up.railway.app` — prod'da **majburiy**.
@@ -47,16 +54,19 @@ Migratsiyalar konteyner startida **avtomatik** ishlaydi (`Dockerfile` CMD).
 - `ARRIVED_GEOFENCE_M=150` · `ARRIVED_LOCATION_STALE_SEC=120` · `MAX_BILLABLE_WAIT_MIN=30`
 - `NOMINATIM_URL` / `OSRM_URL` — **bo'sh** (manzil nomlari/marshrut o'chiq, ataylab).
 
-### 🟢 Eng so'nggi APK (LOKAL build, commit `1778381`)
+### 🟢 Eng so'nggi APK (LOKAL build, commit `44533e7`)
 
 ```
-apps/driver-app/toy-taxy-driver-1778381-fullscreen-map.apk   (66 MB, .gitignore'da)
+apps/driver-app/toy-taxy-driver-44533e7.apk   (66 MB, .gitignore'da)
 ```
+
+⚠️ **Keystore o'zgargan** (Expo hisobi `javl9n` → `jav1on`, loyiha
+`862b155e-1193-4c77-87fb-0cb63e29ee9e`). Bu APK eski ilova ustiga
+o'rnatilMAYDI — haydovchi bir marta eskisini o'chirishi kerak. Bundan
+keyingi yangilanishlar oddiy.
 Ichida: yangi dizayn · GPS tuzatishi · status bar · bekor qilish himoyasi ·
-oflayn taklif tuzatishi · `ErrorBoundary` · **xaritani to'liq ekranga ochish**.
-Keystore `-4G8G19GPE` (bulut buildlari bilan bir xil) — eski APK ustiga
-**o'chirmasdan** o'rnatiladi.
-
+oflayn taklif tuzatishi · `ErrorBoundary` · **xaritani to'liq ekranga ochish**
+(amal tugmalari bilan) · **ilova o'ldirilsa faol safar tiklanadi**.
 Oldingi bulut APK (commit `7458e0a`):
 `https://expo.dev/artifacts/eas/lb71xPeZJo8dIChQuaTrQH5_J7aQqixd5X6jcfW_Re8.apk`
 
@@ -64,7 +74,7 @@ Oldingi bulut APK (commit `7458e0a`):
 
 Free tarifda oylik Android build limiti bor; tugasa bulut buildi
 `Error: build command failed` bilan darhol yiqiladi (kod aybdor emas).
-Lokal build limitga kirmaydi va **bir xil keystore** bilan imzolaydi:
+Lokal build limitga kirmaydi va EAS'dagi keystore bilan imzolaydi:
 
 ```bash
 export ANDROID_HOME=$HOME/Android/Sdk ANDROID_SDK_ROOT=$HOME/Android/Sdk
@@ -134,6 +144,10 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 | `7458e0a` | Oflayn holatda taklif ko'rinmasin + `ErrorBoundary` |
 | `e700826` | Safarlar tarixi **NULLS FIRST** bug (COALESCE bilan tartiblash) |
 | `ca46c09` `a957dc6` | **Admin panel yangi dizayn** + brauzer prompt/confirm o'rniga modal |
+| `1778381` | Xaritani **to'liq ekranga ochish** + xarita har GPS nuqtasida qayta yuklanmaydi |
+| `978c0e0` | **Ilova o'ldirilsa faol safar tiklanadi** (`GET /trips/active`) + to'liq ekranda amal tugmalari |
+| `44533e7` | Yangi Expo hisobi (**keystore o'zgargan** — qayta o'rnatish kerak) |
+| `9df6411` | **Mini app: narx + baholash** (bot chati bilan sinxron) + takroriy baho himoyasi |
 
 **Dizayn hujjatlari:** `docs/DRIVER-APP-DESIGN-PROMPT.md`,
 `docs/ADMIN-DESIGN-PROMPT.md` (ikkalasi ham mavjud koddan o'qib yozilgan;
@@ -235,7 +249,19 @@ node apps/api/dist/main.js
 sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
 sim:online-geo sim:late-driver sim:miniapp sim:arrived-guard sim:miniapp-sync
 sim:per-order sim:customer-cancel sim:offline-withdraw sim:trip-history
+sim:trip-resume sim:miniapp-rating
 ```
+
+**Simlar orasida lokal muhitni tozalang** — geo-indeksda qolgan haydovchilar
+yangi simning zakazini o'zlashtirib, sim sababsiz yiqiladi:
+```bash
+docker exec tty_redis redis-cli --scan --pattern 'geo:drivers:*' \
+  | xargs -r -n1 docker exec tty_redis redis-cli DEL
+docker exec tty_postgres psql -U tty -d tty \
+  -c "UPDATE drivers SET status='OFFLINE' WHERE status<>'OFFLINE';"
+```
+Telefon raqamlari `helpers.mjs` dagi `simPhone()`/`simPlate()` bilan olinadi —
+qat'iy raqam yozmang, ikkinchi ishga tushirishda 403 beradi.
 Oxirgi 8 tasi shu sessiyada yozilgan regressiya simlari — har biri o'z
 tuzatishisiz **yiqilishi isbotlangan**.
 
