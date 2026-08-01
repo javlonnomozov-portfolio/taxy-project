@@ -2,7 +2,7 @@
   "expo": {
     "name": "Toy TaxY Haydovchi",
     "slug": "tty-driver",
-    "owner": "javl9n",
+    "owner": "jav1on",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -49,17 +49,6 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION",
-        "POST_NOTIFICATIONS",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
@@ -83,14 +72,14 @@
     "extra": {
       "apiUrl": "https://api-production-13444.up.railway.app",
       "eas": {
-        "projectId": "486e16a1-b012-4256-b121-0ebbfc386cbd"
+        "projectId": "862b155e-1193-4c77-87fb-0cb63e29ee9e"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/486e16a1-b012-4256-b121-0ebbfc386cbd"
+      "url": "https://u.expo.dev/862b155e-1193-4c77-87fb-0cb63e29ee9e"
     }
   }
 }
