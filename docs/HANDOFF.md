@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
 > **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `9df6411`
+> **Oxirgi commit:** `dd8114d`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -31,9 +31,9 @@ EAS projectId `862b155e-1193-4c77-87fb-0cb63e29ee9e`
 
 | Servis | URL / holat |
 |---|---|
-| **api** | https://api-production-13444.up.railway.app · `/health` ok · `/trips/active` + `/miniapp/rate` deploy qilingan (2026-08-01) |
+| **api** | https://api-production-13444.up.railway.app · `/health` ok · `/trips/active` · `/miniapp/rate` · `/miniapp/cancel` (2026-08-01) |
 | **admin** | https://admin-production-42e5.up.railway.app · yangi dizayn |
-| **bot** | `@toy_taxy_bot` · polling · barqaror |
+| **bot** | `@toy_taxy_bot` · polling · barqaror · `CANCELLED_BY_CUSTOMER` ishlanadi (2026-08-01) |
 | Postgres + Redis | Railway plugin · **migratsiya 8** qo'llangan |
 
 **Deploy:** `railway up --service api|admin|bot --ci` (repo rootdan).
@@ -148,6 +148,7 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 | `978c0e0` | **Ilova o'ldirilsa faol safar tiklanadi** (`GET /trips/active`) + to'liq ekranda amal tugmalari |
 | `44533e7` | Yangi Expo hisobi (**keystore o'zgargan** — qayta o'rnatish kerak) |
 | `9df6411` | **Mini app: narx + baholash** (bot chati bilan sinxron) + takroriy baho himoyasi |
+| `dd8114d` | **Mini app: bekor qilish tugmasi** + bot `CANCELLED_BY_CUSTOMER` ni ishlaydi + sim gigiyenasi |
 
 **Dizayn hujjatlari:** `docs/DRIVER-APP-DESIGN-PROMPT.md`,
 `docs/ADMIN-DESIGN-PROMPT.md` (ikkalasi ham mavjud koddan o'qib yozilgan;
@@ -251,6 +252,13 @@ sim:online-geo sim:late-driver sim:miniapp sim:arrived-guard sim:miniapp-sync
 sim:per-order sim:customer-cancel sim:offline-withdraw sim:trip-history
 sim:trip-resume sim:miniapp-rating
 ```
+
+**Ikkitasi alohida sozlama talab qiladi:**
+- `sim:sprint3` — API `DISPATCH_WINDOW_SIZE=1` bilan ishga tushirilsin
+  (`dispatch` simi esa ODATIY oyna bilan ishlaydi — ikkalasi bitta API'da
+  bir vaqtda o'tmaydi).
+- `sim:cluster` — ikkinchi API instansiyasi kerak (`API_B`, port 3001).
+  Busiz sim osilib qoladi.
 
 **Simlar orasida lokal muhitni tozalang** — geo-indeksda qolgan haydovchilar
 yangi simning zakazini o'zlashtirib, sim sababsiz yiqiladi:
