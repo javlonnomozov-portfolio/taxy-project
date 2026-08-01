@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { ActorType, OrderStatus, SOCKET_EVENTS } from '@tty/shared';
 import { REDIS } from '../redis/redis.module';
@@ -25,6 +25,9 @@ import { BillingService } from '../billing/billing.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { haversineM } from '../dispatch/dispatch.util';
+
+/** Tarif topilmasa — `dispatch.service.ts` dagi qiymat bilan bir xil. */
+const DEFAULT_METER = { baseFare: 4000, perKm: 0, waitingPerMin: 0 };
 
 @Injectable()
 export class TripsService {
@@ -86,6 +89,75 @@ export class TripsService {
       status,
       driverId: order.driverId,
     });
+  }
+
+  // ---- Faol safarni tiklash ----
+
+  /**
+   * Haydovchining HOZIR yurayotgan safari — ilova qayta ishga tushganda tiklash uchun.
+   *
+   * Nega kerak: safar holati faqat ilova xotirasida edi. Android ilovani fonda
+   * o'ldirsa (haydovchi "Yo'l ko'rsatish" bosib Yandex Xaritaga o'tsa — odatiy hol),
+   * yoki telefon o'chib qolsa, ilova "Ishni boshlash" ekraniga qaytardi va safar
+   * yo'qolardi: haydovchi uni yakunlay olmasdi, serverda esa zakaz faol qolardi.
+   *
+   * Javob `order:assigned` hodisasi bilan BIR XIL shaklda — ilovada bitta tiklash
+   * yo'li bo'lsin (asimmetriya naqshining oldini olish).
+   */
+  async activeFor(driverId: string): Promise<{
+    orderId: string;
+    pickup: { lat: number; lng: number };
+    pickupAddress?: string;
+    dest?: { lat: number; lng: number };
+    destAddress?: string;
+    customer: { phone: string; name?: string };
+    meterConfig: { baseFare: number; perKm: number; waitingPerMin: number };
+    stage: 'accepted' | 'arrived' | 'in_progress';
+    startedAt: string | null;
+  } | null> {
+    const order = await this.orders.findOne({
+      where: {
+        driverId,
+        status: In([
+          OrderStatus.ACCEPTED,
+          OrderStatus.CONFIRMED,
+          OrderStatus.ARRIVING,
+          OrderStatus.ARRIVED,
+          OrderStatus.IN_PROGRESS,
+        ]),
+      },
+      order: { acceptedAt: 'DESC' },
+    });
+    if (!order) return null;
+
+    const customer = await this.customers.findOne({ where: { id: order.customerId } });
+    const tariff = await this.settings.getTariff(order.vehicleCategory);
+
+    return {
+      orderId: order.id,
+      pickup: { lat: order.pickupLat, lng: order.pickupLng },
+      pickupAddress: order.pickupAddress ?? undefined,
+      dest: order.destLat != null ? { lat: order.destLat, lng: order.destLng! } : undefined,
+      destAddress: order.destAddress ?? undefined,
+      customer: {
+        phone: customer?.phone ?? '',
+        // Mijoz ismi faqat u ruxsat bergan bo'lsa — `dispatch` dagi qoida bilan bir xil.
+        name:
+          customer?.showName && (customer.firstName || customer.lastName)
+            ? [customer.firstName, customer.lastName].filter(Boolean).join(' ')
+            : undefined,
+      },
+      meterConfig: tariff
+        ? { baseFare: tariff.baseFare, perKm: tariff.perKm, waitingPerMin: tariff.waitingPerMin }
+        : DEFAULT_METER,
+      stage:
+        order.status === OrderStatus.IN_PROGRESS
+          ? 'in_progress'
+          : order.status === OrderStatus.ARRIVED
+            ? 'arrived'
+            : 'accepted',
+      startedAt: order.startedAt ? order.startedAt.toISOString() : null,
+    };
   }
 
   // ---- Safar bosqichlari (haydovchi) ----

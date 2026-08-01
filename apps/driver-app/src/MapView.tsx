@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WebView } from 'react-native-webview';
 import { Modal, Platform, StatusBar, TouchableOpacity, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -93,11 +93,20 @@ export function MiniMap({
   height = 200,
   line = true,
   lang = 'uz',
+  overlay,
 }: {
   markers: MapMarker[];
   height?: number;
   line?: boolean;
   lang?: Lang;
+  /**
+   * To'liq ekranda xarita USTIDA turadigan asosiy amallar
+   * ("Qabul qilish", "Yetib keldim" va h.k.).
+   *
+   * Xarita butun ekranni egallaganda haydovchi safarni boshqara olmay qolardi —
+   * tugmalarga yetish uchun har safar kichiklashtirish kerak edi.
+   */
+  overlay?: ReactNode;
 }) {
   const [full, setFull] = useState(false);
   const t = makeT(lang);
@@ -164,6 +173,31 @@ export function MiniMap({
               onPress={() => setFull(false)}
             />
           </View>
+
+          {overlay ? (
+            <View
+              // `pointerEvents="box-none"` — tugmalar bosiladi, lekin ular
+              // orasidagi bo'sh joydan xaritani surish mumkin bo'lib qoladi.
+              pointerEvents="box-none"
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                paddingHorizontal: SP.lg,
+                paddingTop: SP.lg,
+                paddingBottom: SP.xxl,
+                backgroundColor: 'rgba(10, 15, 30, 0.92)',
+                borderTopLeftRadius: R.xl,
+                borderTopRightRadius: R.xl,
+                borderTopWidth: 1,
+                borderColor: C.border,
+                elevation: 8,
+              }}
+            >
+              {overlay}
+            </View>
+          ) : null}
         </View>
       </Modal>
     </View>

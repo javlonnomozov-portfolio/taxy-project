@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { TripsController } from './trips.controller';
 import { TripsService } from './trips.service';
 import { Order } from '../entities/order.entity';
 import { Customer } from '../entities/customer.entity';
@@ -22,6 +23,7 @@ import { DispatchModule } from '../dispatch/dispatch.module';
     // Sikl YO'Q: DispatchModule TripsModule'ni import qilmaydi.
     DispatchModule,
   ],
+  controllers: [TripsController],
   providers: [TripsService],
   exports: [TripsService],
 })

@@ -44,7 +44,13 @@ export default function App() {
   }
 
   async function logout() {
-    await storage.clearToken();
+    // Saqlangan holat ham ketsin — aks holda keyingi haydovchi shu telefonga
+    // kirganda ilova o'zi onlayn bo'lib, begona safar masofasini tiklardi.
+    await Promise.all([
+      storage.clearToken(),
+      storage.setWantOnline(false),
+      storage.clearTripProgress(),
+    ]);
     setToken(null);
     setScreen('login');
   }

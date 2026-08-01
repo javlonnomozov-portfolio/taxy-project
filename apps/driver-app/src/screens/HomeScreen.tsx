@@ -12,6 +12,7 @@ import { S, C, R, F, SP } from '../theme';
 import { Lang, makeT } from '../i18n';
 import { MiniMap, MapMarker } from '../MapView';
 import { CabinetScreen } from './CabinetScreen';
+import { storage } from '../storage';
 
 interface LatLng { lat: number; lng: number }
 interface Offer {
@@ -26,6 +27,18 @@ interface Offer {
   customer: { phone: string; name?: string };
 }
 type PendingOffer = Offer & { expiresAt: number };
+/** `GET /trips/active` javobi — `order:assigned` bilan bir xil shakl + `stage`. */
+interface ActiveTrip {
+  orderId: string;
+  pickup: LatLng;
+  pickupAddress?: string;
+  dest?: LatLng;
+  destAddress?: string;
+  customer: { phone: string; name?: string };
+  meterConfig: MeterConfig;
+  stage: Stage;
+  startedAt: string | null;
+}
 interface MeterConfig {
   baseFare: number;
   perKm: number;
@@ -113,6 +126,8 @@ export function HomeScreen({
   const lastLoc = useRef<{ lat: number; lng: number } | null>(null);
   const tripRef = useRef<Trip | null>(null);
   tripRef.current = trip;
+  const distanceRef = useRef(0);
+  distanceRef.current = distanceM;
   const wantOnlineRef = useRef(false); // socket handlerlari uchun "onlayn bo'lishni xohlayapti"
   const registerOnlineRef = useRef<() => void>(() => {});
   const offersRef = useRef<PendingOffer[]>([]);
@@ -145,6 +160,67 @@ export function HomeScreen({
     } catch {
       /* ignore */
     }
+  };
+
+  /**
+   * Serverdagi faol safar bilan sinxronlash — IKKI TOMONLAMA.
+   *
+   * Safar holati faqat ilova xotirasida edi. Android ilovani fonda o'ldirsa
+   * (haydovchi "Yo'l ko'rsatish" bosib Yandex Xaritaga o'tganda odatiy hol),
+   * yoki telefon o'chsa, ilova "Ishni boshlash" ekraniga qaytardi: safar
+   * yo'qolar, haydovchi uni yakunlay olmas, serverda esa zakaz faol qolardi.
+   *
+   * Ikki tomonlama, chunki teskarisi ham bo'ladi: soket uzilgan paytda mijoz
+   * bekor qilsa, `trip:ended` yetib kelmaydi va ilovada safar ekrani osilib
+   * qoladi. Bir tomonni tuzatib ikkinchisini unutish — HANDOFF 5.1 dagi
+   * asimmetriya naqshi.
+   */
+  const syncActiveTrip = async (): Promise<boolean> => {
+    let active: ActiveTrip | null;
+    try {
+      // `{ trip }` qobig'i — yalang'och `null` bo'sh tana beradi, `api()` esa
+      // uni `{}` ga aylantiradi va "safar yo'q" truthy bo'lib qolardi.
+      const res = await api<{ trip: ActiveTrip | null }>(
+        'GET',
+        '/trips/active',
+        undefined,
+        token,
+      );
+      active = res?.trip ?? null;
+    } catch {
+      return !!tripRef.current; // tarmoq yo'q — mavjud holatga tegmaymiz
+    }
+
+    if (!active) {
+      if (tripRef.current) {
+        // Server safarni yakuniy deb biladi — ekranni yopamiz, aks holda
+        // haydovchi yo'q safarda "osilib" qoladi.
+        setTrip(null);
+        setDistanceM(0);
+        Alert.alert(t('trip_cancelled_title'), t('trip_cancelled_msg'));
+      }
+      void storage.clearTripProgress();
+      return false;
+    }
+
+    // Ayni safar allaqachon ekranda — tegmaymiz. Aks holda jonli masofa
+    // saqlangan (15 soniyagacha eski) qiymatga qaytib ketardi.
+    if (tripRef.current?.orderId === active.orderId) return true;
+
+    const saved = await storage.getTripProgress();
+    setTrip({
+      orderId: active.orderId,
+      pickup: active.pickup,
+      pickupAddress: active.pickupAddress,
+      dest: active.dest,
+      destAddress: active.destAddress,
+      customer: active.customer,
+      meter: active.meterConfig,
+      stage: active.stage,
+    });
+    setDistanceM(saved?.orderId === active.orderId ? saved.distanceM : 0);
+    setOffers([]);
+    return true;
   };
 
   const fetchEarnings = async () => {
@@ -232,16 +308,24 @@ export function HomeScreen({
         });
         setOffers([]);
         setDistanceM(0);
+        // Oldingi safardan qolgan masofa yangi safarga o'tib ketmasin.
+        void storage.clearTripProgress();
       },
     );
-    // Qayta ulanганda kutilayotgan takliflarni yangilaymiz.
-    s.on('connect', () => void fetchPending());
+    // Qayta ulanганda kutilayotgan takliflarni va faol safarni yangilaymiz.
+    // Uzilish davomida safar boshlangan yoki bekor qilingan bo'lishi mumkin —
+    // o'sha paytdagi hodisalar ilovaga YETIB KELMAGAN.
+    s.on('connect', () => {
+      void fetchPending();
+      void syncActiveTrip();
+    });
     // Safar mijoz/operator tomonidan bekor qilindi — ekranni yopib, yana buyurtma qabul qilamiz.
     s.on(EV.tripEnded, (e: { orderId: string; reason?: string }) => {
       removeOffer(e.orderId);
       if (tripRef.current && tripRef.current.orderId === e.orderId) {
         setTrip(null);
         setDistanceM(0);
+        void storage.clearTripProgress();
         Alert.alert(t('trip_cancelled_title'), t('trip_cancelled_msg'));
       }
     });
@@ -289,6 +373,9 @@ export function HomeScreen({
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
       if (st === 'active') {
+        // Fonda turganda `trip:ended` yetib kelmagan bo'lishi mumkin, ilova
+        // o'ldirilib qayta ochilgan ham bo'lishi mumkin — ikkalasini shu tekshiradi.
+        void syncActiveTrip();
         void fetchPending();
         void fetchEarnings();
       }
@@ -303,6 +390,37 @@ export function HomeScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * Ishga tushish: saqlangan holatni tiklaymiz.
+   *
+   * Faol safar bo'lsa haydovchi ALBATTA onlayn bo'lishi kerak — taksometr
+   * joylashuvsiz masofani sanay olmaydi va server uni indeksda ushlab turmaydi.
+   */
+  useEffect(() => {
+    (async () => {
+      const [want, hasTrip] = await Promise.all([storage.getWantOnline(), syncActiveTrip()]);
+      if (want || hasTrip) await goOnline();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Taksometr masofasini davriy saqlaymiz — ilova o'ldirilsa shu qiymatdan
+  // davom etadi. Har GPS nuqtasida yozish AsyncStorage'ni ortiqcha yuklaydi.
+  useEffect(() => {
+    if (!trip) return;
+    const orderId = trip.orderId;
+    // `distanceRef` — `distanceM` emas: effekt ichidagi closure qiymatni
+    // yaratilgan paytda muzlatib qo'yadi va har safar eskisini saqlar edi.
+    const save = () =>
+      void storage.setTripProgress({ orderId, distanceM: Math.round(distanceRef.current) });
+    save(); // bosqich o'zgarganda darhol
+    const id = setInterval(save, 15_000);
+    return () => clearInterval(id);
+    // `distanceM` ataylab bog'liqlikda EMAS — u har soniyada o'zgaradi va
+    // interval doim qayta yaratilib, hech qachon ishlamas edi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip?.orderId, trip?.stage]);
+
   async function goOnline() {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
@@ -311,6 +429,7 @@ export function HomeScreen({
     }
     wantOnlineRef.current = true;
     setIntent(true);
+    void storage.setWantOnline(true); // ilova qayta ochilganda o'zi onlayn bo'ladi
     // Backend'ga ro'yxatdan o'tamiz — ACK kelganda UI onlayn bo'ladi (registerOnline).
     registerOnlineRef.current();
     if (!watchRef.current) {
@@ -350,6 +469,7 @@ export function HomeScreen({
   function goOffline() {
     wantOnlineRef.current = false;
     setIntent(false);
+    void storage.setWantOnline(false);
     socketRef.current?.emit(EV.offline, {});
     watchRef.current?.remove();
     watchRef.current = null;
@@ -394,6 +514,7 @@ export function HomeScreen({
         }
         setDone({ price: resp?.finalPrice ?? 0 });
         setTrip(null);
+        void storage.clearTripProgress();
         void fetchEarnings(); // bugungi daromad darhol yangilansin
       },
     );
@@ -446,6 +567,7 @@ export function HomeScreen({
             }
             setTrip(null);
             setDistanceM(0);
+            void storage.clearTripProgress();
           });
         },
       },
@@ -522,6 +644,67 @@ export function HomeScreen({
             : { lat: trip.pickup.lat, lng: trip.pickup.lng, color: '#ff4d4f', label: t('customer') },
         ];
     const navTarget = !goingToCustomer && trip.dest ? trip.dest : trip.pickup;
+
+    // Bosqich tugmasi — har bosqichda BITTA. Bitta joyda tuzilib, ham sahifada,
+    // ham to'liq ekran xaritasi ustida ishlatiladi: ikki nusxa bo'lsa biri
+    // yangilanmay qolishi aniq (HANDOFF 5.1).
+    const stageButton =
+      trip.stage === 'accepted' ? (
+        <TouchableOpacity style={S.btn} onPress={() => tripAction(EV.tripArrived, 'arrived')}>
+          <MaterialIcons name="where-to-vote" size={22} color="#FFFFFF" />
+          <Text style={[S.btnText, { marginLeft: 6 }]}>{t('arrived')}</Text>
+        </TouchableOpacity>
+      ) : trip.stage === 'arrived' ? (
+        <TouchableOpacity
+          style={[S.btn, S.btnOk]}
+          onPress={() => tripAction(EV.tripStart, 'in_progress')}
+        >
+          <MaterialIcons name="play-arrow" size={22} color={C.onOk} />
+          <Text style={[S.btnOkText, { marginLeft: 6 }]}>{t('start_trip')}</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={[S.btn, S.btnOk]} onPress={complete}>
+          <MaterialIcons name="check-circle-outline" size={22} color={C.onOk} />
+          <Text style={[S.btnOkText, { marginLeft: 6 }]}>{t('finish_trip')}</Text>
+        </TouchableOpacity>
+      );
+
+    const navCallRow = (
+      <View style={[S.row, { gap: SP.md }]}>
+        <TouchableOpacity style={[S.btnGhost, { flex: 1 }]} onPress={() => navigate(navTarget)}>
+          <View style={[S.row, { gap: 6 }]}>
+            <MaterialIcons name="navigation" size={18} color={C.text} />
+            <Text style={S.btnGhostText}>{t('navigate')}</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity style={[S.btnGhost, { flex: 1 }]} onPress={() => call(trip.customer.phone)}>
+          <View style={[S.row, { gap: 6 }]}>
+            <MaterialIcons name="phone" size={18} color={C.online} />
+            <Text style={S.btnGhostText}>{t('call')}</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+
+    // To'liq ekran xaritasi ustidagi panel: safarni boshqarish uchun yetarli
+    // ma'lumot + amallar, xaritani kichiklashtirmasdan.
+    const mapOverlay = (
+      <>
+        <View style={[S.row, { justifyContent: 'space-between', marginBottom: SP.md }]}>
+          <Text style={{ color: C.muted, fontSize: F.label, fontWeight: '600' }}>
+            {trip.stage === 'in_progress' ? t('meter') : t('to_customer')}
+          </Text>
+          <Text style={{ color: C.online, fontSize: F.h3, fontWeight: '800' }}>
+            {trip.stage === 'in_progress'
+              ? `${som(liveMeter)} ${t('som')}`
+              : `${(distanceM / 1000).toFixed(1)} ${t('km')}`}
+          </Text>
+        </View>
+        {navCallRow}
+        <View style={{ marginTop: SP.md }}>{stageButton}</View>
+      </>
+    );
+
     return (
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={S.topBar}>
@@ -607,51 +790,13 @@ export function HomeScreen({
           )}
 
           <View style={{ marginTop: SP.md, borderRadius: R.lg, overflow: 'hidden' }}>
-            <MiniMap height={220} markers={tripMarkers} lang={lang} />
+            <MiniMap height={220} markers={tripMarkers} lang={lang} overlay={mapOverlay} />
           </View>
 
-          <View style={[S.row, { gap: SP.md, marginTop: SP.md }]}>
-            <TouchableOpacity style={[S.btnGhost, { flex: 1 }]} onPress={() => navigate(navTarget)}>
-              <View style={[S.row, { gap: 6 }]}>
-                <MaterialIcons name="navigation" size={18} color={C.text} />
-                <Text style={S.btnGhostText}>{t('navigate')}</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[S.btnGhost, { flex: 1 }]}
-              onPress={() => call(trip.customer.phone)}
-            >
-              <View style={[S.row, { gap: 6 }]}>
-                <MaterialIcons name="phone" size={18} color={C.online} />
-                <Text style={S.btnGhostText}>{t('call')}</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+          <View style={{ marginTop: SP.md }}>{navCallRow}</View>
 
           {/* Bosqich tugmasi — har bosqichda BITTA, doim shu joyda. */}
-          <View style={{ marginTop: SP.lg }}>
-            {trip.stage === 'accepted' && (
-              <TouchableOpacity style={S.btn} onPress={() => tripAction(EV.tripArrived, 'arrived')}>
-                <MaterialIcons name="where-to-vote" size={22} color="#FFFFFF" />
-                <Text style={[S.btnText, { marginLeft: 6 }]}>{t('arrived')}</Text>
-              </TouchableOpacity>
-            )}
-            {trip.stage === 'arrived' && (
-              <TouchableOpacity
-                style={[S.btn, S.btnOk]}
-                onPress={() => tripAction(EV.tripStart, 'in_progress')}
-              >
-                <MaterialIcons name="play-arrow" size={22} color={C.onOk} />
-                <Text style={[S.btnOkText, { marginLeft: 6 }]}>{t('start_trip')}</Text>
-              </TouchableOpacity>
-            )}
-            {trip.stage === 'in_progress' && (
-              <TouchableOpacity style={[S.btn, S.btnOk]} onPress={complete}>
-                <MaterialIcons name="check-circle-outline" size={22} color={C.onOk} />
-                <Text style={[S.btnOkText, { marginLeft: 6 }]}>{t('finish_trip')}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <View style={{ marginTop: SP.lg }}>{stageButton}</View>
 
           {/* Xavfli amallar asosiy oqimdan CHIZIQ bilan ajratilgan — safar
               tugatish tugmasining yonida turmasin. */}
@@ -866,6 +1011,54 @@ export function HomeScreen({
               const urgent = remaining <= 20;
               const expanded = expandedId === o.orderId;
               const total = o.timeoutSec ?? 120;
+
+              // "Rad etish" tor va rangsiz, "Qabul qilish" keng va yashil —
+              // ular tasodifan almashtirilmasligi kerak.
+              const respondRow = (
+                <View style={[S.row, { gap: SP.md }]}>
+                  <TouchableOpacity
+                    style={[
+                      S.btnGhost,
+                      { flex: 1, borderColor: C.danger, backgroundColor: 'transparent' },
+                    ]}
+                    onPress={() => respond(o.orderId, false)}
+                  >
+                    <Text style={[S.btnGhostText, { color: C.danger }]}>{t('decline')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[S.btn, S.btnOk, { flex: 2 }]}
+                    onPress={() => respond(o.orderId, true)}
+                  >
+                    <Text style={S.btnOkText}>{t('accept')}</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+
+              // To'liq ekranda ham qolgan vaqt KO'RINISHI shart — taklif
+              // muddati o'tib ketayotganini bilmasdan xaritaga qarab qolmasin.
+              const offerOverlay = (
+                <>
+                  <View style={[S.row, { justifyContent: 'space-between', marginBottom: SP.md }]}>
+                    <View style={[S.row, { gap: 6 }]}>
+                      <MaterialIcons name="near-me" size={18} color={C.accent} />
+                      <Text style={{ color: C.text, fontSize: F.h3, fontWeight: '800' }}>
+                        {(o.distanceM / 1000).toFixed(1)} {t('km')}
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        color: urgent ? C.danger : C.warn,
+                        fontSize: F.h2,
+                        fontWeight: '800',
+                      }}
+                    >
+                      {remaining}s
+                    </Text>
+                  </View>
+                  {respondRow}
+                </>
+              );
+
               return (
                 <View
                   key={o.orderId}
@@ -973,6 +1166,7 @@ export function HomeScreen({
                       <MiniMap
                         height={180}
                         lang={lang}
+                        overlay={offerOverlay}
                         markers={
                           [
                             {
@@ -1006,25 +1200,7 @@ export function HomeScreen({
                     </View>
                   )}
 
-                  {/* "Rad etish" tor va rangsiz, "Qabul qilish" keng va yashil —
-                      ular tasodifan almashtirilmasligi kerak. */}
-                  <View style={[S.row, { marginTop: SP.lg, gap: SP.md }]}>
-                    <TouchableOpacity
-                      style={[
-                        S.btnGhost,
-                        { flex: 1, borderColor: C.danger, backgroundColor: 'transparent' },
-                      ]}
-                      onPress={() => respond(o.orderId, false)}
-                    >
-                      <Text style={[S.btnGhostText, { color: C.danger }]}>{t('decline')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[S.btn, S.btnOk, { flex: 2 }]}
-                      onPress={() => respond(o.orderId, true)}
-                    >
-                      <Text style={S.btnOkText}>{t('accept')}</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <View style={{ marginTop: SP.lg }}>{respondRow}</View>
                 </View>
               );
             })}
