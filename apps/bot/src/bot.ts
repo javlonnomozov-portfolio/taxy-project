@@ -16,7 +16,7 @@ import {
 import { hasMiniapp } from './config';
 import { createSessionStore, resetDraft, Session, SessionStore } from './session';
 import { listenMiniappOrders } from './miniapp-events';
-import { trackOrder, stopTracking } from './tracker';
+import { trackOrder, stopTracking, markCancelAnnounced } from './tracker';
 
 // Yakuniy (terminal) holatlar — bulardan keyin zakaz faol emas.
 const TERMINAL_STATUSES = new Set([
@@ -191,6 +191,9 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
       // Faol buyurtma bo'lsa uni backend'da ham bekor qilamiz (nafaqat draftni) —
       // aks holda "qidirilyapti" holatida zakaz osilib qolardi.
       if (s.activeOrderId) {
+        // Javobni shu yerda o'zimiz yozamiz — tracker takrorlamasin
+        // (`order:cancel` tugmasi yo'lida ham xuddi shunday).
+        markCancelAnnounced(s.activeOrderId);
         try {
           await apiClient.cancelOrder(s.activeOrderId);
         } catch {
@@ -279,6 +282,10 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
     await ctx.answerCbQuery();
     if (!s.activeOrderId) return;
     try {
+      // Tracker'ga aytamiz: bu bekorni BIZ e'lon qilamiz. Busiz `order:status`
+      // hodisasi soket yopilishidan oldin yetib kelsa, mijoz ikkita bir xil
+      // xabar olardi.
+      markCancelAnnounced(s.activeOrderId);
       const res = await apiClient.cancelOrder(s.activeOrderId);
       stopTracking(s.activeOrderId);
       s.activeOrderId = undefined;

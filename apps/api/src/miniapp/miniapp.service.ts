@@ -17,8 +17,9 @@ import { Order } from '../entities/order.entity';
 import { Customer } from '../entities/customer.entity';
 import { DriversService } from '../drivers/drivers.service';
 import { OrdersService } from '../orders/orders.service';
-import { ACTIVE_STATUSES } from '../orders/orders.constants';
+import { ACTIVE_STATUSES, CUSTOMER_CANCELLABLE_STATUSES } from '../orders/orders.constants';
 import { ReputationService } from '../reputation/reputation.service';
+import { TripsService } from '../trips/trips.service';
 import { verifyInitData } from './telegram-init-data';
 
 export interface TrackView {
@@ -36,6 +37,8 @@ export interface TrackView {
   completed: boolean;
   /** Mijoz bu safarni allaqachon baholaganmi (bot chatidan ham bo'lishi mumkin). */
   rated: boolean;
+  /** Hozir bekor qilsa bo'ladimi — bot chatidagi tugma bilan bir xil shart. */
+  cancellable: boolean;
 }
 
 // Bir daqiqada nechta buyurtma yaratishga ruxsat (yarat/bekor qil tsikliga qarshi).
@@ -64,6 +67,7 @@ export class MiniappService {
     private readonly ordersService: OrdersService,
     private readonly config: ConfigService,
     private readonly reputation: ReputationService,
+    private readonly trips: TripsService,
   ) {}
 
   get enabled(): boolean {
@@ -197,7 +201,30 @@ export class MiniappService {
         order.status === OrderStatus.COMPLETED
           ? await this.reputation.hasRated(order.id, 'customer_to_driver')
           : false,
+      cancellable: CUSTOMER_CANCELLABLE_STATUSES.includes(order.status),
     };
+  }
+
+  /**
+   * Mini app'dan buyurtmani bekor qilish.
+   *
+   * Bot chatida "❌ Buyurtmani bekor qilish" tugmasi bor edi, mini app'da esa
+   * yo'q: mijoz xaritani ochib turib bekor qilolmasdi, chatga qaytishi kerak edi.
+   *
+   * Barcha qoidalar (jarima, dispatch'ni to'xtatish, haydovchiga xabar)
+   * `TripsService.cancelByCustomer` da qoladi — bu yerda faqat kim
+   * so'rayotgani tekshiriladi.
+   */
+  async cancel(initData: string, orderId: string): Promise<{ penalized: boolean }> {
+    const customer = await this.requireCustomer(initData);
+    const order = await this.orders.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Buyurtma topilmadi');
+    if (order.customerId !== customer.id) {
+      throw new ForbiddenException('Bu buyurtma sizga tegishli emas');
+    }
+    const res = await this.trips.cancelByCustomer(orderId, 'miniapp');
+    this.log.log(`Mini app'dan bekor: ${orderId} (mijoz ${customer.id})`);
+    return res;
   }
 
   /**

@@ -100,6 +100,13 @@ export class MiniappController {
     return this.miniapp.rate(dto.initData, dto.orderId, dto.score);
   }
 
+  /** Buyurtmani bekor qilish (bot chatidagi tugma bilan bir xil qoidalar). */
+  @Post('cancel')
+  @HttpCode(200)
+  cancel(@Body() dto: TrackDto): Promise<{ penalized: boolean }> {
+    return this.miniapp.cancel(dto.initData, dto.orderId);
+  }
+
   /** Xaritadan tanlangan nuqta bilan buyurtma berish. */
   @Post('order')
   create(@Body() dto: CreateOrderDto): Promise<{ orderId: string }> {

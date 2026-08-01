@@ -7,7 +7,7 @@
 //
 // Ishga tushirish: `node scripts/trip-history-sim.mjs`
 import { io } from 'socket.io-client';
-import { adminLogin, createDriver, jx } from './helpers.mjs';
+import { adminLogin, createDriver, jx, simPhone, simPlate } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -30,8 +30,8 @@ async function main() {
   console.log(`\n=== Safarlar tarixi tartibi sim (API: ${API}) ===\n`);
   const adminToken = await adminLogin(API);
   const d = await createDriver(API, adminToken, {
-    phone: '+998915558001', firstName: 'Tarix',
-    vehicle: { category: 'standard', plate: '01T001', model: 'Cobalt' },
+    phone: simPhone(), firstName: 'Tarix',
+    vehicle: { category: 'standard', plate: simPlate(), model: 'Cobalt' },
   });
   const s = io(API + '/driver', { auth: { token: d.token }, transports: ['websocket'] });
   await new Promise((r) => s.on('connect', r));

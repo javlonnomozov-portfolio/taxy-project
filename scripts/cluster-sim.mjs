@@ -6,7 +6,7 @@
 //   - haydovchining javobi B ga tushib, pub/sub orqali A ga uzatilishi kerak.
 // Egalik/uzatishsiz haydovchi taklifni ko'rmasdi yoki javobi yo'qolardi.
 import { io } from 'socket.io-client';
-import { jx, adminLogin, createDriver } from './helpers.mjs';
+import { jx, adminLogin, createDriver, simPhone } from './helpers.mjs';
 
 const A = process.env.API_A || 'http://localhost:3000';
 const B = process.env.API_B || 'http://localhost:3001';
@@ -25,11 +25,11 @@ console.log(`\n=== TTY klaster simulyatsiyasi (A=${A}, B=${B}) ===\n`);
 const token = await adminLogin(A);
 const H = { authorization: 'Bearer ' + token };
 const drv = await createDriver(A, token, {
-  phone: '+998944445555', firstName: 'Klaster',
+  phone: simPhone(), firstName: 'Klaster',
   vehicle: { make: 'Chevrolet', model: 'Nexia', plate: 'CL001', category: 'standard' },
 });
 const customer = await jx(A, 'POST', '/customers/upsert',
-  { telegramId: '960000001', phone: '+998944440001' }, { 'x-internal-key': KEY });
+  { telegramId: '960000001', phone: simPhone() }, { 'x-internal-key': KEY });
 
 // Haydovchi B-instansiyaga ulanadi (zakaz A da yaratiladi).
 const s = io(B + '/driver', { auth: { token: drv.token }, transports: ['websocket'] });

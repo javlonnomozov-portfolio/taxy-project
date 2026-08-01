@@ -163,6 +163,49 @@ async function main() {
   const after = await track(initData, order2.id);
   check('BOT baholagach mini app rated=true ko\'radi', after.rated === true, String(after.rated));
 
+  console.log('\n--- Mini app\'dan BEKOR QILISH ---');
+  const order3 = await j('POST', '/orders', { customerId: customer.id, category: 'standard', pickup }, { 'x-internal-key': KEY });
+  await sleep(700);
+
+  // Haydovchi hali qabul qilmagan — bekor qilish mumkin va jarimasiz bo'lishi kerak.
+  const beforeAccept = await track(initData, order3.id);
+  check('Qabul qilinmagan zakaz bekor qilinadi (cancellable)', beforeAccept.cancellable === true, String(beforeAccept.cancellable));
+
+  const strangerCancel = await post('/miniapp/cancel', { initData: signInitData(strangerTg), orderId: order3.id });
+  check('Begona odam BEKOR QILOLMAYDI → 403', strangerCancel.status === 403, 'HTTP ' + strangerCancel.status);
+
+  const c1 = await post('/miniapp/cancel', { initData, orderId: order3.id });
+  check('Bekor qilindi', c1.status === 200, 'HTTP ' + c1.status);
+  const c1body = await c1.json();
+  check('Jarimasiz (haydovchi biriktirilmagan)', c1body.penalized === false, JSON.stringify(c1body));
+
+  const afterCancel = await track(initData, order3.id);
+  check('Holat CANCELLED_BY_CUSTOMER', afterCancel.orderStatus === 'CANCELLED_BY_CUSTOMER', afterCancel.orderStatus);
+  check('finished=true', afterCancel.finished === true);
+  check('completed=false (baholash so\'ralmaydi)', afterCancel.completed === false);
+  check('Endi bekor qilib bo\'lmaydi (cancellable=false)', afterCancel.cancellable === false);
+
+  const twice = await post('/miniapp/cancel', { initData, orderId: order3.id });
+  check('Ikkinchi bekor RAD ETILADI', twice.status === 400, 'HTTP ' + twice.status);
+
+  console.log('\n--- Safar BOSHLANGACH bekor qilib bo\'lmaydi ---');
+  const order4 = await j('POST', '/orders', { customerId: customer.id, category: 'standard', pickup }, { 'x-internal-key': KEY });
+  await sleep(1300);
+  ds.emit('driver:offer_response', { orderId: order4.id, accept: true });
+  await sleep(800);
+  const accepted = await track(initData, order4.id);
+  check('Qabul qilingach hali bekor qilinadi', accepted.cancellable === true, String(accepted.cancellable));
+
+  await new Promise((r) => ds.emit('trip:arrived', { orderId: order4.id }, r));
+  await new Promise((r) => ds.emit('trip:start', { orderId: order4.id }, r));
+  await sleep(600);
+  const inProgress = await track(initData, order4.id);
+  check('IN_PROGRESS da cancellable=false', inProgress.cancellable === false, inProgress.orderStatus);
+  const late = await post('/miniapp/cancel', { initData, orderId: order4.id });
+  check('IN_PROGRESS da bekor RAD ETILADI', late.status === 400, 'HTTP ' + late.status);
+  await new Promise((r) => ds.emit('trip:complete', { orderId: order4.id, distanceM: 1000 }, r));
+  await sleep(500);
+
   ds.close();
   console.log(`\nNatija: ${passed} ✅  ${failed} ❌\n`);
   process.exit(failed ? 1 : 0);

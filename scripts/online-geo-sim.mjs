@@ -8,7 +8,7 @@
 //
 // Ishga tushirish: API ishlab turgan holda `node scripts/online-geo-sim.mjs`
 import { io } from 'socket.io-client';
-import { adminLogin, createDriver } from './helpers.mjs';
+import { adminLogin, createDriver, simPhone, simPlate } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -52,9 +52,9 @@ async function main() {
 
   const adminToken = await adminLogin(API);
   const d = await createDriver(API, adminToken, {
-    phone: '+998915550001',
+    phone: simPhone(),
     firstName: 'Geo',
-    vehicle: { category: 'standard', plate: '01G001', model: 'Cobalt' },
+    vehicle: { category: 'standard', plate: simPlate(), model: 'Cobalt' },
   });
 
   const bag = { offers: [] };
@@ -81,7 +81,7 @@ async function main() {
   const customer = await j(
     'POST',
     '/customers/upsert',
-    { telegramId: String(Date.now()), phone: '+998900000042', firstName: 'Sim' },
+    { telegramId: String(Date.now()), phone: simPhone(), firstName: 'Sim' },
     { 'x-internal-key': KEY },
   );
   const order = await j(

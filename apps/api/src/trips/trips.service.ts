@@ -25,6 +25,7 @@ import { BillingService } from '../billing/billing.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { haversineM } from '../dispatch/dispatch.util';
+import { CUSTOMER_CANCELLABLE_STATUSES, PRE_ACCEPT_STATUSES } from '../orders/orders.constants';
 
 /** Tarif topilmasa — `dispatch.service.ts` dagi qiymat bilan bir xil. */
 const DEFAULT_METER = { baseFare: 4000, perKm: 0, waitingPerMin: 0 };
@@ -371,21 +372,15 @@ export class TripsService {
   async cancelByCustomer(orderId: string, reason?: string): Promise<{ penalized: boolean }> {
     const order = await this.orders.findOne({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Buyurtma topilmadi');
-    const preAccept = [OrderStatus.CREATED, OrderStatus.DISPATCHING];
-    const activeCancellable = [
-      ...preAccept,
-      OrderStatus.ACCEPTED,
-      OrderStatus.CONFIRMED,
-      OrderStatus.ARRIVING,
-      OrderStatus.ARRIVED,
-    ];
-    if (!activeCancellable.includes(order.status)) throw new BadRequestException('Bekor qilib bo‘lmaydi');
+    if (!CUSTOMER_CANCELLABLE_STATUSES.includes(order.status)) {
+      throw new BadRequestException('Bekor qilib bo‘lmaydi');
+    }
 
     const cfg = await this.settings.getConfig();
     const withinFreeWindow =
       Date.now() - new Date(order.createdAt).getTime() < cfg.freeCancelSec * 1000;
     // Haydovchi biriktirilgan bo'lsa yoki jarimasiz oynadan chiqqan bo'lsa — jarima.
-    const penalized = !withinFreeWindow || !preAccept.includes(order.status);
+    const penalized = !withinFreeWindow || !PRE_ACCEPT_STATUSES.includes(order.status);
 
     // Guard aynan o'qilgan holatga — `penalized` shu holatdan hisoblangani uchun,
     // orada holat o'zgargan bo'lsa yozmaymiz (aks holda flag noto'g'ri bo'lardi).

@@ -50,6 +50,11 @@ const T = {
     thanks_rating: 'Bahoyingiz uchun rahmat! 🙏',
     skip_rating: 'O‘tkazib yuborish',
     cancelled: 'Buyurtma bekor qilindi',
+    cancel_btn: '❌ Buyurtmani bekor qilish',
+    cancel_confirm: 'Buyurtma bekor qilinsinmi?',
+    cancel_confirm_penalty: 'Haydovchi allaqachon yo‘lda. Bekor qilish bekor darajangizga ta’sir qiladi. Davom etamizmi?',
+    cancelled_free: 'Buyurtma bekor qilindi (jarimasiz).',
+    cancelled_penalty: 'Buyurtma bekor qilindi. ⚠️ Bu bekor darajangizga ta’sir qiladi.',
   },
   ru: {
     title: 'Где такси?',
@@ -83,6 +88,11 @@ const T = {
     thanks_rating: 'Спасибо за оценку! 🙏',
     skip_rating: 'Пропустить',
     cancelled: 'Заказ отменён',
+    cancel_btn: '❌ Отменить заказ',
+    cancel_confirm: 'Отменить заказ?',
+    cancel_confirm_penalty: 'Водитель уже в пути. Отмена повлияет на ваш рейтинг отмен. Продолжить?',
+    cancelled_free: 'Заказ отменён (без штрафа).',
+    cancelled_penalty: 'Заказ отменён. ⚠️ Это повлияет на ваш рейтинг отмен.',
   },
 };
 
@@ -161,6 +171,12 @@ export function miniappPage(): string {
     background: none; color: var(--muted); font-size: 14px; }
   .thanks { margin-top: 18px; text-align: center; color: var(--ok);
     font-size: 16px; font-weight: 700; }
+  /* Bekor qilish — asosiy amal EMAS: to'ldirilgan tugma emas, ramkali va
+     tasdiq so'raydi (tasodifan bosilib safar bekor bo'lmasin). */
+  .cancel { display: block; width: 100%; margin-top: 12px; padding: 14px;
+    border: 1px solid #FF7B72; border-radius: 14px; background: none;
+    color: #FF7B72; font-size: 15px; font-weight: 700; }
+  .cancel:disabled { opacity: 0.5; }
 </style>
 </head>
 <body>
@@ -180,6 +196,7 @@ export function miniappPage(): string {
   <div class="status"><span class="dot wait" id="dot"></span><h1 id="title">…</h1></div>
   <div class="sub" id="sub"></div>
   <div id="info"></div>
+  <div id="cancelWrap"></div>
   <div id="finish"></div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -429,7 +446,60 @@ export function miniappPage(): string {
       elInfo.innerHTML = '';
     }
 
+    renderCancel(d);
     renderFinish(d);
+  }
+
+  var cancelBusy = false;
+
+  /**
+   * Bekor qilish tugmasi. Bot chatida bor edi, mini app'da yo'q edi — mijoz
+   * xaritani ochib turib bekor qilolmasdi, chatga qaytishi kerak edi.
+   */
+  function renderCancel(d) {
+    var el = document.getElementById('cancelWrap');
+    if (!d.cancellable) { el.innerHTML = ''; return; }
+    el.innerHTML = '<button class="cancel" id="cancelBtn">' + esc(t.cancel_btn) + '</button>';
+    document.getElementById('cancelBtn').addEventListener('click', function () {
+      if (cancelBusy) return;
+      // Haydovchi biriktirilgan bo'lsa bekor qilish jarimali — mijoz buni
+      // BOSISHDAN OLDIN bilsin.
+      var msg = d.driver || d.car ? t.cancel_confirm_penalty : t.cancel_confirm;
+      if (tg.showConfirm) {
+        tg.showConfirm(msg, function (ok) { if (ok) sendCancel(); });
+      } else if (confirm(msg)) {
+        sendCancel();
+      }
+    });
+  }
+
+  function sendCancel() {
+    cancelBusy = true;
+    var btn = document.getElementById('cancelBtn');
+    if (btn) btn.disabled = true;
+    fetch('/miniapp/cancel', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ initData: tg.initData, orderId: orderId }),
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (res) {
+        cancelBusy = false;
+        clearTimeout(timer); // kuzatuv tugadi — so'rovlarni to'xtatamiz
+        elTitle.textContent = t.cancelled;
+        elSub.textContent = res.penalized ? t.cancelled_penalty : t.cancelled_free;
+        elInfo.innerHTML = '';
+        document.getElementById('cancelWrap').innerHTML = '';
+        document.getElementById('finish').innerHTML = '';
+      })
+      .catch(function (e) {
+        cancelBusy = false;
+        if (btn) btn.disabled = false;
+        elSub.textContent = t.err + ' [' + (e && e.message ? e.message : 'network') + ']';
+      });
   }
 
   // Raqamni 4000 → 4 000 ko'rinishida yozamiz. Regexsiz: bu fayl shablon

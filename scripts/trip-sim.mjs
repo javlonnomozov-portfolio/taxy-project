@@ -1,7 +1,7 @@
 // Sprint 2 simulyatsiyasi: to'liq safar lifecycle + taksometr + no-show + bekor + ops.
 // Bitta haydovchi + bitta mijoz ketma-ket buyurtmalarda ishtirok etadi.
 import { io } from 'socket.io-client';
-import { adminLogin, createDriver } from './helpers.mjs';
+import { adminLogin, createDriver, simPhone, simPlate } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -45,13 +45,13 @@ async function main() {
   console.log(`\n=== TTY Sprint 2 simulyatsiyasi (${API}) ===\n`);
 
   // Mijoz + haydovchi
-  const customer = await j('POST', '/customers/upsert', { telegramId: String(Date.now()), phone: '+998901112233', firstName: 'Ali' }, { 'x-internal-key': KEY });
-  const phone = '+998911234567';
+  const customer = await j('POST', '/customers/upsert', { telegramId: String(Date.now()), phone: simPhone(), firstName: 'Ali' }, { 'x-internal-key': KEY });
+  const phone = simPhone();
   const adminToken = await adminLogin(API);
   const v = await createDriver(API, adminToken, {
     phone,
     firstName: 'Vali',
-    vehicle: { category: 'standard', plate: '01X777', make: 'Chevrolet', model: 'Nexia', color: 'oq' },
+    vehicle: { category: 'standard', plate: simPlate(), make: 'Chevrolet', model: 'Nexia', color: 'oq' },
   });
 
   // Socketlar

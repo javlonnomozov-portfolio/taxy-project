@@ -16,6 +16,7 @@ async function waitFor(fn, ms = 4000, step = 50) { const end = Date.now() + ms; 
 
 async function j(m, p, b, h = {}) { const r = await fetch(API + p, { method: m, headers: { 'content-type': 'application/json', ...h }, body: b ? JSON.stringify(b) : undefined }); const t = await r.text(); if (!r.ok) throw new Error(`${m} ${p} → ${r.status} ${t}`); return t ? JSON.parse(t) : {}; }
 
+const { simPhone, simPlate } = await import('./helpers.mjs');
 const { createBot } = await import('../apps/bot/dist/bot.js');
 const { io } = await import('socket.io-client');
 const { adminLogin, createDriver } = await import('./helpers.mjs');
@@ -53,7 +54,7 @@ async function startDriver() {
   const v = await createDriver(API, adminToken, {
     phone,
     firstName: 'Jasur',
-    vehicle: { category: 'standard', plate: '01BOT', make: 'Chevrolet', model: 'Cobalt', color: 'oq' },
+    vehicle: { category: 'standard', plate: simPlate(), make: 'Chevrolet', model: 'Cobalt', color: 'oq' },
   });
   const s = io(API + '/driver', { auth: { token: v.token }, transports: ['websocket'] });
   await new Promise((r) => s.on('connect', r));
@@ -79,7 +80,7 @@ async function main() {
   await feedCmd('/start');
   await feedCb('lang:uz');
   check('Til tanlagach telefon so\'raldi', anyText('telefon'));
-  await feedMsg({ contact: { phone_number: '+998901234599', user_id: USER.id, first_name: 'Test' } });
+  await feedMsg({ contact: { phone_number: simPhone(), user_id: USER.id, first_name: 'Test' } });
   check('Telefon ulashgach ro\'yxatdan o\'tdi', anyText('taksi chaqirishingiz mumkin') || anyText('Tayyor'));
 
   console.log('\n--- Taksi chaqirish oqimi ---');

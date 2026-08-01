@@ -1,6 +1,6 @@
 // Xavfsizlik tekshiruvi: bloklangan hisob, rol huquqi, CORS.
 import { io } from 'socket.io-client';
-import { jx, adminLogin, createDriver } from './helpers.mjs';
+import { jx, adminLogin, createDriver, simPhone } from './helpers.mjs';
 
 const API = process.env.API_URL || 'http://localhost:3000';
 const j = (m, p, b, h) => jx(API, m, p, b, h);
@@ -16,7 +16,7 @@ console.log('\n=== TTY xavfsizlik simulyatsiyasi ===\n');
 
 console.log('--- Bloklangan haydovchi tokeni ---');
 const drv = await createDriver(API, adminToken, {
-  phone: '+998937770001', firstName: 'Blok',
+  phone: simPhone(), firstName: 'Blok',
   vehicle: { make: 'X', model: 'Y', plate: 'BL001', category: 'standard' },
 });
 const D = { authorization: 'Bearer ' + drv.token };

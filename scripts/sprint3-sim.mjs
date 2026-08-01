@@ -1,7 +1,7 @@
 // Sprint 3 simulyatsiyasi: komissiya/balans, ikki tomonlama baho, reyting tie-break, oldindan buyurtma.
 // DISPATCH_WINDOW_SIZE=1 bilan ishga tushirilishi kerak (tie-break aniq ko'rinishi uchun).
 import { io } from 'socket.io-client';
-import { adminLogin, createDriver } from './helpers.mjs';
+import { adminLogin, createDriver, simPhone } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -14,12 +14,15 @@ async function waitFor(fn, ms = 3000, step = 50) { const end = Date.now() + ms; 
 const emitAck = (s, ev, d) => new Promise((res) => { let done = false; const t = setTimeout(() => { if (!done) (done = true, res({ __timeout: true })); }, 3000); s.emit(ev, d, (r) => { if (!done) (done = true, clearTimeout(t), res(r)); }); });
 async function j(m, p, b, h = {}) { const r = await fetch(API + p, { method: m, headers: { 'content-type': 'application/json', ...h }, body: b ? JSON.stringify(b) : undefined }); const t = await r.text(); if (!r.ok) throw new Error(`${m} ${p} → ${r.status} ${t}`); return t ? JSON.parse(t) : {}; }
 
+// Prefiks har ishga tushirishda boshqa — busiz sim faqat BIR marta ishlardi.
+const RUN = String(Math.floor(100 + Math.random() * 899));
+
 async function mkDriver(adminToken, suffix, name) {
-  const p = '+99893' + suffix.padStart(7, '0');
+  const p = '+9989' + RUN + suffix.padStart(5, '0');
   const v = await createDriver(API, adminToken, {
     phone: p,
     firstName: name,
-    vehicle: { category: 'standard', plate: 'S' + suffix, model: 'Nexia' },
+    vehicle: { category: 'standard', plate: 'S' + RUN + suffix, model: 'Nexia' },
   });
   const s = io(API + '/driver', { auth: { token: v.token }, transports: ['websocket'] });
   s.offers = []; s.assigned = null;
@@ -34,7 +37,7 @@ async function main() {
   console.log(`\n=== TTY Sprint 3 simulyatsiyasi (${API}) ===\n`);
   const adminToken = await adminLogin(API);
   const H = { authorization: 'Bearer ' + adminToken };
-  const customer = await j('POST', '/customers/upsert', { telegramId: String(Date.now()), phone: '+998901234500', firstName: 'Sardor' }, { 'x-internal-key': KEY });
+  const customer = await j('POST', '/customers/upsert', { telegramId: String(Date.now()), phone: simPhone(), firstName: 'Sardor' }, { 'x-internal-key': KEY });
 
   const A = await mkDriver(adminToken, '1', 'Anvar');
   const B = await mkDriver(adminToken, '2', 'Botir');
@@ -81,6 +84,9 @@ async function main() {
   check('Haydovchi completion_rate > 0', Number(aRow.completionRate) > 0, `(${aRow.completionRate})`);
 
   // ---- Test 3: reyting tie-break (window=1) ----
+  // DIQQAT: `DISPATCH_WINDOW_SIZE=1` API SERVERIDA o'rnatilgan bo'lishi kerak,
+  // sim jarayonida emas — oyna kengligini dispatch server tomonda o'qiydi.
+  // Avval `package.json` uni sim'ga berardi va bu tekshiruv doim yiqilardi.
   console.log('\n--- Test 3: reyting tie-break (teng masofa → yuqori reyting) ---');
   await emitAck(B.socket, 'driver:online', {});
   await ping(A); await ping(B); await sleep(500);

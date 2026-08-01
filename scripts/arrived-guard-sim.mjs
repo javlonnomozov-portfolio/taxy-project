@@ -8,7 +8,7 @@
 // API `ARRIVED_GEOFENCE_M` bilan ishga tushirilgan bo'lsin (default 150).
 // Ishga tushirish: `node scripts/arrived-guard-sim.mjs`
 import { io } from 'socket.io-client';
-import { adminLogin, createDriver } from './helpers.mjs';
+import { adminLogin, createDriver, simPhone, simPlate } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -54,14 +54,14 @@ async function main() {
   const customer = await j(
     'POST',
     '/customers/upsert',
-    { telegramId: String(Date.now()), phone: '+998901119988', firstName: 'Mijoz' },
+    { telegramId: String(Date.now()), phone: simPhone(), firstName: 'Mijoz' },
     { 'x-internal-key': KEY },
   );
 
   const d = await createDriver(API, adminToken, {
-    phone: '+998915553001',
+    phone: simPhone(),
     firstName: 'Sardor',
-    vehicle: { category: 'standard', plate: '01G500', model: 'Cobalt' },
+    vehicle: { category: 'standard', plate: simPlate(), model: 'Cobalt' },
   });
 
   const s = io(API + '/driver', { auth: { token: d.token }, transports: ['websocket'] });

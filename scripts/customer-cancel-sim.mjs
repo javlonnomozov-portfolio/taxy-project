@@ -7,7 +7,7 @@
 //
 // Ishga tushirish: `node scripts/customer-cancel-sim.mjs`
 import { io } from 'socket.io-client';
-import { adminLogin, createDriver, jx } from './helpers.mjs';
+import { adminLogin, createDriver, jx, simPhone, simPlate } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -51,9 +51,9 @@ async function main() {
   console.log(`\n=== "Mijoz bekor qildi" sim (API: ${API}) ===\n`);
   const adminToken = await adminLogin(API);
   const d = await createDriver(API, adminToken, {
-    phone: '+998915556001',
+    phone: simPhone(),
     firstName: 'Rustam',
-    vehicle: { category: 'standard', plate: '01C111', model: 'Cobalt' },
+    vehicle: { category: 'standard', plate: simPlate(), model: 'Cobalt' },
   });
   const { s, bag } = await connectDriver(d.token);
 

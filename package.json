@@ -19,7 +19,7 @@
     "migration:generate": "pnpm --filter @tty/api migration:generate",
     "sim:dispatch": "node scripts/dispatch-sim.mjs",
     "sim:trip": "node scripts/trip-sim.mjs",
-    "sim:sprint3": "DISPATCH_WINDOW_SIZE=1 node scripts/sprint3-sim.mjs",
+    "sim:sprint3": "node scripts/sprint3-sim.mjs",
     "sim:bot": "node scripts/bot-flow-sim.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "sim:race": "node scripts/race-sim.mjs",

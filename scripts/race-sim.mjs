@@ -9,7 +9,7 @@
 //
 // Ishga tushirish: API + Postgres + Redis ko'tarilgan holda `node scripts/race-sim.mjs`
 import { io } from 'socket.io-client';
-import { jx, adminLogin, createDriver } from './helpers.mjs';
+import { jx, adminLogin, createDriver, simPhone, simPlate } from './helpers.mjs';
 
 const API = process.env.API_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -55,14 +55,14 @@ async function main() {
   const H = { authorization: 'Bearer ' + adminToken };
 
   const drv = await createDriver(API, adminToken, {
-    phone: '+998935550001',
+    phone: simPhone(),
     firstName: 'Poyga',
-    vehicle: { make: 'Chevrolet', model: 'Cobalt', plate: '01R001RA', category: 'standard' },
+    vehicle: { make: 'Chevrolet', model: 'Cobalt', plate: simPlate(), category: 'standard' },
   });
   // Foiz billing — komissiya bo'lishi uchun.
   await j('PUT', `/ops/drivers/${drv.driverId}/billing`, { mode: 'percent', config: { percent: 10 } }, H);
 
-  const customer = await j('POST', '/customers/upsert', { telegramId: '950000001', phone: '+998935559001' }, { 'x-internal-key': KEY });
+  const customer = await j('POST', '/customers/upsert', { telegramId: '950000001', phone: simPhone() }, { 'x-internal-key': KEY });
 
   const s = io(API + '/driver', { auth: { token: drv.token }, transports: ['websocket'] });
   s.offers = [];

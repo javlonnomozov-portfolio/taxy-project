@@ -2,7 +2,7 @@
 // Haydovchi ilova hali yo'q, shuning uchun haydovchilarni socket orqali simulyatsiya qilamiz.
 // Ishga tushirish: API ishlab turgan holda `node scripts/dispatch-sim.mjs`
 import { io } from 'socket.io-client';
-import { adminLogin, createDriver } from './helpers.mjs';
+import { adminLogin, createDriver, simPhone } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -66,19 +66,22 @@ async function main() {
   const customer = await j(
     'POST',
     '/customers/upsert',
-    { telegramId: String(Date.now()), phone: '+998900000001', firstName: 'Sim', lastName: 'Mijoz' },
+    { telegramId: String(Date.now()), phone: simPhone(), firstName: 'Sim', lastName: 'Mijoz' },
     { 'x-internal-key': KEY },
   );
 
   // 2) Haydovchilar (super-admin qo'shadi → temp parol → login)
   const adminToken = await adminLogin(API);
+  const RUN = String(Math.floor(1000 + Math.random() * 8999));
   const drivers = [];
   for (let i = 0; i < N; i++) {
-    const phone = '+99891000' + String(i).padStart(4, '0');
+    // Prefiks har ishga tushirishda boshqa — qat'iy raqamlar ikkinchi safar
+    // "haydovchi allaqachon mavjud" (403) berardi.
+    const phone = '+9989' + RUN + String(i).padStart(4, '0');
     const d = await createDriver(API, adminToken, {
       phone,
       firstName: 'Haydovchi' + i,
-      vehicle: { category: 'standard', plate: '01A' + i, model: 'Cobalt' },
+      vehicle: { category: 'standard', plate: '01A' + RUN + i, model: 'Cobalt' },
     });
     drivers.push({ i, phone, token: d.token, driverId: d.driverId, lng: pickup.lng + i * 0.0008 });
   }
@@ -138,7 +141,7 @@ async function main() {
   const customer2 = await j(
     'POST',
     '/customers/upsert',
-    { telegramId: String(Date.now() + 1), phone: '+998900000002', firstName: 'Sim2' },
+    { telegramId: String(Date.now() + 1), phone: simPhone(), firstName: 'Sim2' },
     { 'x-internal-key': KEY },
   );
   const cust2 = await connectCustomer(customer2.id);

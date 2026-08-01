@@ -39,6 +39,23 @@ const NO_DRIVER_WATCH_MS = 15 * 60_000;
 const sockets = new Map<string, Socket>();
 const watchdogs = new Map<string, NodeJS.Timeout>();
 
+/**
+ * Bekor qilish haqida chatga ALLAQACHON xabar berilgan buyurtmalar.
+ *
+ * Mijoz zakazni ikki joydan bekor qila oladi: bot tugmasidan va mini app'dan.
+ * Bot yo'lida javobni handler'ning o'zi yozadi; mini app yo'lida esa xabar
+ * faqat `order:status` orqali keladi. Ikkalasini ham ishlatsak, bot yo'lida
+ * IKKI xabar chiqib qolardi (soket yopilishidan oldin hodisa yetib kelsa).
+ */
+const cancelAnnounced = new Set<string>();
+
+/** Bot o'zi bekor qilganda chaqiriladi — tracker takroriy xabar yozmasin. */
+export function markCancelAnnounced(orderId: string): void {
+  cancelAnnounced.add(orderId);
+  // Xotira o'smasin: kuzatuv baribir tugaydi, yozuv qisqa muddat kerak.
+  setTimeout(() => cancelAnnounced.delete(orderId), 60_000).unref?.();
+}
+
 // Bitta buyurtma bo'yicha jonli statusni kuzatib, Telegram'ga xabar yuboradi.
 export function trackOrder(opts: {
   orderId: string;
@@ -103,6 +120,14 @@ export function trackOrder(opts: {
         // haydovchi hali ham bu zakazni olishi mumkin.
         armWatchdog(orderId);
         return;
+      // Mijozning O'ZI bekor qildi — mini app'dan bo'lishi mumkin. Avval bu
+      // holat umuman ishlanmagan edi: mini app'dan bekor qilinsa chat jim
+      // qolar, "Buyurtmani bekor qilish" tugmasi esa osilib turardi.
+      case 'CANCELLED_BY_CUSTOMER':
+        if (!cancelAnnounced.has(orderId)) {
+          await send(t(lang, m.penalized ? 'cancelled_penalty' : 'cancelled_free'), mainMenu(lang));
+        }
+        break;
       case 'CANCELLED_BY_DRIVER':
       case 'CLOSED_BY_OPERATOR':
       case 'CUSTOMER_NO_SHOW':

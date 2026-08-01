@@ -11,7 +11,7 @@
 //
 // Ishga tushirish: API ishlab turgan holda `node scripts/late-driver-sim.mjs`
 import { io } from 'socket.io-client';
-import { adminLogin, createDriver } from './helpers.mjs';
+import { adminLogin, createDriver, simPhone, simPlate } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -96,9 +96,9 @@ async function main() {
 
   // Endi haydovchi ishga chiqadi.
   const d1 = await createDriver(API, adminToken, {
-    phone: '+998915551001',
+    phone: simPhone(),
     firstName: 'Kech',
-    vehicle: { category: 'standard', plate: '01L001', model: 'Cobalt' },
+    vehicle: { category: 'standard', plate: simPlate(), model: 'Cobalt' },
   });
   const bag1 = { offers: [], assigned: [] };
   const ds1 = await connectDriver(d1.token, bag1);
@@ -142,9 +142,9 @@ async function main() {
   check('Zakaz NO_DRIVER bo\'ldi', st2.status === 'NO_DRIVER');
 
   const d2 = await createDriver(API, adminToken, {
-    phone: '+998915551002',
+    phone: simPhone(),
     firstName: 'Operator',
-    vehicle: { category: 'standard', plate: '01L002', model: 'Nexia' },
+    vehicle: { category: 'standard', plate: simPlate(), model: 'Nexia' },
   });
   const bag2 = { offers: [], assigned: [] };
   const ds2 = await connectDriver(d2.token, bag2);

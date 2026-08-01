@@ -7,7 +7,7 @@
 //
 // Ishga tushirish: `node scripts/per-order-billing-sim.mjs`
 import { io } from 'socket.io-client';
-import { adminLogin, createDriver, jx } from './helpers.mjs';
+import { adminLogin, createDriver, jx, simPhone, simPlate } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -46,14 +46,14 @@ async function main() {
 
   const customer = await j(
     'POST', '/customers/upsert',
-    { telegramId: String(Date.now()), phone: '+998901117766', firstName: 'Mijoz' },
+    { telegramId: String(Date.now()), phone: simPhone(), firstName: 'Mijoz' },
     { 'x-internal-key': KEY },
   );
 
   const d = await createDriver(API, adminToken, {
-    phone: '+998915554001',
+    phone: simPhone(),
     firstName: 'Bekzod',
-    vehicle: { category: 'standard', plate: '01P900', model: 'Cobalt' },
+    vehicle: { category: 'standard', plate: simPlate(), model: 'Cobalt' },
   });
   await j('PUT', `/ops/drivers/${d.driverId}/billing`, { mode: 'per_order' }, auth);
 
