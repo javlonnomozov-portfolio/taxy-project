@@ -44,6 +44,12 @@ const T = {
     order_btn: 'Taksi chaqirish',
     ordering: 'Yuborilmoqda…',
     my_loc: 'Mening joylashuvim',
+    price: 'Narx',
+    som: 'so‘m',
+    rate_prompt: 'Xohlasangiz, haydovchini baholang (ixtiyoriy):',
+    thanks_rating: 'Bahoyingiz uchun rahmat! 🙏',
+    skip_rating: 'O‘tkazib yuborish',
+    cancelled: 'Buyurtma bekor qilindi',
   },
   ru: {
     title: 'Где такси?',
@@ -71,6 +77,12 @@ const T = {
     order_btn: 'Вызвать такси',
     ordering: 'Отправляем…',
     my_loc: 'Моё местоположение',
+    price: 'Стоимость',
+    som: 'сум',
+    rate_prompt: 'Если хотите, оцените водителя (необязательно):',
+    thanks_rating: 'Спасибо за оценку! 🙏',
+    skip_rating: 'Пропустить',
+    cancelled: 'Заказ отменён',
   },
 };
 
@@ -134,6 +146,21 @@ export function miniappPage(): string {
   #orderBtn:disabled { opacity: 0.55; }
   #orderErr { color: #FF7B72; font-size: 13px; margin-top: 10px; min-height: 16px; }
   .hidden { display: none !important; }
+
+  /* --- Yakuniy narx va baholash (bot chatidagi bilan bir xil) --- */
+  .price { margin-top: 16px; text-align: center; }
+  .price .lbl { color: var(--muted); font-size: 13px; }
+  .price .val { color: var(--ok); font-size: 32px; font-weight: 800; margin-top: 2px; }
+  .price .val small { font-size: 16px; font-weight: 700; }
+  .rate-q { color: var(--muted); font-size: 13px; margin-top: 18px; text-align: center; }
+  .stars { display: flex; gap: 8px; margin-top: 10px; }
+  .star { flex: 1; padding: 12px 0; border-radius: 12px; border: 1px solid var(--border);
+    background: #1B2438; color: var(--text); font-size: 15px; font-weight: 700; }
+  .star:disabled { opacity: 0.5; }
+  .skip { display: block; width: 100%; margin-top: 10px; padding: 13px; border: 0;
+    background: none; color: var(--muted); font-size: 14px; }
+  .thanks { margin-top: 18px; text-align: center; color: var(--ok);
+    font-size: 16px; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -153,6 +180,7 @@ export function miniappPage(): string {
   <div class="status"><span class="dot wait" id="dot"></span><h1 id="title">…</h1></div>
   <div class="sub" id="sub"></div>
   <div id="info"></div>
+  <div id="finish"></div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -357,7 +385,12 @@ export function miniappPage(): string {
     timer = setTimeout(poll, ms);
   }
 
+  // Oxirgi kelgan holat — baho yuborilgach sahifani so'rovsiz qayta chizish uchun
+  // (safar tugagach poll() to'xtaydi, ya'ni yangi ma'lumot kelmaydi).
+  var lastData = null;
+
   function render(d) {
+    lastData = d;
     elTitle.textContent = d.finished ? t.finished : statusText(d.orderStatus);
     elDot.className = 'dot' + (d.driver ? '' : ' wait');
 
@@ -387,10 +420,100 @@ export function miniappPage(): string {
         (d.car.model ? '<div class="sub">' + esc(d.car.model) + '</div>' : '') +
         (d.car.plate ? '<div class="plate">' + esc(d.car.plate) + '</div>' : '') +
         '</div>' +
-        (d.car.phone ? '<a class="call" href="tel:' + esc(d.car.phone) + '">📞 ' + esc(d.car.phone) + '</a>' : '');
+        // Safar tugagach qo'ng'iroq tugmasi kerak emas — tugmalar orasida
+        // baholash yulduzlari ko'rinmay qolardi.
+        (d.car.phone && !d.finished
+          ? '<a class="call" href="tel:' + esc(d.car.phone) + '">📞 ' + esc(d.car.phone) + '</a>'
+          : '');
     } else {
       elInfo.innerHTML = '';
     }
+
+    renderFinish(d);
+  }
+
+  // Raqamni 4000 → 4 000 ko'rinishida yozamiz. Regexsiz: bu fayl shablon
+  // satri ichida va teskari chiziqlar yo'qolib, regex buzilardi.
+  function money(n) {
+    var s = String(Math.round(Number(n) || 0));
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 === 0) out += ' ';
+      out += s.charAt(i);
+    }
+    return out;
+  }
+
+  var rateSent = false;
+
+  /**
+   * Safar yakunlangach: narx + baholash. Bot chatida bu allaqachon bor edi,
+   * mini app esa faqat sarlavhani almashtirib qo'yardi — mijoz bir vaqtning
+   * o'zida ikki xil holatni ko'rardi.
+   */
+  function renderFinish(d) {
+    var el = document.getElementById('finish');
+    if (!d.finished) { el.innerHTML = ''; return; }
+
+    // Bekor qilingan safar uchun na narx, na baho bo'ladi.
+    if (!d.completed) {
+      el.innerHTML = '<div class="rate-q">' + esc(t.cancelled) + '</div>';
+      return;
+    }
+
+    var html = '';
+    if (d.finalPrice != null) {
+      html += '<div class="price"><div class="lbl">' + esc(t.price) + '</div>' +
+              '<div class="val">' + money(d.finalPrice) + ' <small>' + esc(t.som) + '</small></div></div>';
+    }
+
+    // d.rated bot chatidan berilgan bahoni ham qamrab oladi — ikki oyna
+    // bir xil holatni ko'rsatishi shundan.
+    if (d.rated || rateSent) {
+      html += '<div class="thanks">' + esc(t.thanks_rating) + '</div>';
+      el.innerHTML = html;
+      return;
+    }
+
+    html += '<div class="rate-q">' + esc(t.rate_prompt) + '</div><div class="stars" id="stars">';
+    for (var n = 1; n <= 5; n++) {
+      html += '<button class="star" data-score="' + n + '">' + n + '⭐</button>';
+    }
+    html += '</div><button class="skip" id="skipRate">' + esc(t.skip_rating) + '</button>';
+    el.innerHTML = html;
+
+    var stars = el.querySelectorAll('.star');
+    for (var k = 0; k < stars.length; k++) {
+      stars[k].addEventListener('click', function () {
+        sendRate(Number(this.getAttribute('data-score')));
+      });
+    }
+    document.getElementById('skipRate').addEventListener('click', function () {
+      rateSent = true;
+      renderFinish(d);
+    });
+  }
+
+  function sendRate(score) {
+    var buttons = document.querySelectorAll('.star');
+    for (var i = 0; i < buttons.length; i++) buttons[i].disabled = true;
+    fetch('/miniapp/rate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ initData: tg.initData, orderId: orderId, score: score }),
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        rateSent = true;
+        lastData.rated = true;
+        renderFinish(lastData);
+      })
+      .catch(function (e) {
+        // Xatoni KO'RSATAMIZ va tugmalarni qaytaramiz — jimgina yutilsa
+        // mijoz baho ketdi deb o'ylardi.
+        for (var i = 0; i < buttons.length; i++) buttons[i].disabled = false;
+        elSub.textContent = t.err + ' [' + (e && e.message ? e.message : 'network') + ']';
+      });
   }
 
   function esc(s) {

@@ -18,6 +18,7 @@ import { Customer } from '../entities/customer.entity';
 import { DriversService } from '../drivers/drivers.service';
 import { OrdersService } from '../orders/orders.service';
 import { ACTIVE_STATUSES } from '../orders/orders.constants';
+import { ReputationService } from '../reputation/reputation.service';
 import { verifyInitData } from './telegram-init-data';
 
 export interface TrackView {
@@ -29,6 +30,12 @@ export interface TrackView {
   car: { name: string; plate: string; model: string; phone: string } | null;
   /** Safar tugadi — sahifa so'rovlarni to'xtatsin. */
   finished: boolean;
+  /** Yakuniy narx — faqat COMPLETED bo'lganda to'ladi. */
+  finalPrice: number | null;
+  /** Safar muvaffaqiyatli yakunlandimi (bekor qilish emas) — baholash shunda so'raladi. */
+  completed: boolean;
+  /** Mijoz bu safarni allaqachon baholaganmi (bot chatidan ham bo'lishi mumkin). */
+  rated: boolean;
 }
 
 // Bir daqiqada nechta buyurtma yaratishga ruxsat (yarat/bekor qil tsikliga qarshi).
@@ -56,6 +63,7 @@ export class MiniappService {
     private readonly drivers: DriversService,
     private readonly ordersService: OrdersService,
     private readonly config: ConfigService,
+    private readonly reputation: ReputationService,
   ) {}
 
   get enabled(): boolean {
@@ -183,6 +191,44 @@ export class MiniappService {
           }
         : null,
       finished: FINISHED.includes(order.status),
+      finalPrice: order.finalPrice,
+      completed: order.status === OrderStatus.COMPLETED,
+      rated:
+        order.status === OrderStatus.COMPLETED
+          ? await this.reputation.hasRated(order.id, 'customer_to_driver')
+          : false,
     };
+  }
+
+  /**
+   * Mini app'dan haydovchini baholash.
+   *
+   * Bot chatida safar yakunlangach narx va yulduzlar chiqardi, mini app esa
+   * faqat "Safar yakunlandi" deb turaverardi — mijoz uchun ikki oyna ikki xil
+   * holatni ko'rsatardi.
+   *
+   * Baholar bot bilan BIR XIL kategoriyalarda yoziladi — aks holda bitta
+   * haydovchining reytingi qaysi oynadan baholanganiga qarab boshqacha
+   * hisoblanardi.
+   */
+  async rate(initData: string, orderId: string, score: number): Promise<{ ok: true }> {
+    const customer = await this.requireCustomer(initData);
+    const order = await this.orders.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Buyurtma topilmadi');
+    if (order.customerId !== customer.id) {
+      throw new ForbiddenException('Bu buyurtma sizga tegishli emas');
+    }
+    if (order.status !== OrderStatus.COMPLETED) {
+      throw new BadRequestException('Safar yakunlanmagan');
+    }
+    // Takroriy baho `ReputationService.submit` da jimgina e'tiborsiz qoldiriladi
+    // (mijoz bot chatida ham baholagan bo'lishi mumkin).
+    await this.reputation.submit(orderId, 'customer_to_driver', {
+      manners: score,
+      driving: score,
+      car_condition: score,
+      punctuality: score,
+    });
+    return { ok: true };
   }
 }

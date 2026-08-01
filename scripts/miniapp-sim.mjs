@@ -8,7 +8,7 @@
 // Ishga tushirish: `TELEGRAM_BOT_TOKEN=123:TEST node scripts/miniapp-sim.mjs`
 import { createHmac } from 'node:crypto';
 import { io } from 'socket.io-client';
-import { adminLogin, createDriver } from './helpers.mjs';
+import { adminLogin, createDriver, simPhone, simPlate } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -83,16 +83,18 @@ async function main() {
   const customer = await j(
     'POST',
     '/customers/upsert',
-    { telegramId: tgId, phone: '+998901112233', firstName: 'Mijoz' },
+    { telegramId: tgId, phone: simPhone('+99890'), firstName: 'Mijoz' },
     { 'x-internal-key': KEY },
   );
 
-  // Haydovchi onlayn + joylashuv.
+  // Haydovchi onlayn + joylashuv. Raqam tasodifiy, lekin tekshiruvda
+  // ishlatilishi uchun o'zgaruvchida saqlanadi.
+  const driverPlate = simPlate();
   const d = await createDriver(API, adminToken, {
-    phone: '+998915552001',
+    phone: simPhone(),
     firstName: 'Anvar',
     lastName: 'Karimov',
-    vehicle: { category: 'standard', plate: '01M777MA', model: 'Cobalt', color: 'oq', make: 'Chevrolet' },
+    vehicle: { category: 'standard', plate: driverPlate, model: 'Cobalt', color: 'oq', make: 'Chevrolet' },
   });
   const ds = io(API + '/driver', { auth: { token: d.token }, transports: ['websocket'] });
   const offers = [];
@@ -119,7 +121,7 @@ async function main() {
   await j(
     'POST',
     '/customers/upsert',
-    { telegramId: tgId2, phone: '+998901112244', firstName: 'Mijoz2' },
+    { telegramId: tgId2, phone: simPhone('+99890'), firstName: 'Mijoz2' },
     { 'x-internal-key': KEY },
   );
 
@@ -199,7 +201,7 @@ async function main() {
   const view = await ok.json();
   check('Haydovchining jonli joylashuvi keldi', !!view.driver && view.driver.lat === 41.32);
   check('Olib ketish nuqtasi keldi', view.pickup.lat === pickup.lat);
-  check('Mashina kartasi keldi (raqam bilan)', !!view.car && view.car.plate === '01M777MA');
+  check('Mashina kartasi keldi (raqam bilan)', !!view.car && view.car.plate === driverPlate);
   check('Zakaz holati ACCEPTED', view.orderStatus === 'ACCEPTED');
   check('finished=false — sahifa so\'rovni davom ettiradi', view.finished === false);
 

@@ -7,7 +7,7 @@
 //
 // Ishga tushirish: `node scripts/offline-withdraw-sim.mjs`
 import { io } from 'socket.io-client';
-import { adminLogin, createDriver, jx } from './helpers.mjs';
+import { adminLogin, createDriver, jx, simPhone, simPlate } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -27,18 +27,18 @@ async function main() {
 
   const customer = await j(
     'POST', '/customers/upsert',
-    { telegramId: String(Date.now()), phone: '+998901115544', firstName: 'Mijoz' },
+    { telegramId: String(Date.now()), phone: simPhone('+99890'), firstName: 'Mijoz' },
     { 'x-internal-key': KEY },
   );
 
   // IKKI haydovchi: birinchisi oflayn bo'ladi, ikkinchisi taklifni olishi kerak.
   const d1 = await createDriver(API, adminToken, {
-    phone: '+998915557001', firstName: 'Ketuvchi',
-    vehicle: { category: 'standard', plate: '01D001', model: 'Cobalt' },
+    phone: simPhone(), firstName: 'Ketuvchi',
+    vehicle: { category: 'standard', plate: simPlate(), model: 'Cobalt' },
   });
   const d2 = await createDriver(API, adminToken, {
-    phone: '+998915557002', firstName: 'Qoluvchi',
-    vehicle: { category: 'standard', plate: '01D002', model: 'Nexia' },
+    phone: simPhone(), firstName: 'Qoluvchi',
+    vehicle: { category: 'standard', plate: simPlate(), model: 'Nexia' },
   });
 
   const bag1 = { offers: [], cancels: [] };

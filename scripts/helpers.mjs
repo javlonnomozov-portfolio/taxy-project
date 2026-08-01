@@ -15,6 +15,22 @@ export async function adminLogin(API, login = 'admin', password = process.env.AD
   return r.token;
 }
 
+/**
+ * Har ishga tushirishda YANGI telefon raqami.
+ *
+ * Qat'iy raqamli simlar bir marta ishlaydi: ikkinchi safar
+ * "Bu telefon bilan haydovchi allaqachon mavjud" (403) bilan yiqiladi, chunki
+ * lokal baza tozalanmaydi. Bu sabab bir necha sim "buzuq" ko'rinib turardi.
+ */
+export const simPhone = (prefix = '+99891') =>
+  prefix + Math.floor(1000000 + Math.random() * 8999999);
+
+/** Har ishga tushirishda yangi davlat raqami (mashina raqami ham unikal). */
+export const simPlate = () =>
+  '01' + String.fromCharCode(65 + Math.floor(Math.random() * 26)) +
+  Math.floor(100 + Math.random() * 899) +
+  String.fromCharCode(65 + Math.floor(Math.random() * 26));
+
 // Super-admin haydovchi qo'shadi, so'ng temp parol bilan login qiladi → {token, driverId}.
 export async function createDriver(API, adminToken, { phone, firstName, lastName, vehicle }) {
   const res = await jx(

@@ -2,10 +2,13 @@ import { Body, Controller, Get, Header, HttpCode, Post } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import {
   IsEnum,
+  IsInt,
   IsLatitude,
   IsLongitude,
   IsString,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -25,6 +28,13 @@ class TrackDto extends InitDataDto {
   @IsString()
   @MaxLength(64)
   orderId!: string;
+}
+
+class RateDto extends TrackDto {
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  score!: number;
 }
 
 class PickupDto {
@@ -81,6 +91,13 @@ export class MiniappController {
   @HttpCode(200)
   state(@Body() dto: InitDataDto): Promise<{ orderId: string | null }> {
     return this.miniapp.activeOrderId(dto.initData);
+  }
+
+  /** Safar yakunlangach haydovchini baholash (bot chatidagi yulduzlar bilan bir xil). */
+  @Post('rate')
+  @HttpCode(200)
+  rate(@Body() dto: RateDto): Promise<{ ok: true }> {
+    return this.miniapp.rate(dto.initData, dto.orderId, dto.score);
   }
 
   /** Xaritadan tanlangan nuqta bilan buyurtma berish. */

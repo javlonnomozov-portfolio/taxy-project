@@ -37,6 +37,15 @@ export class ReputationService {
       if (v < 1 || v > 5) throw new BadRequestException('Baho 1..5 oralig‘ida bo‘lishi kerak');
     }
 
+    // BIRINCHI baho qoladi, keyingilari JIMGINA e'tiborsiz qoldiriladi.
+    //
+    // Endi mijoz bitta safarni IKKI joydan baholay oladi: bot chatidagi
+    // tugmalardan va mini app'dan. `ratings_unique (order_id, direction)`
+    // sababli ikkinchi urinish 500 bilan yiqilardi; cheklovsiz esa haydovchi
+    // reytingi ikki marta hisoblanardi. Ikkalasi ham noto'g'ri.
+    const existing = await this.ratings.findOne({ where: { orderId, direction } });
+    if (existing) return existing;
+
     const overall = this.avg(scores);
     const rating = await this.ratings.save(
       this.ratings.create({
@@ -53,6 +62,11 @@ export class ReputationService {
     if (direction === 'customer_to_driver') await this.recomputeDriver(order.driverId);
     else await this.recomputeCustomer(order.customerId);
     return rating;
+  }
+
+  /** Shu yo'nalishda baho berilganmi — mini app yulduzlarni ko'rsatishdan oldin so'raydi. */
+  async hasRated(orderId: string, direction: RatingDirection): Promise<boolean> {
+    return (await this.ratings.countBy({ orderId, direction })) > 0;
   }
 
   /** Haydovchi reytingi + xulq metrikalari (2.8). */
