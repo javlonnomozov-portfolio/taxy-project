@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
 > **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `448f1fe`
+> **Oxirgi commit:** `d17b031`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -58,7 +58,10 @@ Migratsiyalar konteyner startida **avtomatik** ishlaydi (`Dockerfile` CMD).
   **DIQQAT:** bu o'zgaruvchini o'zgartirgach `railway redeploy --service api`
   qiling — Railway o'zgaruvchini saqlaydi, lekin konteynerni QAYTA ISHGA
   TUSHIRMAYDI va eski qiymat amalda qolaveradi (hostname o'zgarganini
-  loglardan tekshiring).
+  loglardan tekshiring). 90 kun ekani token `exp` maydonidan tasdiqlangan.
+- `ADMIN_PASSWORD` — **admin seed faqat admin YO'Q bo'lsa ishlaydi**
+  (`admin-seed.service.ts`: `if (existing) return`). Parolni almashtirish
+  uchun `admin_users` qatorini o'chirib, yangi parol bilan redeploy qiling.
 - `ARRIVED_GEOFENCE_M=150` · `ARRIVED_LOCATION_STALE_SEC=120` · `MAX_BILLABLE_WAIT_MIN=30`
 - `NOMINATIM_URL` / `OSRM_URL` — **bo'sh** (manzil nomlari/marshrut o'chiq, ataylab).
 
@@ -105,10 +108,11 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 
 ## 3. Qolgan ishlar
 
-1. **Haydovchilar qo'shish.** Hozir 1 ta approved (`+998990051630`).
-   Zakaz ishlashi uchun **kamida bitta ONLINE haydovchi** VA uning mashinasi
-   toifasi zakaz toifasiga **mos** bo'lishi shart — aks holda `NO_DRIVER`.
-   (`+998900000097/98/99` — diagnostika uchun, bloklangan, o'chirsa bo'ladi.)
+1. **Haydovchilar qo'shish.** 2026-08-13 da prod bazasi TOZALANDI —
+   haydovchi ham, mijoz ham, zakaz ham YO'Q (0 ta). Foydalanuvchi o'zi
+   qo'shadi. Zakaz ishlashi uchun **kamida bitta ONLINE haydovchi** VA uning
+   mashinasi toifasi zakaz toifasiga **mos** bo'lishi shart — aks holda
+   `NO_DRIVER`. Tariflar (3 ta) va sozlamalar saqlab qolindi.
 2. **FCM kaliti Expo'ga** — tugadimi noma'lum.
    `cd apps/driver-app && eas credentials --platform android` →
    `preview` → FCM V1 service account key → fayl
@@ -159,6 +163,7 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 | `9df6411` | **Mini app: narx + baholash** (bot chati bilan sinxron) + takroriy baho himoyasi |
 | `dd8114d` | **Mini app: bekor qilish tugmasi** + bot `CANCELLED_BY_CUSTOMER` ni ishlaydi + sim gigiyenasi |
 | `448f1fe` | **Token tugaganda ilova qulflanib qolmaydi** (401 → login) + `session:revoked` tinglanadi |
+| `d17b031` | To'liq ekranda mijozgacha masofa `0.0 km` ko'rsatardi (bosib o'tilgan masofa chiqarilardi) |
 
 **Dizayn hujjatlari:** `docs/DRIVER-APP-DESIGN-PROMPT.md`,
 `docs/ADMIN-DESIGN-PROMPT.md` (ikkalasi ham mavjud koddan o'qib yozilgan;
