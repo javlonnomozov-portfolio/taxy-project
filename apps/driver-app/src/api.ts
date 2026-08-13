@@ -1,5 +1,18 @@
 import { API_URL } from './config';
 
+/**
+ * Token yaroqsiz bo'lganda (muddati tugagan / hisob bloklangan) chaqiriladi.
+ *
+ * Busiz ilova qulflanib qolardi: token 7 kundan keyin tugaydi, server soketni
+ * "jwt expired" bilan uzadi, ilova esa buni bilmay cheksiz "Ulanmoqda…" da
+ * aylanaverardi. Haydovchi uchun ilova shunchaki ISHLAMAY qolardi.
+ */
+let onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(fn: (() => void) | null): void {
+  onUnauthorized = fn;
+}
+
 export async function api<T = unknown>(
   method: string,
   path: string,
@@ -15,6 +28,9 @@ export async function api<T = unknown>(
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
+  // 401 FAQAT token yuborilgan so'rovda sessiya tugaganini bildiradi.
+  // Login so'rovida (token yo'q) 401 — bu shunchaki "parol noto'g'ri".
+  if (res.status === 401 && token) onUnauthorized?.();
   if (!res.ok) {
     let msg = text;
     try {

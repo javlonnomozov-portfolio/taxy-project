@@ -272,6 +272,10 @@ export function HomeScreen({
     });
     // Ulanib bo'lmasa sababni ko'rsatamiz (tarmoq, proksi, token va h.k.).
     s.on('connect_error', (e: Error) => setConnError(e.message || 'connect_error'));
+    // Server hisobni bekor qildi (bloklangan). Bu hodisa serverda ALLAQACHON
+    // yuborilardi, lekin ilova uni tinglamasdi — haydovchi "Ulanmoqda…" da
+    // abadiy qolib, sababini bilmasdi.
+    s.on('session:revoked', () => onLogout());
     // Uzilish: backend grace'dan keyin oflayn qiladi — UI'da halol ko'rsatamiz ("Ulanmoqda…").
     s.on('disconnect', (reason: string) => {
       setOnline(false);

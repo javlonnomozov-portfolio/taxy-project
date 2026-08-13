@@ -8,7 +8,7 @@ import { HomeScreen } from './src/screens/HomeScreen';
 import { storage } from './src/storage';
 import { Lang } from './src/i18n';
 import { C, S } from './src/theme';
-import { LoginResult } from './src/api';
+import { LoginResult, setUnauthorizedHandler } from './src/api';
 import { ErrorBoundary } from './src/ErrorBoundary';
 
 type Screen = 'loading' | 'login' | 'change' | 'home';
@@ -17,6 +17,9 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('loading');
   const [token, setToken] = useState<string | null>(null);
   const [lang, setLang] = useState<Lang>('uz');
+  // Sessiya o'zi tugaganda login ekranida sabab ko'rinsin — aks holda
+  // haydovchi "nega meni chiqarib yubordi?" deb qoladi.
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -31,6 +34,21 @@ export default function App() {
     })();
   }, []);
 
+  /**
+   * Token yaroqsiz — login ekraniga qaytaramiz.
+   *
+   * Avval bunday yo'l YO'Q edi: token muddati tugagach server soketni uzardi,
+   * ilova esa "Ulanmoqda…" da abadiy qolib, hech qanday buyurtma olmasdi.
+   */
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setExpired(true);
+      void logout(true); // safar masofasi saqlanadi — o'sha haydovchi qaytadi
+    });
+    return () => setUnauthorizedHandler(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function toggleLang() {
     const next: Lang = lang === 'uz' ? 'ru' : 'uz';
     setLang(next);
@@ -38,18 +56,25 @@ export default function App() {
   }
 
   async function onLoggedIn(r: LoginResult) {
+    setExpired(false);
     setToken(r.token);
     await storage.setToken(r.token);
     setScreen(r.mustChangePassword ? 'change' : 'home');
   }
 
-  async function logout() {
-    // Saqlangan holat ham ketsin — aks holda keyingi haydovchi shu telefonga
-    // kirganda ilova o'zi onlayn bo'lib, begona safar masofasini tiklardi.
+  /**
+   * @param keepTrip Sessiya O'ZI tugaganda `true`: bu ayni haydovchi, u
+   *   qaytadan kiradi va safari `GET /trips/active` bilan tiklanadi —
+   *   taksometr masofasini o'chirib yuborsak, u safarni nol masofa bilan
+   *   yakunlab, pulini yo'qotardi.
+   *   Qo'lda "Chiqish"da esa tozalaymiz: telefonga boshqa haydovchi kirishi
+   *   mumkin va begona safar tiklanib qolmasin.
+   */
+  async function logout(keepTrip = false) {
     await Promise.all([
       storage.clearToken(),
       storage.setWantOnline(false),
-      storage.clearTripProgress(),
+      ...(keepTrip ? [] : [storage.clearTripProgress()]),
     ]);
     setToken(null);
     setScreen('login');
@@ -78,13 +103,22 @@ export default function App() {
         </View>
       )}
       {screen === 'login' && (
-        <LoginScreen lang={lang} onToggleLang={toggleLang} onLoggedIn={onLoggedIn} />
+        <LoginScreen
+          lang={lang}
+          onToggleLang={toggleLang}
+          onLoggedIn={onLoggedIn}
+          notice={expired ? 'session_expired' : undefined}
+        />
       )}
       {screen === 'change' && token && (
         <ChangePasswordScreen lang={lang} token={token} onDone={() => setScreen('home')} />
       )}
       {screen === 'home' && token && (
-        <HomeScreen lang={lang} token={token} onLogout={logout} />
+        // `logout` TO'G'RIDAN uzatilmaydi: u `onPress={onLogout}` orqali
+        // chaqirilganda birinchi argument sifatida bosish HODISASI keladi va
+        // `keepTrip` tasodifan `true` bo'lib qolardi (qo'lda chiqqanda safar
+        // masofasi tozalanmasdi).
+        <HomeScreen lang={lang} token={token} onLogout={() => void logout()} />
       )}
     </View>
     </ErrorBoundary>

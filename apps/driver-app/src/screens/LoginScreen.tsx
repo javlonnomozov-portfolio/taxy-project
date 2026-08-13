@@ -9,10 +9,13 @@ export function LoginScreen({
   lang,
   onToggleLang,
   onLoggedIn,
+  notice,
 }: {
   lang: Lang;
   onToggleLang: () => void;
   onLoggedIn: (r: LoginResult) => void;
+  /** Nega login ekraniga qaytdik (masalan sessiya muddati tugadi) — i18n kaliti. */
+  notice?: string;
 }) {
   const t = makeT(lang);
   const [phone, setPhone] = useState('+998');
@@ -56,6 +59,21 @@ export function LoginScreen({
           {t('welcome')}
         </Text>
         <Text style={[S.subtitle, { marginTop: 6 }]}>{t('login_sub')}</Text>
+
+        {notice ? (
+          <View
+            style={{
+              backgroundColor: C.warnSoft,
+              borderColor: 'rgba(255, 176, 32, 0.35)',
+              borderWidth: 1,
+              borderRadius: R.sm,
+              padding: SP.md,
+              marginBottom: SP.lg,
+            }}
+          >
+            <Text style={{ color: C.warn, fontSize: F.label }}>{t(notice)}</Text>
+          </View>
+        ) : null}
 
         <View style={S.card}>
           <Text style={S.label}>{t('phone')}</Text>
