@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
 > **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `dd8114d`
+> **Oxirgi commit:** `448f1fe`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -51,13 +51,16 @@ Migratsiyalar konteyner startida **avtomatik** ishlaydi (`Dockerfile` CMD).
   Kod o'z domenini avtomatik qo'shadi (`selfOrigin()`), qo'lda yozish shart emas.
 - `TELEGRAM_BOT_TOKEN` (api) — Railway **servis-havolasi** bilan: `${{bot.BOT_TOKEN}}`.
   Ixtiyoriy: bo'lmasa mini app 503 qaytaradi va bot eski tugmaga qaytadi.
+- `JWT_EXPIRES_IN=7d` — haydovchi HAR HAFTA qaytadan kirishi kerak. Ilova endi
+  buni to'g'ri ishlaydi (login ekraniga qaytaradi), lekin noqulaylikni
+  kamaytirish uchun qiymatni Railway'dan oshirsa bo'ladi (kod tegilmaydi).
 - `ARRIVED_GEOFENCE_M=150` · `ARRIVED_LOCATION_STALE_SEC=120` · `MAX_BILLABLE_WAIT_MIN=30`
 - `NOMINATIM_URL` / `OSRM_URL` — **bo'sh** (manzil nomlari/marshrut o'chiq, ataylab).
 
-### 🟢 Eng so'nggi APK (LOKAL build, commit `44533e7`)
+### 🟢 Eng so'nggi APK (LOKAL build, commit `448f1fe`)
 
 ```
-apps/driver-app/toy-taxy-driver-44533e7.apk   (66 MB, .gitignore'da)
+apps/driver-app/toy-taxy-driver-448f1fe.apk   (66 MB, .gitignore'da)
 ```
 
 ⚠️ **Keystore o'zgargan** (Expo hisobi `javl9n` → `jav1on`, loyiha
@@ -66,7 +69,8 @@ o'rnatilMAYDI — haydovchi bir marta eskisini o'chirishi kerak. Bundan
 keyingi yangilanishlar oddiy.
 Ichida: yangi dizayn · GPS tuzatishi · status bar · bekor qilish himoyasi ·
 oflayn taklif tuzatishi · `ErrorBoundary` · **xaritani to'liq ekranga ochish**
-(amal tugmalari bilan) · **ilova o'ldirilsa faol safar tiklanadi**.
+(amal tugmalari bilan) · **ilova o'ldirilsa faol safar tiklanadi** ·
+**token muddati tugasa login ekraniga qaytadi**.
 Oldingi bulut APK (commit `7458e0a`):
 `https://expo.dev/artifacts/eas/lb71xPeZJo8dIChQuaTrQH5_J7aQqixd5X6jcfW_Re8.apk`
 
@@ -149,6 +153,7 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 | `44533e7` | Yangi Expo hisobi (**keystore o'zgargan** — qayta o'rnatish kerak) |
 | `9df6411` | **Mini app: narx + baholash** (bot chati bilan sinxron) + takroriy baho himoyasi |
 | `dd8114d` | **Mini app: bekor qilish tugmasi** + bot `CANCELLED_BY_CUSTOMER` ni ishlaydi + sim gigiyenasi |
+| `448f1fe` | **Token tugaganda ilova qulflanib qolmaydi** (401 → login) + `session:revoked` tinglanadi |
 
 **Dizayn hujjatlari:** `docs/DRIVER-APP-DESIGN-PROMPT.md`,
 `docs/ADMIN-DESIGN-PROMPT.md` (ikkalasi ham mavjud koddan o'qib yozilgan;
@@ -180,6 +185,16 @@ Bir xil ishni qiladigan ikki yo'l bor, biridan yon ta'sir tushib qolgan:
 **`dispatch.abort()` ni chaqirishi shart bo'lgan joylar:** `ops.close()`,
 `ops.assign()`, `dispatch.offerToDriver()`, `trips.cancelByCustomer()`.
 **Taklifni qaytarib olishi shart:** `goOffline()` (gateway'da `goOfflineAndWithdraw`).
+
+### 5.1b "Ishlamayapti" shikoyatida AVVAL prod logini o'qing
+
+Ilova "Ulanmoqda…" da qotib qolgani uchun yarim soat kod o'qildi — javob
+bitta buyruqda turgan edi:
+```bash
+railway logs --service api | grep -iE "rad etildi|jwt|401"
+# → Haydovchi socket ulanishi rad etildi: jwt expired
+```
+Server nega rad etganini ALLAQACHON yozadi. Taxmin qilishdan oldin o'qing.
 
 ### 5.2 Jimgina yutilgan xatolar eng ko'p vaqt oladi
 
