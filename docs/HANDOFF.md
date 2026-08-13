@@ -51,9 +51,14 @@ Migratsiyalar konteyner startida **avtomatik** ishlaydi (`Dockerfile` CMD).
   Kod o'z domenini avtomatik qo'shadi (`selfOrigin()`), qo'lda yozish shart emas.
 - `TELEGRAM_BOT_TOKEN` (api) — Railway **servis-havolasi** bilan: `${{bot.BOT_TOKEN}}`.
   Ixtiyoriy: bo'lmasa mini app 503 qaytaradi va bot eski tugmaga qaytadi.
-- `JWT_EXPIRES_IN=7d` — haydovchi HAR HAFTA qaytadan kirishi kerak. Ilova endi
-  buni to'g'ri ishlaydi (login ekraniga qaytaradi), lekin noqulaylikni
-  kamaytirish uchun qiymatni Railway'dan oshirsa bo'ladi (kod tegilmaydi).
+- `JWT_EXPIRES_IN=90d` (2026-08-13 da `7d` dan oshirildi — haydovchi har hafta
+  ilovadan chiqib ketardi). Ilova muddat tugashini endi to'g'ri ishlaydi
+  (login ekraniga sabab bilan qaytaradi). Bloklash baribir DARHOL ta'sir
+  qiladi (`session:revoked`), token muddatiga bog'liq emas.
+  **DIQQAT:** bu o'zgaruvchini o'zgartirgach `railway redeploy --service api`
+  qiling — Railway o'zgaruvchini saqlaydi, lekin konteynerni QAYTA ISHGA
+  TUSHIRMAYDI va eski qiymat amalda qolaveradi (hostname o'zgarganini
+  loglardan tekshiring).
 - `ARRIVED_GEOFENCE_M=150` · `ARRIVED_LOCATION_STALE_SEC=120` · `MAX_BILLABLE_WAIT_MIN=30`
 - `NOMINATIM_URL` / `OSRM_URL` — **bo'sh** (manzil nomlari/marshrut o'chiq, ataylab).
 
