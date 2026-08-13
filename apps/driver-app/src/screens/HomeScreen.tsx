@@ -692,6 +692,11 @@ export function HomeScreen({
 
     // To'liq ekran xaritasi ustidagi panel: safarni boshqarish uchun yetarli
     // ma'lumot + amallar, xaritani kichiklashtirmasdan.
+    // Mijozgacha QOLGAN masofa (to'g'ri chiziq bo'yicha, yo'l emas).
+    // `distanceM` bu yerda YARAMAYDI: u safar davomida BOSIB O'TILGAN masofa
+    // va safar boshlanmaguncha 0 — panelda "Mijoz oldiga 0.0 km" deb turardi.
+    const toTarget = lastLoc.current ? haversine(lastLoc.current, navTarget) : null;
+
     const mapOverlay = (
       <>
         <View style={[S.row, { justifyContent: 'space-between', marginBottom: SP.md }]}>
@@ -701,7 +706,9 @@ export function HomeScreen({
           <Text style={{ color: C.online, fontSize: F.h3, fontWeight: '800' }}>
             {trip.stage === 'in_progress'
               ? `${som(liveMeter)} ${t('som')}`
-              : `${(distanceM / 1000).toFixed(1)} ${t('km')}`}
+              : toTarget == null
+                ? t('gps_searching')
+                : `~${(toTarget / 1000).toFixed(1)} ${t('km')}`}
           </Text>
         </View>
         {navCallRow}
@@ -1046,7 +1053,7 @@ export function HomeScreen({
                     <View style={[S.row, { gap: 6 }]}>
                       <MaterialIcons name="near-me" size={18} color={C.accent} />
                       <Text style={{ color: C.text, fontSize: F.h3, fontWeight: '800' }}>
-                        {(o.distanceM / 1000).toFixed(1)} {t('km')}
+                        ~{(o.distanceM / 1000).toFixed(1)} {t('km')}
                       </Text>
                     </View>
                     <Text
@@ -1076,7 +1083,7 @@ export function HomeScreen({
                       <View style={[S.row, { gap: 6, marginTop: 2 }]}>
                         <MaterialIcons name="near-me" size={20} color={C.accent} />
                         <Text style={{ color: C.text, fontSize: F.title, fontWeight: '800' }}>
-                          {(o.distanceM / 1000).toFixed(1)} {t('km')}
+                          ~{(o.distanceM / 1000).toFixed(1)} {t('km')}
                         </Text>
                       </View>
                     </View>
