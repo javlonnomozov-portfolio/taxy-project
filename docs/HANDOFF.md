@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
 > **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `43ef55b`
+> **Oxirgi commit:** `43aac41`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -164,7 +164,9 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 | `dd8114d` | **Mini app: bekor qilish tugmasi** + bot `CANCELLED_BY_CUSTOMER` ni ishlaydi + sim gigiyenasi |
 | `448f1fe` | **Token tugaganda ilova qulflanib qolmaydi** (401 → login) + `session:revoked` tinglanadi |
 | `d17b031` | To'liq ekranda mijozgacha masofa `0.0 km` ko'rsatardi (bosib o'tilgan masofa chiqarilardi) |
-| `43ef55b` | **Ilova o'zidan o'zi yopilardi**: fonda foreground service ishga tushirish Android 12+ da jarayonni o'ldiradi |
+| `43ef55b` | Fonda ruxsat so'ramaslik + `AppState` tekshiruvi (crash sababi BU EMAS edi) |
+| `300286f` | **Ilova qulashi**: xarita yechib olingan WebView'ga `injectJavaScript` yozardi → JNI `obj == null` |
+| `43aac41` | **Mijoz raqami `+` siz saqlanardi** — kontakt ulashish yo'lida normalizatsiya yo'q edi |
 
 **Dizayn hujjatlari:** `docs/DRIVER-APP-DESIGN-PROMPT.md`,
 `docs/ADMIN-DESIGN-PROMPT.md` (ikkalasi ham mavjud koddan o'qib yozilgan;
@@ -223,6 +225,26 @@ buni USHLAMAYDI — bu JS xatosi emas.
 > ishlaydigan kod yozsangiz, `AppState.currentState === 'active'` ni
 > tekshiring. Avtomatik yo'lda ruxsat SO'RAMANG — `get*PermissionsAsync`
 > bilan faqat o'qing.
+
+### 5.1d Native crashni ErrorBoundary USHLAMAYDI — logcat oling
+
+Ilova "o'zidan o'zi chiqib ketsa" va ekranda hech narsa ko'rinmasa, bu JS
+xatosi EMAS. Telefonni USB bilan ulab:
+```bash
+export PATH=$HOME/Android/Sdk/platform-tools:$PATH
+adb logcat -b crash -d | grep -A 20 toytaxy      # o'tgan crashlar
+adb logcat -b crash -c                            # buferni tozalash
+```
+Bir marta shu bilan aniqlandi:
+`JNI DETECTED ERROR IN APPLICATION: obj == null ... (tid mqt_native_modu)`
+— xarita YECHIB OLINGAN WebView'ga `injectJavaScript` yozayotgan edi.
+
+> **Qoida:** `ref.current?.` tekshiruvi YETARLI EMAS. Native ko'rinish yo'q
+> qilingan bo'lsa ham `ref.current` hali null bo'lmasligi mumkin. Komponent
+> ekranda ekanini ALOHIDA bayroq bilan kuzating (unmount cleanup'da o'chiring).
+
+Bu yerda men avval foreground service deb TAXMIN qilib, noto'g'ri tuzatish
+yozgan edim. Logcat bir daqiqada haqiqatni ko'rsatdi.
 
 ### 5.2 Jimgina yutilgan xatolar eng ko'p vaqt oladi
 
