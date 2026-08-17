@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
 > **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `d17b031`
+> **Oxirgi commit:** `43ef55b`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -65,10 +65,10 @@ Migratsiyalar konteyner startida **avtomatik** ishlaydi (`Dockerfile` CMD).
 - `ARRIVED_GEOFENCE_M=150` · `ARRIVED_LOCATION_STALE_SEC=120` · `MAX_BILLABLE_WAIT_MIN=30`
 - `NOMINATIM_URL` / `OSRM_URL` — **bo'sh** (manzil nomlari/marshrut o'chiq, ataylab).
 
-### 🟢 Eng so'nggi APK (LOKAL build, commit `448f1fe`)
+### 🟢 Eng so'nggi APK (LOKAL build, commit `43ef55b`)
 
 ```
-apps/driver-app/toy-taxy-driver-448f1fe.apk   (66 MB, .gitignore'da)
+apps/driver-app/toy-taxy-driver-43ef55b.apk   (66 MB, .gitignore'da)
 ```
 
 ⚠️ **Keystore o'zgargan** (Expo hisobi `javl9n` → `jav1on`, loyiha
@@ -164,6 +164,7 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 | `dd8114d` | **Mini app: bekor qilish tugmasi** + bot `CANCELLED_BY_CUSTOMER` ni ishlaydi + sim gigiyenasi |
 | `448f1fe` | **Token tugaganda ilova qulflanib qolmaydi** (401 → login) + `session:revoked` tinglanadi |
 | `d17b031` | To'liq ekranda mijozgacha masofa `0.0 km` ko'rsatardi (bosib o'tilgan masofa chiqarilardi) |
+| `43ef55b` | **Ilova o'zidan o'zi yopilardi**: fonda foreground service ishga tushirish Android 12+ da jarayonni o'ldiradi |
 
 **Dizayn hujjatlari:** `docs/DRIVER-APP-DESIGN-PROMPT.md`,
 `docs/ADMIN-DESIGN-PROMPT.md` (ikkalasi ham mavjud koddan o'qib yozilgan;
@@ -205,6 +206,23 @@ railway logs --service api | grep -iE "rad etildi|jwt|401"
 # → Haydovchi socket ulanishi rad etildi: jwt expired
 ```
 Server nega rad etganini ALLAQACHON yozadi. Taxmin qilishdan oldin o'qing.
+
+### 5.1c Fon rejimida qilib bo'lmaydigan ishlar (Android 12+)
+
+Ilova tizim tomonidan FONDA ham ishga tushiriladi (qayta ishga tushirish,
+joylashuv, push). O'shanda quyidagilar jarayonni O'LDIRADI:
+- **foreground service ochish** (`Location.startLocationUpdatesAsync` ning
+  `foregroundService` sozlamasi) → `ForegroundServiceStartNotAllowedException`;
+- **ruxsat oynasini ochish** (`request*PermissionsAsync`) — Activity yo'q.
+
+Alomat: soket 5-60 soniyada ulanib-uzilib turadi, logda "rad etildi" YO'Q
+(auth joyida), ya'ni jarayon o'lib qayta ishga tushmoqda. `ErrorBoundary`
+buni USHLAMAYDI — bu JS xatosi emas.
+
+> **Qoida:** `useEffect(..., [])` ichida joylashuv/ruxsat/servis bilan
+> ishlaydigan kod yozsangiz, `AppState.currentState === 'active'` ni
+> tekshiring. Avtomatik yo'lda ruxsat SO'RAMANG — `get*PermissionsAsync`
+> bilan faqat o'qing.
 
 ### 5.2 Jimgina yutilgan xatolar eng ko'p vaqt oladi
 
