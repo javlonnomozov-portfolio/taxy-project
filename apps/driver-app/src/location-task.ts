@@ -27,7 +27,27 @@ TaskManager.defineTask(BG_LOCATION_TASK, async ({ data, error }) => {
   }
 });
 
+/**
+ * Fon rejimidagi joylashuv — foreground service bilan.
+ *
+ * DIQQAT: bu FAQAT ilova ekranda turganda chaqirilishi kerak. Android 12+ da
+ * fonda turgan ilova foreground service ishga tushirsa, tizim
+ * `ForegroundServiceStartNotAllowedException` bilan JARAYONNI O'LDIRADI —
+ * ilova "o'zidan o'zi chiqib ketadi". Chaqiruvchi (`goOnline`) buni tekshiradi.
+ *
+ * Xato bu yerda YUTILADI: fon joylashuvi ikkinchi darajali imkoniyat, u
+ * ishlamasa ham haydovchi soket orqali ishlayveradi. Avval xato yuqoriga
+ * ko'tarilib, onlayn bo'lish oqimini butunlay to'xtatishi mumkin edi.
+ */
 export async function startBackgroundLocation(): Promise<void> {
+  try {
+    await startBackgroundLocationUnsafe();
+  } catch {
+    /* fon joylashuvi yoqilmadi — asosiy oqim buzilmaydi */
+  }
+}
+
+async function startBackgroundLocationUnsafe(): Promise<void> {
   const { status } = await Location.requestBackgroundPermissionsAsync();
   if (status !== 'granted') return; // fon ruxsati yo'q — foreground socket bilan ishlaydi
   const already = await Location.hasStartedLocationUpdatesAsync(BG_LOCATION_TASK).catch(() => false);
@@ -46,6 +66,12 @@ export async function startBackgroundLocation(): Promise<void> {
 }
 
 export async function stopBackgroundLocation(): Promise<void> {
-  const started = await Location.hasStartedLocationUpdatesAsync(BG_LOCATION_TASK).catch(() => false);
-  if (started) await Location.stopLocationUpdatesAsync(BG_LOCATION_TASK);
+  try {
+    const started = await Location.hasStartedLocationUpdatesAsync(BG_LOCATION_TASK).catch(
+      () => false,
+    );
+    if (started) await Location.stopLocationUpdatesAsync(BG_LOCATION_TASK);
+  } catch {
+    /* to'xtatib bo'lmadi — "Ishni tugatish" tugmasi baribir ishlasin */
+  }
 }

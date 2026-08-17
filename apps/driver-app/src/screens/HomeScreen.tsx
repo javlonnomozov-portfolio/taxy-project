@@ -401,10 +401,28 @@ export function HomeScreen({
    * joylashuvsiz masofani sanay olmaydi va server uni indeksda ushlab turmaydi.
    */
   useEffect(() => {
-    (async () => {
-      const [want, hasTrip] = await Promise.all([storage.getWantOnline(), syncActiveTrip()]);
-      if (want || hasTrip) await goOnline();
-    })();
+    let done = false;
+
+    const restore = async () => {
+      if (done) return;
+      // Ilova EKRANDA turmasa tegmaymiz: `goOnline` foreground service ishga
+      // tushiradi va Android 12+ fonda buni qilgan jarayonni O'LDIRADI
+      // (ilova "o'zidan o'zi chiqib ketardi"). Ekranga chiqqanda qayta urinamiz.
+      if (AppState.currentState !== 'active') return;
+      done = true;
+      try {
+        const [want, hasTrip] = await Promise.all([storage.getWantOnline(), syncActiveTrip()]);
+        if (want || hasTrip) await goOnline(true);
+      } catch {
+        /* tiklash ilovani yiqitmasin — haydovchi tugmani qo'lda bosa oladi */
+      }
+    };
+
+    void restore();
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') void restore();
+    });
+    return () => sub.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -425,10 +443,21 @@ export function HomeScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip?.orderId, trip?.stage]);
 
-  async function goOnline() {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Ruxsat', 'Joylashuv ruxsati kerak.');
+  /**
+   * @param auto — ilova ishga tushganda holatni TIKLASH uchun chaqirilganmi
+   *   (haydovchi tugmani bosmagan).
+   *
+   * Avtomatik yo'lda ruxsat SO'RALMAYDI va ogohlantirish chiqmaydi: ilova
+   * fonda ham ishga tushishi mumkin, o'shanda ruxsat oynasini ochish yoki
+   * foreground service ishga tushirish Android 12+ da JARAYONNI O'LDIRADI.
+   * Ruxsat allaqachon berilgan bo'lsagina davom etamiz.
+   */
+  async function goOnline(auto = false) {
+    const perm = auto
+      ? await Location.getForegroundPermissionsAsync()
+      : await Location.requestForegroundPermissionsAsync();
+    if (perm.status !== 'granted') {
+      if (!auto) Alert.alert('Ruxsat', 'Joylashuv ruxsati kerak.');
       return;
     }
     wantOnlineRef.current = true;
@@ -1001,7 +1030,10 @@ export function HomeScreen({
               <Text style={S.btnText}>{t('go_offline')}</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={[S.btn, S.btnOk]} onPress={goOnline}>
+            // `onPress={goOnline}` YOZMANG: React Native bosish hodisasini
+            // birinchi argument qilib uzatadi va u `auto` ni truthy qiladi —
+            // tugma ruxsat so'ramay jimgina hech narsa qilmay qo'yardi.
+            <TouchableOpacity style={[S.btn, S.btnOk]} onPress={() => void goOnline()}>
               <MaterialIcons name="play-arrow" size={22} color={C.onOk} />
               <Text style={[S.btnOkText, { marginLeft: 6 }]}>{t('go_online')}</Text>
             </TouchableOpacity>
