@@ -6,6 +6,7 @@ import { Order } from '../entities/order.entity';
 import { Driver } from '../entities/driver.entity';
 import { Customer } from '../entities/customer.entity';
 import { OrderEvent } from '../entities/order-event.entity';
+import { SEED_RATING, SEED_VOTES } from './reputation.constants';
 
 @Injectable()
 export class ReputationService {
@@ -71,15 +72,22 @@ export class ReputationService {
 
   /** Haydovchi reytingi + xulq metrikalari (2.8). */
   async recomputeDriver(driverId: string): Promise<void> {
+    // O'RTACHA emas, YIG'INDI va SON olamiz: boshlang'ich "urug'" ovozini
+    // (`SEED_RATING`) qo'shib hisoblash uchun ikkalasi ham kerak.
     const row = await this.ratings
       .createQueryBuilder('r')
-      .select('AVG(r.overall)', 'avg')
+      .select('COALESCE(SUM(r.overall), 0)', 'sum')
+      .addSelect('COUNT(*)', 'cnt')
       .where('r.driver_id = :driverId AND r.direction = :dir', {
         driverId,
         dir: 'customer_to_driver',
       })
-      .getRawOne<{ avg: string | null }>();
-    const avg = row?.avg ?? null;
+      .getRawOne<{ sum: string; cnt: string }>();
+
+    const sum = Number(row?.sum ?? 0);
+    const cnt = Number(row?.cnt ?? 0);
+    // Urug' o'chmaydi, haqiqiy baholar ko'paygani sari suyuladi.
+    const avg = (SEED_RATING * SEED_VOTES + sum) / (SEED_VOTES + cnt);
 
     const counts = await this.driverEventCounts(driverId);
     const acceptDenom = counts.accepted + counts.declined;
@@ -88,7 +96,7 @@ export class ReputationService {
     const completionRate = counts.accepted ? (counts.completed / counts.accepted) * 100 : 0;
 
     await this.drivers.update(driverId, {
-      ratingAvg: avg ? Math.round(Number(avg) * 100) / 100 : 0,
+      ratingAvg: Math.round(avg * 100) / 100,
       acceptanceRate: Math.round(acceptanceRate * 100) / 100,
       cancelRate: Math.round(cancelRate * 100) / 100,
       completionRate: Math.round(completionRate * 100) / 100,

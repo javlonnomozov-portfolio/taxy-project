@@ -80,7 +80,9 @@ async function main() {
   await j('POST', '/ratings/driver-to-customer', { orderId: o1.id, scores: { manners: 5, payment_honesty: 5 } }, { authorization: 'Bearer ' + A.token });
   const drivers = await j('GET', '/ops/drivers', null, H);
   const aRow = drivers.find((d) => d.id === A.driverId);
-  check('Haydovchi reytingi hisoblandi (4.5)', Number(aRow.ratingAvg) === 4.5, `(${aRow.ratingAvg})`);
+  // 4.5 baho + boshlang'ich 5 urug'i → (5 + 4.5) / 2 = 4.75.
+  // Urug' haqiqiy baholar ko'paygani sari suyuladi (reputation.constants.ts).
+  check('Reyting urug\' bilan hisoblandi (4.75)', Number(aRow.ratingAvg) === 4.75, `(${aRow.ratingAvg})`);
   check('Haydovchi completion_rate > 0', Number(aRow.completionRate) > 0, `(${aRow.completionRate})`);
 
   // ---- Test 3: reyting tie-break (window=1) ----
@@ -95,8 +97,13 @@ async function main() {
   await sleep(800);
   const aGot = A.socket.offers.some((o) => o.orderId === o2.id);
   const bGot = B.socket.offers.some((o) => o.orderId === o2.id);
-  check('Yuqori reytingli A taklif oldi', aGot, `(A=${aGot})`);
-  check('Past reytingli B (window=1) taklif olmadi', !bGot, `(B=${bGot})`);
+  // DIQQAT — BOSHLANG'ICH REYTINGNING OQIBATI: B hali baholanmagan, ya'ni
+  // urug' bo'yicha 5.00; A esa haqiqiy 4.5 olgani uchun 4.75. Demak teng
+  // masofada YUQORI reytingli B yutadi. Bu tie-break mexanizmi to'g'ri
+  // ishlayotganini ko'rsatadi, lekin yangi haydovchi tajribalisidan oldin
+  // taklif olishini ham bildiradi — mahsulot qarori (`SEED_RATING`).
+  check('Yuqori reytingli B (5.00 urug\') taklif oldi', bGot, `(B=${bGot})`);
+  check('Past reytingli A (4.75, window=1) taklif olmadi', !aGot, `(A=${aGot})`);
   // tozalash
   A.socket.emit('driver:offer_response', { orderId: o2.id, accept: false });
   await sleep(300);

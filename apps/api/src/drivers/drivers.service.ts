@@ -14,6 +14,7 @@ import { Vehicle } from '../entities/vehicle.entity';
 import { Order } from '../entities/order.entity';
 import { Transaction } from '../entities/transaction.entity';
 import { AccountStatusService } from '../auth/account-status.service';
+import { SEED_RATING } from '../reputation/reputation.constants';
 
 // Haydovchi tarixida ko'rinadigan tugagan holatlar.
 const FINISHED_STATUSES = [
@@ -71,6 +72,10 @@ export class DriversService {
         passwordHash: await bcrypt.hash(tempPassword, 10),
         mustChangePassword: true,
         approvalStatus: ApprovalStatus.APPROVED,
+        // Yangi haydovchi 0.00 bilan emas, 5.00 bilan boshlaydi — "birinchi
+        // mijoz 5 yulduz bergan" degan urug' ovoz. Haqiqiy baholar kelgani
+        // sari suyuladi (`recomputeDriver`).
+        ratingAvg: SEED_RATING,
       }),
     );
     await this.vehicles.save(this.vehicles.create({ driverId: driver.id, ...data.vehicle }));
