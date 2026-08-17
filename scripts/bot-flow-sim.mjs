@@ -80,8 +80,23 @@ async function main() {
   await feedCmd('/start');
   await feedCb('lang:uz');
   check('Til tanlagach telefon so\'raldi', anyText('telefon'));
-  await feedMsg({ contact: { phone_number: simPhone(), user_id: USER.id, first_name: 'Test' } });
+  // Telegram kontakt raqamini ko'pincha `+` SIZ beradi — SIM AYNAN SHUNI beradi.
+  // Avval bu yo'lda normalizatsiya yo'q edi va mijoz bazada `+` siz saqlanardi;
+  // keyin haydovchi ilovasi `tel:998...` ochib, telefon uni noto'g'ri raqam
+  // deb ko'rsatardi (qo'lda yozish yo'lida esa normalizatsiya bor edi).
+  const rawPhone = simPhone().replace('+', '');
+  await feedMsg({ contact: { phone_number: rawPhone, user_id: USER.id, first_name: 'Test' } });
   check('Telefon ulashgach ro\'yxatdan o\'tdi', anyText('taksi chaqirishingiz mumkin') || anyText('Tayyor'));
+
+  // `upsert` faqat telegramId bilan chaqirilsa mavjud yozuvni O'ZGARTIRMASDAN
+  // qaytaradi — saqlangan raqamni shu orqali o'qiymiz.
+  const saved = await j('POST', '/customers/upsert', { telegramId: String(USER.id) }, { 'x-internal-key': KEY });
+  check(
+    'Kontakt orqali kelgan raqam `+` bilan saqlandi',
+    typeof saved.phone === 'string' && saved.phone.startsWith('+'),
+    String(saved && saved.phone),
+  );
+  check('Raqam raqamlari o\'zgarmadi', saved.phone === '+' + rawPhone, saved.phone + ' vs +' + rawPhone);
 
   console.log('\n--- Taksi chaqirish oqimi ---');
   await feedText('🚕 Taksi chaqirish');

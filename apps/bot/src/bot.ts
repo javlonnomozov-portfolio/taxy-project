@@ -1,6 +1,7 @@
 import { Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { CONFIG } from './config';
+import { normalizeUzPhone } from '@tty/shared';
 import { apiClient } from './api';
 import { Lang, t } from './i18n';
 import {
@@ -168,7 +169,12 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
   // Telefon ulashish (tugma) → ro'yxatdan o'tish
   bot.on(message('contact'), async (ctx) => {
     const s = getSession(ctx);
-    await register(ctx, s.lang, ctx.message.contact.phone_number);
+    // Telegram kontakt raqamini ko'pincha `+` SIZ beradi (`998990051630`).
+    // Avval u xom holda uzatilardi — qo'lda yozish yo'lida normalizatsiya bor
+    // edi, bu yo'lda esa yo'q (HANDOFF 5.1 asimmetriyasi). Natijada mijoz
+    // bazada `+` siz saqlanib, haydovchi ilovasi `tel:998...` ochardi va
+    // telefon uni noto'g'ri raqam deb ko'rsatardi.
+    await register(ctx, s.lang, normalizeUzPhone(ctx.message.contact.phone_number));
   });
 
   // Matnli xabarlar (registratsiya / menyu / oqim qadamlari)

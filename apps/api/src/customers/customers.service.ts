@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Customer } from '../entities/customer.entity';
+import { normalizeUzPhone } from '@tty/shared';
 
 @Injectable()
 export class CustomersService {
@@ -19,7 +20,11 @@ export class CustomersService {
     if (!customer) {
       customer = this.repo.create({ telegramId: data.telegramId });
     }
-    if (data.phone !== undefined) customer.phone = data.phone;
+    // Raqam SHU YERDA normallashtiriladi — bu barcha yozuvlar o'tadigan yagona
+    // nuqta. Bot'da ikkita ro'yxatdan o'tish yo'li bor edi (qo'lda yozish va
+    // kontakt ulashish) va ikkinchisidan normalizatsiya tushib qolgani uchun
+    // mijozlar bazada `+` siz saqlanardi.
+    if (data.phone !== undefined) customer.phone = normalizeUzPhone(data.phone);
     if (data.firstName !== undefined) customer.firstName = data.firstName;
     if (data.lastName !== undefined) customer.lastName = data.lastName;
     if (data.language !== undefined) customer.language = data.language;
