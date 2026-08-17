@@ -86,6 +86,67 @@ function MapButton({
   );
 }
 
+/**
+ * Bitta WebView — nuqtalarni O'ZI yangilaydi.
+ *
+ * NEGA ALOHIDA KOMPONENT: avval ota-komponent ikkita `ref` ushlab, nuqtalar
+ * o'zgarganda IKKALASIGA ham `injectJavaScript` yozardi — jumladan to'liq
+ * ekran ochilganda YECHIB OLINGAN ichki WebView'ga ham. `ref.current` hali
+ * null bo'lmasligi mumkin, native ko'rinish esa allaqachon yo'q qilingan;
+ * native tomon null obyektga murojaat qilib ilovani YIQITARDI:
+ *
+ *   JNI DETECTED ERROR IN APPLICATION: obj == null
+ *   in call to CallVoidMethodV ... (tid mqt_native_modu)
+ *
+ * Endi har WebView faqat O'ZIGA yozadi va faqat (a) yuklanib bo'lgan,
+ * (b) hali ekranda turgan bo'lsa. Yechib olinganda bayroq DARHOL o'chadi,
+ * ya'ni keyin hech qanday inject navbatga qo'yilmaydi.
+ */
+function MapWebView({
+  html,
+  markersJson,
+  scroll,
+}: {
+  html: string;
+  markersJson: string;
+  scroll: boolean;
+}) {
+  const ref = useRef<WebView>(null);
+  const alive = useRef(false); // ekranda VA yuklanib bo'lganmi
+
+  useEffect(() => {
+    return () => {
+      alive.current = false; // yechib olindi — endi inject qilmaymiz
+    };
+  }, []);
+
+  const push = useCallback((json: string) => {
+    if (!alive.current) return;
+    ref.current?.injectJavaScript(`window.__setMarkers && window.__setMarkers(${json}); true;`);
+  }, []);
+
+  useEffect(() => {
+    push(markersJson);
+  }, [markersJson, push]);
+
+  return (
+    <WebView
+      ref={ref}
+      source={{ html }}
+      style={{ flex: 1, backgroundColor: '#0f1420' }}
+      scrollEnabled={scroll}
+      originWhitelist={['*']}
+      javaScriptEnabled
+      domStorageEnabled
+      // Sahifa bo'sh yuklanadi — joriy nuqtalarni yuklanish tugagach beramiz.
+      onLoadEnd={() => {
+        alive.current = true;
+        push(markersJson);
+      }}
+    />
+  );
+}
+
 // Ichki xarita — WebView + Leaflet/OSM (Google Maps API key kerak emas).
 // markers[0] odatda pickup/mijoz, markers[1] haydovchi yoki manzil bo'ladi.
 export function MiniMap({
@@ -112,39 +173,16 @@ export function MiniMap({
   const t = makeT(lang);
   const html = useMemo(() => buildHtml(line), [line]);
 
-  const smallRef = useRef<WebView>(null);
-  const fullRef = useRef<WebView>(null);
   // Effekt har render qayta ishlamasligi uchun nuqtalar solishtiriladigan kalit.
   const key = JSON.stringify(markers);
 
-  const push = useCallback(() => {
-    const js = `window.__setMarkers && window.__setMarkers(${key}); true;`;
-    smallRef.current?.injectJavaScript(js);
-    fullRef.current?.injectJavaScript(js);
-  }, [key]);
-
-  useEffect(push, [push]);
-
-  const web = (ref: React.RefObject<WebView>, scroll: boolean) => (
-    <WebView
-      ref={ref}
-      source={{ html }}
-      style={{ flex: 1, backgroundColor: '#0f1420' }}
-      scrollEnabled={scroll}
-      originWhitelist={['*']}
-      javaScriptEnabled
-      domStorageEnabled
-      // Yangi WebView (masalan, to'liq ekran oynasi) bo'sh yuklanadi —
-      // joriy nuqtalarni yuklanish tugagach beramiz.
-      onLoadEnd={push}
-    />
-  );
+  const web = (scroll: boolean) => <MapWebView html={html} markersJson={key} scroll={scroll} />;
 
   // To'liq ekran ochiq bo'lganda ichki WebView yechib olinadi: arzon Android
   // telefonlarda ikkita Leaflet WebView bir vaqtda ilovani yiqitishi mumkin.
   return (
     <View style={{ height, borderRadius: 12, overflow: 'hidden', backgroundColor: '#0f1420' }}>
-      {!full && web(smallRef, false)}
+      {!full && web(false)}
 
       <View style={{ position: 'absolute', top: SP.sm, right: SP.sm }}>
         <MapButton icon="fullscreen" label={t('fullscreen')} onPress={() => setFull(true)} />
@@ -158,7 +196,7 @@ export function MiniMap({
         statusBarTranslucent
       >
         <View style={{ flex: 1, backgroundColor: '#0f1420' }}>
-          {full && web(fullRef, true)}
+          {full && web(true)}
           <View
             style={{
               position: 'absolute',
