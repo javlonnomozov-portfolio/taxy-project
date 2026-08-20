@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
 > **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `43aac41`
+> **Oxirgi commit:** `f5ab131`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -81,6 +81,26 @@ oflayn taklif tuzatishi · `ErrorBoundary` · **xaritani to'liq ekranga ochish**
 **token muddati tugasa login ekraniga qaytadi**.
 Oldingi bulut APK (commit `7458e0a`):
 `https://expo.dev/artifacts/eas/lb71xPeZJo8dIChQuaTrQH5_J7aQqixd5X6jcfW_Re8.apk`
+
+#### Play Market uchun AAB (APK EMAS)
+
+```
+apps/driver-app/toy-taxy-driver-300286f.aab   (31 MB, .gitignore'da)
+```
+Play Market **APK qabul qilmaydi** — AAB kerak. Yig'ish:
+```bash
+cd apps/driver-app && eas build -p android --profile production --local
+```
+(`preview` profili APK, `production` profili AAB beradi — `eas.json`.)
+
+⚠️ **Play App Signing** — Google do'konda O'Z kalitini ishlatadi. Ya'ni
+do'kondan o'rnatilgan ilova hozirgi APK ustiga TUSHMAYDI: haydovchilar bir
+marta o'chirib qayta o'rnatishi kerak bo'ladi.
+
+Do'konga yuklashdan oldin (kodga aloqasi yo'q): Play Console hisobi ($25),
+**maxfiylik siyosati URL** (majburiy — ilova joylashuv yig'adi), fon
+joylashuvi uchun alohida tushuntirish va odatda **video**, do'kon sahifasi
+(ikonka, 2+ skrinshot), "shaxsiy ma'lumot yig'iladi" deklaratsiyasi.
 
 #### Lokal build (bepul, limitsiz) — Expo Free tarifi tugaganda
 
@@ -167,6 +187,7 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 | `43ef55b` | Fonda ruxsat so'ramaslik + `AppState` tekshiruvi (crash sababi BU EMAS edi) |
 | `300286f` | **Ilova qulashi**: xarita yechib olingan WebView'ga `injectJavaScript` yozardi → JNI `obj == null` |
 | `43aac41` | **Mijoz raqami `+` siz saqlanardi** — kontakt ulashish yo'lida normalizatsiya yo'q edi |
+| `f5ab131` | **Yangi haydovchi 5.00 reyting** bilan boshlaydi (urug' ovoz, suyuladi) |
 
 **Dizayn hujjatlari:** `docs/DRIVER-APP-DESIGN-PROMPT.md`,
 `docs/ADMIN-DESIGN-PROMPT.md` (ikkalasi ham mavjud koddan o'qib yozilgan;

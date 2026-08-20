@@ -38,6 +38,7 @@ apps/driver-app/GoogleService-Info.plist
 *service-account*.json
 *serviceAccountKey*.json
 *.apk
+*.aab
 *.keystore
 
 # docker volumes
