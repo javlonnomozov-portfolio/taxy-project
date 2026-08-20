@@ -19,6 +19,11 @@ export interface Customer {
 }
 
 export const apiClient = {
+  /** Ilova kirishini tasdiqlash — 6 xonali kod qaytaradi. */
+  confirmCustomerLogin(nonce: string, telegramId: string) {
+    return req<{ code: string }>('POST', '/auth/customer/confirm', { nonce, telegramId });
+  },
+
   upsertCustomer(data: {
     telegramId: string;
     phone?: string;

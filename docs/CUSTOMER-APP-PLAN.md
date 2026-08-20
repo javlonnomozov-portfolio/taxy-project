@@ -1,7 +1,7 @@
 # Mijoz ilovasi — reja (muhokama uchun)
 
-> **Holat:** taklif · 2026-08-17 · hali kod yozilmagan
-> Qaror qabul qilingach shu hujjat bajarilish tartibiga aylanadi.
+> **Holat:** 1-BOSQICH BAJARILDI · 2026-08-17
+> Auth API + bot tomoni tayyor va simlar bilan qoplangan. Qolgani 6-bo'limda.
 
 ---
 
@@ -153,7 +153,7 @@ bir xil ko'rinsin.
 
 | # | Ish | Natija |
 |---|---|---|
-| 1 | Auth: nonce + kod + `customer` roli + guard | Simlar bilan qoplangan API |
+| 1 | ✅ Auth: nonce + kod + `customer` roli + guard | `pnpm sim:customer-auth` — 20 ta tekshiruv |
 | 2 | Mantiqni servisga chiqarish (`/miniapp/*` bilan umumiy) | Takrorlanish yo'q |
 | 3 | Expo ilova: kirish + zakaz berish + kuzatuv | Sinovdan o'tadigan APK |
 | 4 | Xato ko'rinuvchanligi (4.3) | Reliz uchun shart |
@@ -167,10 +167,16 @@ Mini App'da ham, kelajakdagi har qanday mijozda ham ishlatish mumkin.
 
 ## 7. Ochiq savollar
 
-1. **Telegramsiz mijoz.** Bu dizaynda Telegramsiz odam ro'yxatdan o'ta
-   olmaydi. Bu qabul qilinadimi, yoki keyinchalik SMS qo'shiladimi?
+1. ~~Telegramsiz mijoz~~ — **HAL QILINDI (2026-08-17).** O'zbekistonda
+   deyarli barchada Telegram bor, shuning uchun Telegram orqali kirish
+   YAGONA yo'l bo'lib qoladi. SMS zaxirasi rejadan chiqarildi: u alohida
+   identifikatsiya tizimi, xarajat va yangi hujum yuzasini olib kelardi.
 2. **Ikkinchi ilova = ikki barobar saqlash.** Har tuzatish ikki joyda
    sinaladi, ikki APK yig'iladi. Bunga tayyormizmi?
-3. **Play Market ikkalasi uchunmi?** Haydovchi ilovasi fon joylashuvi
+3. **Mijozni bloklash endpointi YO'Q.** `AccountStatusService.customerActive`
+   tayyor va `customers.is_blocked` ustuni bor, lekin operator uni ishga
+   sololmaydi (`/ops/customers` faqat ro'yxat qaytaradi). Ya'ni suiiste'mol
+   qiluvchi mijozni to'xtatib bo'lmaydi. Kichik ish — kerak bo'lsa aytilsin.
+4. **Play Market ikkalasi uchunmi?** Haydovchi ilovasi fon joylashuvi
    sababli Google tekshiruvidan qiyin o'tadi (video talab qilinadi);
    mijoz ilovasida bu muammo yo'q.

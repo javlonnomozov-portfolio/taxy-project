@@ -1,5 +1,5 @@
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -10,8 +10,14 @@ import {
   AdminChangePasswordDto,
   AdminLoginDto,
   ChangePasswordDto,
+  CustomerConfirmDto,
+  CustomerNonceDto,
+  CustomerStartDto,
+  CustomerVerifyDto,
   DriverLoginDto,
 } from './dto/auth.dto';
+import { CustomerAuthService } from './customer-auth.service';
+import { InternalGuard } from './internal.guard';
 
 const PANEL: AuthRole[] = [PanelRole.SUPER_ADMIN, PanelRole.ADMIN, PanelRole.OPERATOR];
 
@@ -24,7 +30,10 @@ const PANEL: AuthRole[] = [PanelRole.SUPER_ADMIN, PanelRole.ADMIN, PanelRole.OPE
 @Controller('auth')
 @UseGuards(LoginThrottlerGuard)
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly customerAuth: CustomerAuthService,
+  ) {}
 
   @Public()
   @Post('driver/login')
@@ -60,5 +69,41 @@ export class AuthController {
   adminChangePassword(@Req() req: Request, @Body() dto: AdminChangePasswordDto) {
     const user = (req as Request & { user: JwtPayload }).user;
     return this.auth.changeAdminPassword(user.sub, dto.newPassword);
+  }
+
+  // ---- Mijoz ilovasi kirishi ----
+  //
+  // Uchala endpoint ham `Public`: mijozda hali token yo'q. Himoya nonce'ning
+  // taxmin qilib bo'lmasligida va bot tasdig'ida (`confirm` ichki kalit bilan).
+
+  @Public()
+  @Post('customer/start')
+  @ApiOperation({ summary: 'Kirishni boshlash — nonce va Telegram deep link' })
+  customerStart(@Body() dto: CustomerStartDto) {
+    return this.customerAuth.start(dto.deviceId);
+  }
+
+  // Botdan keladi (ichki kalit) — foydalanuvchi `/start <nonce>` bosgani.
+  @Public()
+  @UseGuards(InternalGuard)
+  @ApiSecurity('internal')
+  @Post('customer/confirm')
+  @ApiOperation({ summary: 'Bot: kirishni tasdiqlash, 6 xonali kod qaytaradi' })
+  customerConfirm(@Body() dto: CustomerConfirmDto) {
+    return this.customerAuth.confirm(dto.nonce, dto.telegramId);
+  }
+
+  @Public()
+  @Post('customer/poll')
+  @ApiOperation({ summary: 'Ilova: tasdiq kutilmoqda (token yoki null)' })
+  customerPoll(@Body() dto: CustomerNonceDto) {
+    return this.customerAuth.poll(dto.nonce);
+  }
+
+  @Public()
+  @Post('customer/verify')
+  @ApiOperation({ summary: 'Ilova: 6 xonali kod bilan kirish (zaxira yo‘l)' })
+  customerVerify(@Body() dto: CustomerVerifyDto) {
+    return this.customerAuth.verify(dto.nonce, dto.code);
   }
 }

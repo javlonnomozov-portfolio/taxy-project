@@ -23,6 +23,8 @@ export const envSchema = z.object({
   JWT_SECRET: z.string().min(8),
   JWT_EXPIRES_IN: z.string().default('7d'),
   INTERNAL_API_KEY: z.string().min(8).default('dev_internal_key'),
+  // Mijoz ilovasi deep link'i uchun: https://t.me/<username>?start=<nonce>
+  TELEGRAM_BOT_USERNAME: z.string().optional(),
   ADMIN_LOGIN: z.string().optional(),
   ADMIN_PASSWORD: z.string().optional(),
   // Prod'da /docs yopiq; ochish uchun aniq 'true' qilish kerak.

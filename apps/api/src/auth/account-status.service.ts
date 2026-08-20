@@ -6,6 +6,7 @@ import { ApprovalStatus } from '@tty/shared';
 import { REDIS } from '../redis/redis.module';
 import { Driver } from '../entities/driver.entity';
 import { AdminUser } from '../entities/admin-user.entity';
+import { Customer } from '../entities/customer.entity';
 import { AuthRole } from './roles';
 
 /**
@@ -28,10 +29,15 @@ export class AccountStatusService {
     @Inject(REDIS) private readonly redis: Redis,
     @InjectRepository(Driver) private readonly drivers: Repository<Driver>,
     @InjectRepository(AdminUser) private readonly admins: Repository<AdminUser>,
+    @InjectRepository(Customer) private readonly customers: Repository<Customer>,
   ) {}
 
   private key(role: AuthRole, id: string): string {
-    return `acct:${role === 'driver' ? 'driver' : 'admin'}:${id}`;
+    // Mijoz uchun ALOHIDA prefiks: avval 'driver' bo'lmagan hamma narsa
+    // 'admin' deb keshlanardi, ya'ni mijoz va admin bir xil id bilan
+    // bir-birining keshini bosib ketishi mumkin edi.
+    const kind = role === 'driver' ? 'driver' : role === 'customer' ? 'customer' : 'admin';
+    return `acct:${kind}:${id}`;
   }
 
   /** Hisob hali faolmi (haydovchi bloklanmagan / panel foydalanuvchisi mavjud). */
@@ -40,7 +46,12 @@ export class AccountStatusService {
     const cached = await this.redis.get(key).catch(() => null);
     if (cached !== null) return cached === '1';
 
-    const active = role === 'driver' ? await this.driverActive(id) : await this.adminExists(id);
+    const active =
+      role === 'driver'
+        ? await this.driverActive(id)
+        : role === 'customer'
+          ? await this.customerActive(id)
+          : await this.adminExists(id);
     await this.redis.set(key, active ? '1' : '0', 'EX', AccountStatusService.TTL_SEC).catch(() => {});
     return active;
   }
@@ -48,6 +59,12 @@ export class AccountStatusService {
   private async driverActive(id: string): Promise<boolean> {
     const d = await this.drivers.findOne({ where: { id }, select: { id: true, approvalStatus: true } });
     return !!d && d.approvalStatus !== ApprovalStatus.BLOCKED;
+  }
+
+  /** Mijoz mavjud va bloklanmaganmi (ilova tokeni uchun). */
+  private async customerActive(id: string): Promise<boolean> {
+    const c = await this.customers.findOne({ where: { id }, select: { id: true, isBlocked: true } });
+    return !!c && !c.isBlocked;
   }
 
   private async adminExists(id: string): Promise<boolean> {

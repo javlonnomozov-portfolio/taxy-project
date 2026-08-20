@@ -42,6 +42,10 @@ const uz: Dict = {
   cancelled_free: 'Buyurtma bekor qilindi (jarimasiz).',
   cancelled_penalty: 'Buyurtma bekor qilindi. ⚠️ Bu bekor darajangizga ta’sir qiladi.',
   thanks_rating: 'Bahoyingiz uchun rahmat! 🙏',
+  login_code: (code: string) =>
+    `🔐 Ilovaga kirish kodi: <b>${code}</b>\n\nIlova o'zi ochilishi kerak. Ochilmasa shu kodni ilovaga kiriting.\nKod 5 daqiqa amal qiladi.`,
+  login_need_phone: 'Ilovaga kirish uchun avval telefon raqamingizni yuboring.',
+  login_failed: 'Kirish so‘rovi eskirgan. Ilovada qaytadan urinib ko‘ring.',
   skip_rating_btn: 'O‘tkazib yuborish',
   menu_order_map: '🗺 Xaritadan chaqirish',
   active_exists: 'Sizda allaqachon faol buyurtma bor.',
@@ -106,6 +110,10 @@ const ru: Dict = {
   cancelled_free: 'Заказ отменён (без штрафа).',
   cancelled_penalty: 'Заказ отменён. ⚠️ Это повлияет на ваш рейтинг отмен.',
   thanks_rating: 'Спасибо за оценку! 🙏',
+  login_code: (code: string) =>
+    `🔐 Код для входа в приложение: <b>${code}</b>\n\nПриложение должно открыться само. Если нет — введите этот код.\nКод действует 5 минут.`,
+  login_need_phone: 'Для входа в приложение сначала отправьте номер телефона.',
+  login_failed: 'Запрос на вход устарел. Попробуйте снова в приложении.',
   skip_rating_btn: 'Пропустить',
   menu_order_map: '🗺 Вызвать по карте',
   active_exists: 'У вас уже есть активный заказ.',

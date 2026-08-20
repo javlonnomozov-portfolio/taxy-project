@@ -1,8 +1,8 @@
 import { SetMetadata } from '@nestjs/common';
 import { PanelRole } from '@tty/shared';
 
-// Token'dagi rol: haydovchi yoki panel roli.
-export type AuthRole = 'driver' | PanelRole;
+// Token'dagi rol: haydovchi, mijoz (ilova) yoki panel roli.
+export type AuthRole = 'driver' | 'customer' | PanelRole;
 
 export interface JwtPayload {
   sub: string; // foydalanuvchi id

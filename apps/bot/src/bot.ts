@@ -115,6 +115,8 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
       s.phone = phone;
       s.step = 'idle';
       await ctx.reply(t(lang, 'registered'), mainMenu(lang));
+      // Ilovadan kelgan bo'lsa — endi kirishni tasdiqlay olamiz.
+      if (s.pendingLoginNonce) await confirmAppLogin(ctx, s.pendingLoginNonce);
     } catch {
       await ctx.reply(t(lang, 'err'));
     }
@@ -146,9 +148,41 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
       });
   }
 
-  // /start → til tanlash
+  /**
+   * Ilova kirishini tasdiqlash. Mijoz ro'yxatdan o'tgan bo'lsa darhol,
+   * bo'lmasa `register()` tugagach chaqiriladi.
+   */
+  async function confirmAppLogin(
+    ctx: { from?: { id: number }; reply: (t: string, e?: object) => Promise<unknown>; state: object },
+    nonce: string,
+  ): Promise<void> {
+    const s = getSession(ctx);
+    try {
+      const res = await apiClient.confirmCustomerLogin(nonce, String(ctx.from!.id));
+      s.pendingLoginNonce = undefined;
+      await ctx.reply(t(s.lang, 'login_code', res.code), { parse_mode: 'HTML' });
+    } catch {
+      // Nonce eskirgan yoki mijoz topilmadi — sabab ilovada emas, SHU YERDA
+      // ko'rinsin, aks holda foydalanuvchi ikki oynada ham jim qolardi.
+      s.pendingLoginNonce = undefined;
+      await ctx.reply(t(s.lang, 'login_failed'));
+    }
+  }
+
+  // /start → til tanlash. `/start <nonce>` bo'lsa — ilovaga kirish.
   bot.start(async (ctx) => {
     const s = getSession(ctx);
+    // Telegraf deep link payload'ini shu yerda beradi: t.me/<bot>?start=<nonce>
+    const nonce = (ctx as { startPayload?: string }).startPayload;
+
+    if (nonce) {
+      if (s.customerId) return confirmAppLogin(ctx, nonce);
+      // Hali ro'yxatdan o'tmagan — avval telefon, keyin tasdiqlaymiz.
+      s.pendingLoginNonce = nonce;
+      await ctx.reply(t(s.lang, 'login_need_phone'));
+      return ctx.reply(t(s.lang, 'ask_phone'), phoneKeyboard(s.lang));
+    }
+
     await ctx.reply(t(s.lang, 'welcome'));
     await ctx.reply(t(s.lang, 'choose_lang'), langKeyboard);
   });

@@ -17,6 +17,9 @@ export interface Session {
   activeOrderId?: string;
   ratingOrderId?: string;
   lastLocShownAt?: number; // taksi joylashuvini ko'rsatish rate-limit (10s)
+  // Ilovadan `/start <nonce>` bilan kelgan, lekin mijoz hali ro'yxatdan
+  // o'tmagan bo'lsa saqlanadi — ro'yxatdan o'tgach tasdiqlanadi.
+  pendingLoginNonce?: string;
 }
 
 export const newSession = (): Session => ({ lang: 'uz', step: 'idle', draft: {} });

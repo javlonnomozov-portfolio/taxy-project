@@ -36,7 +36,8 @@
     "sim:offline-withdraw": "node scripts/offline-withdraw-sim.mjs",
     "sim:trip-history": "node scripts/trip-history-sim.mjs",
     "sim:trip-resume": "node scripts/trip-resume-sim.mjs",
-    "sim:miniapp-rating": "node scripts/miniapp-rating-sim.mjs"
+    "sim:miniapp-rating": "node scripts/miniapp-rating-sim.mjs",
+    "sim:customer-auth": "node scripts/customer-auth-sim.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
