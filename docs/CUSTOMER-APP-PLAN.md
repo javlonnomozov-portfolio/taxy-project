@@ -101,6 +101,28 @@ Xuddi shu narsa `order`, `cancel`, `rate` uchun ham.
 
 ---
 
+## 3b. Sinxronlik: ilova va bot bir vaqtda ishlaydi
+
+Talab: mijoz ilovada zakaz bersa bot chatida ham ko'rinsin, botda bekor
+qilsa ilovada ham yopilsin. Manba bitta — API; ikkala kanal ham UNGA
+qaraydi, bir-biriga emas.
+
+### ⚠️ Topilgan to'siq: `/customer` socket ilovaga OCHIQ EMAS
+
+`customer.gateway.ts` hozir `internalKey + customerId` bilan ulanadi —
+ya'ni uni faqat BOT proksi qila oladi. Ichki kalit mijoz ilovasiga
+JOYLASHTIRILMAYDI (u APK ichidan chiqarib olinadi va butun tizimga kirish
+beradi).
+
+Demak 3-bosqichdan oldin: `CustomerGateway` JWT'ni ham qabul qilsin
+(`role: 'customer'` → `customer:<sub>` xonasiga qo'shilsin), ichki kalit
+yo'li esa bot uchun qoladi. Bittasi ikkinchisini almashtirmaydi.
+
+Busiz ilova holatni pollingga majbur bo'ladi: kechikish, ortiqcha trafik
+va bot bilan ko'rinadigan farq.
+
+---
+
 ## 4. "Ilova ishdan chiqsa" — himoya choralari
 
 Foydalanuvchi aytgan xavfga qarshi uchta qoida. Bularsiz ilova chiqarilmasin.
@@ -154,7 +176,7 @@ bir xil ko'rinsin.
 | # | Ish | Natija |
 |---|---|---|
 | 1 | ✅ Auth: nonce + kod + `customer` roli + guard | `pnpm sim:customer-auth` — 20 ta tekshiruv |
-| 2 | Mantiqni servisga chiqarish (`/miniapp/*` bilan umumiy) | Takrorlanish yo'q |
+| 2 | Mantiqni servisga chiqarish (`/miniapp/*` bilan umumiy) + `CustomerGateway` ga JWT | Takrorlanish yo'q, jonli sinxronlik |
 | 3 | Expo ilova: kirish + zakaz berish + kuzatuv | Sinovdan o'tadigan APK |
 | 4 | Xato ko'rinuvchanligi (4.3) | Reliz uchun shart |
 | 5 | Tarix, saqlangan manzillar | Ixtiyoriy |
