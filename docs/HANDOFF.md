@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
 > **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `f5ab131`
+> **Oxirgi commit:** `eec7c94`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -31,7 +31,7 @@ EAS projectId `862b155e-1193-4c77-87fb-0cb63e29ee9e`
 
 | Servis | URL / holat |
 |---|---|
-| **api** | https://api-production-13444.up.railway.app · `/health` ok · `/trips/active` · `/miniapp/rate` · `/miniapp/cancel` (2026-08-01) |
+| **api** | https://api-production-13444.up.railway.app · `/health` ok · `/trips/active` · `/miniapp/rate` · `/miniapp/cancel` · `/auth/customer/*` (2026-08-17) |
 | **admin** | https://admin-production-42e5.up.railway.app · yangi dizayn |
 | **bot** | `@toy_taxy_bot` · polling · barqaror · `CANCELLED_BY_CUSTOMER` ishlanadi (2026-08-01) |
 | Postgres + Redis | Railway plugin · **migratsiya 8** qo'llangan |
@@ -49,6 +49,9 @@ Migratsiyalar konteyner startida **avtomatik** ishlaydi (`Dockerfile` CMD).
 **Muhim env:**
 - `CORS_ORIGINS=https://admin-production-42e5.up.railway.app` — prod'da **majburiy**.
   Kod o'z domenini avtomatik qo'shadi (`selfOrigin()`), qo'lda yozish shart emas.
+- `TELEGRAM_BOT_USERNAME=toy_taxy_bot` (api) — mijoz ilovasi deep link'i uchun
+  (`https://t.me/<username>?start=<nonce>`). Bo'lmasa `/auth/customer/start`
+  aniq xato beradi.
 - `TELEGRAM_BOT_TOKEN` (api) — Railway **servis-havolasi** bilan: `${{bot.BOT_TOKEN}}`.
   Ixtiyoriy: bo'lmasa mini app 503 qaytaradi va bot eski tugmaga qaytadi.
 - `JWT_EXPIRES_IN=90d` (2026-08-13 da `7d` dan oshirildi — haydovchi har hafta
@@ -189,6 +192,8 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 | `300286f` | **Ilova qulashi**: xarita yechib olingan WebView'ga `injectJavaScript` yozardi → JNI `obj == null` |
 | `43aac41` | **Mijoz raqami `+` siz saqlanardi** — kontakt ulashish yo'lida normalizatsiya yo'q edi |
 | `f5ab131` | **Yangi haydovchi 5.00 reyting** bilan boshlaydi (urug' ovoz, suyuladi) |
+| `dcbf156` | Mijoz ilovasi rejasi — `docs/CUSTOMER-APP-PLAN.md` |
+| `eec7c94` | **Mijoz ilovasiga Telegram orqali kirish** (nonce + kod, `customer` roli) |
 
 **Dizayn hujjatlari:** `docs/DRIVER-APP-DESIGN-PROMPT.md`,
 `docs/ADMIN-DESIGN-PROMPT.md` (ikkalasi ham mavjud koddan o'qib yozilgan;
@@ -337,7 +342,7 @@ node apps/api/dist/main.js
 sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
 sim:online-geo sim:late-driver sim:miniapp sim:arrived-guard sim:miniapp-sync
 sim:per-order sim:customer-cancel sim:offline-withdraw sim:trip-history
-sim:trip-resume sim:miniapp-rating
+sim:trip-resume sim:miniapp-rating sim:customer-auth
 ```
 
 **Ikkitasi alohida sozlama talab qiladi:**
