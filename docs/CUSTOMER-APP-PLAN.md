@@ -154,6 +154,26 @@ uchun **birinchi versiyadanoq**:
 
 ---
 
+## 4b. Reliz qoidalari (birinchi chiqishdan OLDIN)
+
+Bularsiz ilova Play Market'ga chiqarilmasin — keyin qo'shib bo'lmaydi.
+
+1. **Bosqichma-bosqich tarqatish.** Play Console'da 10-20% dan boshlang.
+   Native crash ko'rinmasligini hisobga olsak, bu yagona amaliy himoya.
+2. **Versiya to'xtatgichi.** API `minSupportedVersion` qaytarsin, ilova
+   undan past bo'lsa "yangilang" ekranini ko'rsatsin. Buzuq reliz chiqib
+   ketsa uni to'xtatishning BOSHQA yo'li yo'q — foydalanuvchi o'zi
+   yangilamaydi. Buzuq versiya chiqqandan KEYIN buni qo'shib bo'lmaydi.
+3. **Crash hisoboti v1 dan.** Sentry yoki `POST /client-errors`.
+4. **Imkoniyat pariteti.** Ilovaga qo'shilgan har narsa bot/Mini App'da
+   ham bo'lsin, yoki "faqat ilovada" deb ATAYLAB belgilansin. Bu sessiyada
+   parite ikki marta buzilgan (baholash, bekor qilish) — uchinchi kanal
+   qo'shilgach xato ehtimoli yana oshadi.
+5. **Operator ishlata olmaydigan funksiya chiqarilmasin.** Misol: mijozni
+   bloklash kodi BOR, lekin operator paneli yo'q — ya'ni amalda yo'q.
+
+---
+
 ## 5. Ekranlar (birinchi versiya)
 
 Mini App'da bor narsadan ortiq EMAS — maqsad kirish nuqtasi, yangi
