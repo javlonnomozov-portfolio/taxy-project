@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
 > **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `992fedb`
+> **Oxirgi commit:** `990e861`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -174,6 +174,16 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 5. **In-app xarita** (react-native-maps) — driver-app TODO. Hozir WebView+Leaflet.
 6. **APK hajmi** — ABI bo'yicha ajratilsa ~25 MB ga tushadi (`eas.json`).
 
+### ✅ Hal qilingan mahsulot savollari
+
+- **4+ yo'lovchi / mashina rusumini tanlash — KERAK EMAS** (2026-08-21).
+  Mashinalar asosan **Damas**, 7 yo'lovchi sig'adi. Rusum tanlash rad
+  etildi: mashinalar soni oz, tanlov qo'shilsa dispatch mos mashina
+  topolmay "taksi topilmadi" chiqaradi.
+- **Manzilni nomi bo'yicha qidirish — BEKOR QILINDI.** Faqat xaritadan
+  belgilash. Borish joyi ham shart emas — faqat olib ketish nuqtasi.
+  (`NOMINATIM_URL` bo'sh qolaveradi.)
+
 ### ⚠️ Ochiq xavflar (mahsulot qarori kutilmoqda)
 
 - **Operator `assign`** mijozda BOSHQA faol zakaz bor-yo'qligini tekshirmaydi.
@@ -219,6 +229,9 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 | `f5ab131` | **Yangi haydovchi 5.00 reyting** bilan boshlaydi (urug' ovoz, suyuladi) |
 | `dcbf156` | Mijoz ilovasi rejasi — `docs/CUSTOMER-APP-PLAN.md` |
 | `eec7c94` | **Mijoz ilovasiga Telegram orqali kirish** (nonce + kod, `customer` roli) |
+
+**Sessiya yozuvi:** `docs/SESSION-2026-08.md` — qarorlar, ildiz sabablar,
+ochiq savollar va boshqa kompyuterda davom ettirish yo'riqnomasi.
 
 **Dizayn hujjatlari:** `docs/DRIVER-APP-DESIGN-PROMPT.md`,
 `docs/ADMIN-DESIGN-PROMPT.md` (ikkalasi ham mavjud koddan o'qib yozilgan;
