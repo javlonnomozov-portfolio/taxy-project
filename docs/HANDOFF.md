@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
 > **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `b6720f6`
+> **Oxirgi commit:** `992fedb`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -17,9 +17,13 @@ Mijoz **Telegram bot** yoki **Telegram Mini App** orqali taksi chaqiradi
 **Stack:** pnpm monorepo · NestJS + Socket.IO + PostgreSQL + Redis · Telegraf bot ·
 React/Vite admin · Expo driver-app · Railway deploy.
 
-**Paketlar:** `apps/api`, `apps/bot`, `apps/admin`, `apps/driver-app`
-(workspace'dan **chiqarilgan** — o'z `node_modules`, npm, EAS bilan quriladi),
-`packages/shared`.
+**Paketlar:** `apps/api`, `apps/bot`, `apps/admin`, `apps/driver-app`,
+`apps/customer-app` (oxirgi ikkalasi workspace'dan **chiqarilgan** — o'z
+`node_modules`, npm, EAS bilan quriladi), `packages/shared`.
+
+Customer-app: paket `uz.toytaxy.customer`, EAS projectId
+`c3ad9431-a59d-4076-b067-002b1b96b9de`. Mijoz Telegram bot orqali kiradi
+(deep link → bot kod beradi → ilova `poll` bilan o'zi kiradi).
 
 Driver-app: owner `jav1on`, package `uz.toytaxy.driver`,
 EAS projectId `862b155e-1193-4c77-87fb-0cb63e29ee9e`
@@ -308,6 +312,23 @@ narsa yozmaydi. `perOrderFee: 1500` sozlangan holda turgan edi.
 > **Qoida:** sim ob'ektni yaratgandan keyin uni SOZLASA, o'sha sozlashsiz
 > holatni ham alohida tekshiring — prod ko'pincha aynan sozlanmagan yo'ldan
 > boradi.
+
+### 5.1f Yangi Expo ilovasi: bir xil package.json ≠ bir xil versiyalar
+
+`customer-app` build'i Gradle'da yiqildi:
+`Plugin [id: 'expo-module-gradle-plugin'] was not found`.
+
+Sabab: `@expo/vector-icons` `expo-font` ni erkin diapazon bilan so'raydi.
+`driver-app` da lock fayli uni 12.0.10 da ushlab turadi, yangi ilovada esa
+npm 57.0.1 ni oldi (SDK 54 davri) — u yangi Gradle plaginini talab qiladi.
+
+> **Qoida:** yangi Expo ilovasi qo'shganda o'rnatilgan versiyalarni mavjud
+> ishlaydigan ilova bilan SOLISHTIRING, `package.json` ga ishonmang:
+> ```bash
+> node -e "const v=(a,m)=>require('./apps/'+a+'/node_modules/'+m+'/package.json').version;
+> for (const m of ['expo','expo-font','expo-modules-core','react-native'])
+>   console.log(m, v('customer-app',m), v('driver-app',m))"
+> ```
 
 ### 5.2 Jimgina yutilgan xatolar eng ko'p vaqt oladi
 
