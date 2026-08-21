@@ -72,10 +72,11 @@ Migratsiyalar konteyner startida **avtomatik** ishlaydi (`Dockerfile` CMD).
 - `ARRIVED_GEOFENCE_M=150` · `ARRIVED_LOCATION_STALE_SEC=120` · `MAX_BILLABLE_WAIT_MIN=30`
 - `NOMINATIM_URL` / `OSRM_URL` — **bo'sh** (manzil nomlari/marshrut o'chiq, ataylab).
 
-### 🟢 Eng so'nggi APK (LOKAL build, commit `300286f`)
+### 🟢 Eng so'nggi APK (LOKAL build, commit `990e861`)
 
 ```
-apps/driver-app/toy-taxy-driver-300286f.apk   (66 MB, .gitignore'da)
+apps/driver-app/toy-taxy-driver-990e861.apk    (66 MB, .gitignore'da)
+apps/customer-app/toy-taxy-customer-7efd926.apk (65 MB, MIJOZ ilovasi)
 ```
 
 ⚠️ **Keystore o'zgargan** (Expo hisobi `javl9n` → `jav1on`, loyiha
@@ -86,7 +87,9 @@ Ichida: yangi dizayn · GPS tuzatishi · status bar · bekor qilish himoyasi ·
 oflayn taklif tuzatishi · `ErrorBoundary` · **xaritani to'liq ekranga ochish**
 (amal tugmalari bilan) · **ilova o'ldirilsa faol safar tiklanadi** ·
 **token muddati tugasa login ekraniga qaytadi** ·
-**xarita WebView crash tuzatilgan** (2026-08-17 da telefonda tasdiqlangan).
+**xarita WebView crash tuzatilgan** · **"Chiqish"dagi qulash tuzatilgan** ·
+**`expo-updates` olib tashlangan** (u JS xatosida ilovani jimgina qayta
+ishga tushirardi — "default holatga qaytish" alomati).
 Oldingi bulut APK (commit `7458e0a`):
 `https://expo.dev/artifacts/eas/lb71xPeZJo8dIChQuaTrQH5_J7aQqixd5X6jcfW_Re8.apk`
 
