@@ -165,6 +165,11 @@ Bularsiz ilova Play Market'ga chiqarilmasin — keyin qo'shib bo'lmaydi.
    ketsa uni to'xtatishning BOSHQA yo'li yo'q — foydalanuvchi o'zi
    yangilamaydi. Buzuq versiya chiqqandan KEYIN buni qo'shib bo'lmaydi.
 3. **Crash hisoboti v1 dan.** Sentry yoki `POST /client-errors`.
+6. **Push — SHART, imkoniyat emas.** "Haydovchi topildi" va "taksi yetib
+   keldi" push'siz ilova ma'nosiz (u ochiq turmaydi). Mijoz ilovasi ALOHIDA
+   Expo loyihasi bo'ladi, ya'ni unga ham FCM kaliti alohida yuklanadi —
+   haydovchi ilovasiniki avtomatik o'tmaydi (bu bir marta allaqachon
+   yo'qolgan: hisob ko'chirilganda push jimgina o'chib qolgan edi).
 4. **Imkoniyat pariteti.** Ilovaga qo'shilgan har narsa bot/Mini App'da
    ham bo'lsin, yoki "faqat ilovada" deb ATAYLAB belgilansin. Bu sessiyada
    parite ikki marta buzilgan (baholash, bekor qilish) — uchinchi kanal

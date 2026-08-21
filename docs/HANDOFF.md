@@ -137,11 +137,31 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
    qo'shadi. Zakaz ishlashi uchun **kamida bitta ONLINE haydovchi** VA uning
    mashinasi toifasi zakaz toifasiga **mos** bo'lishi shart — aks holda
    `NO_DRIVER`. Tariflar (3 ta) va sozlamalar saqlab qolindi.
-2. **FCM kaliti Expo'ga** — tugadimi noma'lum.
-   `cd apps/driver-app && eas credentials --platform android` →
-   `preview` → FCM V1 service account key → fayl
-   `~/Downloads/toy-taxi-firebase-adminsdk-fbsvc-fb514f8e04.json`.
-   **Rebuild kerak emas.** Push faqat ilova YOPIQ bo'lganda kerak.
+2. ~~FCM kaliti~~ — **HAL QILINDI (2026-08-17).** Push ishlayapti,
+   uchidan-uchiga tekshirilgan (Expo ticket + receipt = `ok`).
+
+   ⚠️ **Nima bo'lgan edi:** Expo hisobi `javl9n` → `jav1on` ga
+   ko'chirilganda FCM kaliti ESKI loyihada qolgan. Push jimgina ishlamay
+   turgan — Expo `InvalidCredentials` qaytarardi, lekin buni hech kim
+   ko'rmasdi, chunki `NotificationsService` xatoni faqat `log.warn` qiladi.
+
+   **Yangi Expo loyihasi yaratilsa FCM kalitini QAYTA yuklash shart:**
+   ```bash
+   cd apps/driver-app && eas credentials -p android
+   #  → production → Google Service Account
+   #  → ...Key for Push Notifications (FCM V1) → Set up...
+   #  → ~/Downloads/toy-taxi-firebase-adminsdk-fbsvc-fb514f8e04.json
+   ```
+   Firebase loyihasi: `toy-taxi`, paket `uz.toytaxy.driver`.
+   **Rebuild kerak emas.** Push faqat ilova YOPIQ bo'lganda kerak —
+   ilova ochiq bo'lsa soket + mahalliy bildirishnoma ishlaydi.
+
+   Tekshirish (haqiqiy push yuboradi):
+   ```bash
+   curl -s -X POST https://exp.host/--/api/v2/push/send \
+     -H 'content-type: application/json' \
+     -d '[{"to":"<ExponentPushToken>","title":"sinov","body":"sinov"}]'
+   ```
 3. **Xarita xizmatlari** (ixtiyoriy) — `/geo/*` tayyor, lekin hech kim
    chaqirmaydi. Mini app'da manzil nomlari yo'q (foydalanuvchi qarori).
 4. **Railway healthcheck** — `RAILWAY_CONFIG_PATH` qo'yildi, faollashgani
