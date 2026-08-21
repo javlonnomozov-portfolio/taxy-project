@@ -1,73 +1,27 @@
 import {
-  BadRequestException,
   ForbiddenException,
-  Inject,
   Injectable,
-  Logger,
-  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
-import Redis from 'ioredis';
-import { OrderStatus, VehicleCategory } from '@tty/shared';
-import { REDIS } from '../redis/redis.module';
-import { Order } from '../entities/order.entity';
+import { Repository } from 'typeorm';
+import { VehicleCategory } from '@tty/shared';
 import { Customer } from '../entities/customer.entity';
-import { DriversService } from '../drivers/drivers.service';
-import { OrdersService } from '../orders/orders.service';
-import { ACTIVE_STATUSES, CUSTOMER_CANCELLABLE_STATUSES } from '../orders/orders.constants';
-import { ReputationService } from '../reputation/reputation.service';
-import { TripsService } from '../trips/trips.service';
+import { CustomerOrdersService, TrackView } from '../customers/customer-orders.service';
 import { verifyInitData } from './telegram-init-data';
 
-export interface TrackView {
-  orderId: string;
-  orderStatus: OrderStatus;
-  pickup: { lat: number; lng: number };
-  dest: { lat: number; lng: number } | null;
-  driver: { lat: number; lng: number; at: string | null } | null;
-  car: { name: string; plate: string; model: string; phone: string } | null;
-  /** Safar tugadi — sahifa so'rovlarni to'xtatsin. */
-  finished: boolean;
-  /** Yakuniy narx — faqat COMPLETED bo'lganda to'ladi. */
-  finalPrice: number | null;
-  /** Safar muvaffaqiyatli yakunlandimi (bekor qilish emas) — baholash shunda so'raladi. */
-  completed: boolean;
-  /** Mijoz bu safarni allaqachon baholaganmi (bot chatidan ham bo'lishi mumkin). */
-  rated: boolean;
-  /** Hozir bekor qilsa bo'ladimi — bot chatidagi tugma bilan bir xil shart. */
-  cancellable: boolean;
-}
+export type { TrackView } from '../customers/customer-orders.service';
 
-// Bir daqiqada nechta buyurtma yaratishga ruxsat (yarat/bekor qil tsikliga qarshi).
-const MAX_ORDERS_PER_MIN = 5;
-
-/** Bot shu kanalni tinglaydi va zakazni Telegram'da kuzatishni boshlaydi. */
-export const BOT_TRACK_CHANNEL = 'bot:track';
-
-const FINISHED: OrderStatus[] = [
-  OrderStatus.COMPLETED,
-  OrderStatus.CANCELLED_BY_CUSTOMER,
-  OrderStatus.CANCELLED_BY_DRIVER,
-  OrderStatus.CUSTOMER_NO_SHOW,
-  OrderStatus.CLOSED_BY_OPERATOR,
-];
+/** Bot shu kanalni tinglaydi (mavjud importlar buzilmasin uchun qoldirilgan). */
+export const BOT_TRACK_CHANNEL = CustomerOrdersService.BOT_TRACK_CHANNEL;
 
 @Injectable()
 export class MiniappService {
-  private readonly log = new Logger(MiniappService.name);
-
   constructor(
-    @InjectRepository(Order) private readonly orders: Repository<Order>,
     @InjectRepository(Customer) private readonly customers: Repository<Customer>,
-    @Inject(REDIS) private readonly redis: Redis,
-    private readonly drivers: DriversService,
-    private readonly ordersService: OrdersService,
     private readonly config: ConfigService,
-    private readonly reputation: ReputationService,
-    private readonly trips: TripsService,
+    private readonly shared: CustomerOrdersService,
   ) {}
 
   get enabled(): boolean {
@@ -96,166 +50,40 @@ export class MiniappService {
   }
 
   /**
-   * Mijozning hozirgi faol buyurtmasi (bo'lsa). Mini app ochilganda qaysi
-   * rejimda ishlashini shu hal qiladi: kuzatuv yoki yangi buyurtma.
+   * Mini App amallari — hammasi `CustomerOrdersService` ga UZATILADI.
+   *
+   * Bu yerda faqat "kim so'rayapti" aniqlanadi (`initData` imzosi), amalning
+   * O'ZI umumiy servisda. Avval mantiq shu faylda edi va mijoz ilovasi
+   * qo'shilganda u ikkinchi nusxaga bo'linib ketardi — o'sha naqsh allaqachon
+   * ikki marta xato keltirgan (baholash va bekor qilish bir oynada bor,
+   * ikkinchisida yo'q edi).
    */
   async activeOrderId(initData: string): Promise<{ orderId: string | null }> {
     const customer = await this.requireCustomer(initData);
-    const order = await this.orders.findOne({
-      where: { customerId: customer.id, status: In(ACTIVE_STATUSES) },
-      order: { createdAt: 'DESC' },
-    });
-    return { orderId: order?.id ?? null };
+    return this.shared.activeOrderId(customer.id);
   }
 
-  /**
-   * Mini app'dan buyurtma berish (xaritadan tanlangan nuqta bilan).
-   *
-   * Bot oqimidan farqi: nuqta telefonning JORIY GPS'i bilan cheklanmaydi —
-   * mijoz xaritadan istalgan joyni ko'rsata oladi (boshqa manzil, ko'cha
-   * burchagi, bino GPS'i noto'g'ri bo'lgan holat).
-   *
-   * Barcha qoidalar `OrdersService.create()` da qoladi (bitta faol buyurtma,
-   * bloklangan mijoz, dispatch'ni ishga tushirish) — bu yerda faqat kim
-   * so'rayotgani tekshiriladi.
-   */
   async createOrder(
     initData: string,
     category: VehicleCategory,
     pickup: { lat: number; lng: number },
   ): Promise<{ orderId: string }> {
     const customer = await this.requireCustomer(initData);
-    await this.rateLimit(customer.id);
-    const order = await this.ordersService.create({
-      customerId: customer.id,
-      category,
-      pickup,
-    });
-
-    // Botga xabar beramiz — busiz mini app'dan berilgan zakaz uchun mijoz
-    // Telegram'da HECH QANDAY xabar olmasdi ("haydovchi topildi", "yetib keldi",
-    // bekor qilish tugmasi). Bot buyurtmani faqat O'ZI yaratganida kuzatardi.
-    // Redis pub/sub — bot va API allaqachon bitta Redis'ni bo'lishadi, yangi
-    // HTTP yuzasi ochish shart emas.
-    if (customer.telegramId) {
-      await this.redis
-        .publish(BOT_TRACK_CHANNEL, JSON.stringify({ telegramId: String(customer.telegramId), orderId: order.id }))
-        .catch((e) => this.log.error(`Botga xabar berib bo'lmadi: ${(e as Error).message}`));
-    }
-
-    this.log.log(`Mini app'dan buyurtma: ${order.id} (mijoz ${customer.id})`);
-    return { orderId: order.id };
+    return this.shared.createOrder(customer.id, category, pickup);
   }
 
-  /**
-   * Buyurtma berish tezligini cheklaymiz. `OrdersService` allaqachon bitta faol
-   * buyurtmaga ruxsat beradi, lekin "yarat → bekor qil" tsikli bilan dispatch'ni
-   * yuklash mumkin edi.
-   */
-  private async rateLimit(customerId: string): Promise<void> {
-    const key = `miniapp:order:${customerId}`;
-    const n = await this.redis.incr(key);
-    if (n === 1) await this.redis.expire(key, 60);
-    if (n > MAX_ORDERS_PER_MIN) {
-      throw new BadRequestException('Juda tez-tez buyurtma bermoqdasiz. Bir daqiqa kuting.');
-    }
-  }
-
-  /**
-   * Kuzatuv ma'lumoti. Zakaz AYNAN shu foydalanuvchiniki ekani tekshiriladi.
-   */
   async track(initData: string, orderId: string): Promise<TrackView> {
     const customer = await this.requireCustomer(initData);
-
-    const order = await this.orders.findOne({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('Buyurtma topilmadi');
-    if (order.customerId !== customer.id) {
-      throw new ForbiddenException('Bu buyurtma sizga tegishli emas');
-    }
-
-    const loc = order.driverId ? await this.drivers.lastLocation(order.driverId) : null;
-    const info = order.driverId ? await this.drivers.findWithVehicle(order.driverId) : null;
-
-    return {
-      orderId: order.id,
-      orderStatus: order.status,
-      pickup: { lat: order.pickupLat, lng: order.pickupLng },
-      dest: order.destLat != null && order.destLng != null
-        ? { lat: order.destLat, lng: order.destLng }
-        : null,
-      driver: loc ? { lat: loc.lat, lng: loc.lng, at: loc.at ? loc.at.toISOString() : null } : null,
-      car: info
-        ? {
-            name: [info.driver.firstName, info.driver.lastName].filter(Boolean).join(' ') || 'Haydovchi',
-            plate: info.vehicle?.plate ?? '',
-            model: [info.vehicle?.color, info.vehicle?.make, info.vehicle?.model]
-              .filter(Boolean)
-              .join(' '),
-            phone: info.driver.phone,
-          }
-        : null,
-      finished: FINISHED.includes(order.status),
-      finalPrice: order.finalPrice,
-      completed: order.status === OrderStatus.COMPLETED,
-      rated:
-        order.status === OrderStatus.COMPLETED
-          ? await this.reputation.hasRated(order.id, 'customer_to_driver')
-          : false,
-      cancellable: CUSTOMER_CANCELLABLE_STATUSES.includes(order.status),
-    };
+    return this.shared.track(customer.id, orderId);
   }
 
-  /**
-   * Mini app'dan buyurtmani bekor qilish.
-   *
-   * Bot chatida "❌ Buyurtmani bekor qilish" tugmasi bor edi, mini app'da esa
-   * yo'q: mijoz xaritani ochib turib bekor qilolmasdi, chatga qaytishi kerak edi.
-   *
-   * Barcha qoidalar (jarima, dispatch'ni to'xtatish, haydovchiga xabar)
-   * `TripsService.cancelByCustomer` da qoladi — bu yerda faqat kim
-   * so'rayotgani tekshiriladi.
-   */
   async cancel(initData: string, orderId: string): Promise<{ penalized: boolean }> {
     const customer = await this.requireCustomer(initData);
-    const order = await this.orders.findOne({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('Buyurtma topilmadi');
-    if (order.customerId !== customer.id) {
-      throw new ForbiddenException('Bu buyurtma sizga tegishli emas');
-    }
-    const res = await this.trips.cancelByCustomer(orderId, 'miniapp');
-    this.log.log(`Mini app'dan bekor: ${orderId} (mijoz ${customer.id})`);
-    return res;
+    return this.shared.cancel(customer.id, orderId);
   }
 
-  /**
-   * Mini app'dan haydovchini baholash.
-   *
-   * Bot chatida safar yakunlangach narx va yulduzlar chiqardi, mini app esa
-   * faqat "Safar yakunlandi" deb turaverardi — mijoz uchun ikki oyna ikki xil
-   * holatni ko'rsatardi.
-   *
-   * Baholar bot bilan BIR XIL kategoriyalarda yoziladi — aks holda bitta
-   * haydovchining reytingi qaysi oynadan baholanganiga qarab boshqacha
-   * hisoblanardi.
-   */
   async rate(initData: string, orderId: string, score: number): Promise<{ ok: true }> {
     const customer = await this.requireCustomer(initData);
-    const order = await this.orders.findOne({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('Buyurtma topilmadi');
-    if (order.customerId !== customer.id) {
-      throw new ForbiddenException('Bu buyurtma sizga tegishli emas');
-    }
-    if (order.status !== OrderStatus.COMPLETED) {
-      throw new BadRequestException('Safar yakunlanmagan');
-    }
-    // Takroriy baho `ReputationService.submit` da jimgina e'tiborsiz qoldiriladi
-    // (mijoz bot chatida ham baholagan bo'lishi mumkin).
-    await this.reputation.submit(orderId, 'customer_to_driver', {
-      manners: score,
-      driving: score,
-      car_condition: score,
-      punctuality: score,
-    });
-    return { ok: true };
+    return this.shared.rate(customer.id, orderId, score);
   }
 }

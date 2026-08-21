@@ -1,23 +1,14 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Order } from '../entities/order.entity';
-import { Customer } from '../entities/customer.entity';
-import { DriversModule } from '../drivers/drivers.module';
-import { OrdersModule } from '../orders/orders.module';
-import { ReputationModule } from '../reputation/reputation.module';
-import { TripsModule } from '../trips/trips.module';
+import { CustomersModule } from '../customers/customers.module';
 import { MiniappController } from './miniapp.controller';
 import { MiniappService } from './miniapp.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Customer } from '../entities/customer.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Order, Customer]),
-    DriversModule,
-    OrdersModule,
-    ReputationModule,
-    // Bekor qilish qoidalari (jarima, dispatch to'xtatish) TripsService da.
-    TripsModule,
-  ],
+  // Mantiq `CustomerOrdersService` da — Mini App faqat `initData` ni tekshirib
+  // o'sha servisga uzatadi (qarang: miniapp.service.ts izohi).
+  imports: [TypeOrmModule.forFeature([Customer]), CustomersModule],
   controllers: [MiniappController],
   providers: [MiniappService],
 })

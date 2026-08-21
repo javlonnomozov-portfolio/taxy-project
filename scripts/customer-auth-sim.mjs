@@ -9,7 +9,9 @@
 // chegarasi, bir martalik ishlatilish, begona telegram id.
 //
 // Ishga tushirish: `node scripts/customer-auth-sim.mjs`
-import { adminLogin, jx, simPhone } from './helpers.mjs';
+import { createHmac } from 'node:crypto';
+import { io } from 'socket.io-client';
+import { adminLogin, createDriver, jx, simPhone, simPlate } from './helpers.mjs';
 
 const API = process.env.API_BASE_URL || 'http://localhost:3000';
 const KEY = process.env.INTERNAL_API_KEY || 'dev_internal_key';
@@ -27,6 +29,23 @@ const raw = (path, body, headers = {}) =>
   });
 
 const INT = { 'x-internal-key': KEY };
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '123:TEST';
+
+/** Mini App imzosi — ikkala kanal BIR XIL holatni ko'rishini tekshirish uchun. */
+function signInitData(telegramId) {
+  const fields = {
+    auth_date: String(Math.floor(Date.now() / 1000)),
+    query_id: 'AAH' + Math.floor(Math.random() * 1e6),
+    user: JSON.stringify({ id: Number(telegramId), first_name: 'Mijoz' }),
+  };
+  const dataCheck = Object.keys(fields).sort().map((k) => `${k}=${fields[k]}`).join('\n');
+  const secret = createHmac('sha256', 'WebAppData').update(TG_TOKEN).digest();
+  const p = new URLSearchParams(fields);
+  p.set('hash', createHmac('sha256', secret).update(dataCheck).digest('hex'));
+  return p.toString();
+}
 
 function decode(token) {
   const p = token.split('.')[1];
@@ -121,6 +140,64 @@ async function main() {
   // mijozni bloklaydigan endpoint UMUMAN YO'Q (`/ops/customers` faqat ro'yxat).
   // Kod tomoni tayyor (`AccountStatusService.customerActive`), lekin operator
   // uni ishga sololmaydi — CUSTOMER-APP-PLAN.md dagi ochiq savol.
+
+  // ---- 6: ILOVA endpointlari + IKKALA KANAL SINXRONLIGI ----
+  //
+  // Eng muhim tekshiruv: ilova (JWT) va Mini App (initData) BIR XIL mantiqni
+  // ishlatishi kerak. Avval mantiq har kanalda alohida yozilardi va bir kuni
+  // biri yangilanmay qolardi — bu allaqachon ikki marta sodir bo'lgan.
+  console.log('\n--- 6: ilova endpointlari va kanal pariteti ---');
+  const APP = { authorization: 'Bearer ' + p1.token };
+  const initData = signInitData(tgId);
+
+  const none = await j('GET', '/customer/active', undefined, APP);
+  check('Faol zakaz yo\'q (ilova)', none.orderId === null, JSON.stringify(none));
+
+  const adminToken = await adminLogin(API);
+  const d = await createDriver(API, adminToken, {
+    phone: simPhone(), firstName: 'Haydovchi',
+    vehicle: { category: 'standard', plate: simPlate(), model: 'Cobalt' },
+  });
+  const pickup = { lat: 41.311, lng: 69.24 };
+  const ds = io(API + '/driver', { auth: { token: d.token }, transports: ['websocket'] });
+  await new Promise((r) => ds.on('connect', r));
+  await new Promise((r) => ds.emit('driver:online', {}, r));
+  ds.emit('driver:location', pickup);
+  await sleep(700);
+
+  const made = await j('POST', '/customer/orders', { category: 'standard', pickup }, APP);
+  check('ILOVADAN zakaz berildi', typeof made.orderId === 'string', JSON.stringify(made));
+
+  const act = await j('GET', '/customer/active', undefined, APP);
+  check('Faol zakaz ilovada ko\'rinadi', act.orderId === made.orderId);
+
+  // PARITET: Mini App AYNAN shu zakazni ko'rsinmi?
+  const viaMini = await raw('/miniapp/state', { initData });
+  const miniState = await viaMini.json();
+  check('MINI APP ham o\'sha zakazni ko\'radi', miniState.orderId === made.orderId,
+    JSON.stringify(miniState));
+
+  const trkApp = await j('GET', `/customer/orders/${made.orderId}`, undefined, APP);
+  const trkMiniR = await raw('/miniapp/track', { initData, orderId: made.orderId });
+  const trkMini = await trkMiniR.json();
+  check('Ikkala kanal bir xil holat ko\'rsatadi',
+    trkApp.orderStatus === trkMini.orderStatus && trkApp.cancellable === trkMini.cancellable,
+    `${trkApp.orderStatus}/${trkApp.cancellable} vs ${trkMini.orderStatus}/${trkMini.cancellable}`);
+
+  // BEGONA mijoz ilova endpointidan ham kira olmasin.
+  const s5 = await j('POST', '/auth/customer/start', {});
+  await j('POST', '/auth/customer/confirm', { nonce: s5.nonce, telegramId: tgId }, INT);
+  const other = await raw(`/customer/orders/${made.orderId}/cancel`, {}, { authorization: 'Bearer notatoken' });
+  check('Yaroqsiz token → 401', other.status === 401, 'HTTP ' + other.status);
+
+  const canc = await j('POST', `/customer/orders/${made.orderId}/cancel`, {}, APP);
+  check('ILOVADAN bekor qilindi', typeof canc.penalized === 'boolean', JSON.stringify(canc));
+  const afterMini = await (await raw('/miniapp/track', { initData, orderId: made.orderId })).json();
+  check('MINI APP bekor qilinganini ko\'radi',
+    afterMini.orderStatus === 'CANCELLED_BY_CUSTOMER' && afterMini.cancellable === false,
+    afterMini.orderStatus);
+
+  ds.close();
 
   console.log(`\nNatija: ${passed} ✅  ${failed} ❌\n`);
   process.exit(failed ? 1 : 0);
