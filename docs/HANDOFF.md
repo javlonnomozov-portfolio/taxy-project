@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
 > **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `eec7c94`
+> **Oxirgi commit:** `b6720f6`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -293,6 +293,21 @@ Bir marta shu bilan aniqlandi:
 
 Bu yerda men avval foreground service deb TAXMIN qilib, noto'g'ri tuzatish
 yozgan edim. Logcat bir daqiqada haqiqatni ko'rsatdi.
+
+### 5.1e Sim SOZLANGAN yo'lni sinaydi, prod esa STANDART yo'ldan boradi
+
+`per-order-billing-sim` doim 9/9 o'tardi, prod'da esa haydovchidan pul
+yechilmasdi. Sabab: sim rejimni O'ZI o'rnatardi —
+`PUT /ops/drivers/:id/billing {mode:'per_order'}` — ya'ni standart holatni
+umuman sinamasdi. Prod'da haydovchi entity default'i bilan yaratilardi
+(`subscription`) va u safardan ATAYLAB hech narsa yechmaydi.
+
+Xato ham chiqmasdi: komissiya 0 bo'lsa `applyCommission` shunchaki hech
+narsa yozmaydi. `perOrderFee: 1500` sozlangan holda turgan edi.
+
+> **Qoida:** sim ob'ektni yaratgandan keyin uni SOZLASA, o'sha sozlashsiz
+> holatni ham alohida tekshiring — prod ko'pincha aynan sozlanmagan yo'ldan
+> boradi.
 
 ### 5.2 Jimgina yutilgan xatolar eng ko'p vaqt oladi
 
