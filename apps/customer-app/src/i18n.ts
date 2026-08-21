@@ -57,6 +57,8 @@ const dict: Record<Lang, Record<string, string>> = {
     err_network: 'Tarmoq bilan bog‘lanib bo‘lmadi',
     open_telegram: 'Telegram orqali davom etish',
     loc_permission: 'Joylashuv ruxsati kerak',
+    logout: 'Chiqish',
+    logout_confirm: 'Hisobdan chiqasizmi? Qaytadan kirish uchun Telegram kerak bo‘ladi.',
     lang_switch: 'Русский',
   },
   ru: {
@@ -115,6 +117,8 @@ const dict: Record<Lang, Record<string, string>> = {
     err_network: 'Не удалось связаться с сетью',
     open_telegram: 'Продолжить через Telegram',
     loc_permission: 'Нужен доступ к геолокации',
+    logout: 'Выйти',
+    logout_confirm: 'Выйти из аккаунта? Для входа снова понадобится Telegram.',
     lang_switch: 'O‘zbekcha',
   },
 };

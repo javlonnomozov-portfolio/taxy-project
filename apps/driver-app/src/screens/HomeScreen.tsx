@@ -426,6 +426,28 @@ export function HomeScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * Ekran YOPILGANDA (chiqish yoki sessiya tugashi) joylashuv kuzatuvchisini
+   * to'xtatamiz.
+   *
+   * Busiz `watchPositionAsync` JS konteksti yo'q qilingandan keyin ham nuqta
+   * yuborishda davom etardi va expo-location ilovani YIQITARDI:
+   *   NullPointerException
+   *     at expo.modules.location.LocationModule.sendLocationResponse
+   *     at LocationHelpers$requestContinuousUpdates$1.onLocationChanged
+   * Avval kuzatuvchi FAQAT "Ishni tugatish" tugmasida to'xtardi, ya'ni
+   * "Chiqish" bosilganda ilova keyingi GPS nuqtasida qulardi.
+   *
+   * Fon joylashuvi ham to'xtatiladi: token o'chgan bo'lsa u faqat 401 yig'adi.
+   */
+  useEffect(() => {
+    return () => {
+      watchRef.current?.remove();
+      watchRef.current = null;
+      void stopBackgroundLocation();
+    };
+  }, []);
+
   // Taksometr masofasini davriy saqlaymiz — ilova o'ldirilsa shu qiymatdan
   // davom etadi. Har GPS nuqtasida yozish AsyncStorage'ni ortiqcha yuklaydi.
   useEffect(() => {

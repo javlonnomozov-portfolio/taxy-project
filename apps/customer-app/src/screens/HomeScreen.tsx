@@ -176,6 +176,13 @@ export function HomeScreen({
     }
   }
 
+  function confirmLogout() {
+    Alert.alert(t('logout'), t('logout_confirm'), [
+      { text: t('no'), style: 'cancel' },
+      { text: t('yes'), style: 'destructive', onPress: onLogout },
+    ]);
+  }
+
   function reset() {
     stop();
     setOrderId(null);
@@ -210,9 +217,16 @@ export function HomeScreen({
             <MaterialIcons name="local-taxi" size={22} color={C.accent} />
             <Text style={S.brand}>{t('app_name')}</Text>
           </View>
-          <TouchableOpacity onPress={onToggleLang}>
-            <Text style={{ color: C.accent, fontWeight: '700' }}>{t('lang_switch')}</Text>
-          </TouchableOpacity>
+          <View style={[S.row, { gap: SP.lg }]}>
+            <TouchableOpacity onPress={onToggleLang} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={{ color: C.accent, fontWeight: '700' }}>{t('lang_switch')}</Text>
+            </TouchableOpacity>
+            {/* Chiqish — YUQORI PANELDA, tushunarli matn bilan. Avval sahifa
+                oxirida `⎋` belgisi edi: topib bo'lmasdi va tasodifan bosilardi. */}
+            <TouchableOpacity onPress={confirmLogout} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={{ color: C.muted, fontWeight: '600' }}>{t('logout')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={{ padding: SP.xl }}>
@@ -255,9 +269,6 @@ export function HomeScreen({
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={onLogout} style={{ alignItems: 'center', paddingVertical: SP.lg }}>
-            <Text style={{ color: C.muted }}>⎋</Text>
-          </TouchableOpacity>
         </ScrollView>
       </View>
     );
