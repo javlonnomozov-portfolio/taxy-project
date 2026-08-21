@@ -1,5 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
-  # driver-app — mustaqil Expo loyihasi (o'z node_modules, pnpm workspace'dan tashqarida)
+  # Expo ilovalari — mustaqil loyihalar (o'z node_modules, npm + EAS bilan
+  # quriladi). pnpm workspace'ga kiritilsa EAS `npm ci` bilan yiqiladi.
   - "!apps/driver-app"
+  - "!apps/customer-app"
