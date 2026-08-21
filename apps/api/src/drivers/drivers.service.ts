@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import Redis from 'ioredis';
-import { ApprovalStatus, DriverStatus, OrderStatus, VehicleCategory } from '@tty/shared';
+import { ApprovalStatus, BillingMode, DriverStatus, OrderStatus, VehicleCategory } from '@tty/shared';
 import * as bcrypt from 'bcryptjs';
 import { SOCKET_EVENTS } from '@tty/shared';
 import { REDIS } from '../redis/redis.module';
@@ -76,6 +76,12 @@ export class DriversService {
         // mijoz 5 yulduz bergan" degan urug' ovoz. Haqiqiy baholar kelgani
         // sari suyuladi (`recomputeDriver`).
         ratingAvg: SEED_RATING,
+        // Billing rejimi ATAYLAB ochiq yoziladi. Entity default'i
+        // `SUBSCRIPTION` va u safardan HECH NARSA yechmaydi — ya'ni operator
+        // qo'lda o'zgartirmasa, yangi haydovchi bepul ishlab yuraverardi va
+        // buni hech qanday xato ko'rsatmasdi (prod'da aynan shunday bo'lgan).
+        // Boshqacha kelishuv bo'lsa admin panelidan o'zgartiriladi.
+        billingMode: BillingMode.PER_ORDER,
       }),
     );
     await this.vehicles.save(this.vehicles.create({ driverId: driver.id, ...data.vehicle }));

@@ -55,7 +55,20 @@ async function main() {
     firstName: 'Bekzod',
     vehicle: { category: 'standard', plate: simPlate(), model: 'Cobalt' },
   });
-  await j('PUT', `/ops/drivers/${d.driverId}/billing`, { mode: 'per_order' }, auth);
+  // BILLING REJIMI ATAYLAB O'RNATILMAYDI — yangi haydovchi STANDART holatda
+  // ham pul to'lashi kerak.
+  //
+  // Nega bu tekshiruv bor: bu sim avval shu yerda `mode: 'per_order'` ni
+  // O'ZI o'rnatardi va shuning uchun doim o'tardi. Prod'da esa haydovchi
+  // entity default'i (`subscription`) bilan yaratilardi va undan HECH NARSA
+  // yechilmasdi — xato ham chiqmasdi, shunchaki pul kelmasdi.
+  const created = await j('GET', '/ops/drivers', null, auth);
+  const me = created.find((x) => x.id === d.driverId);
+  check(
+    'Yangi haydovchi standart holatda per_order rejimida',
+    me && me.billingMode === 'per_order',
+    String(me && me.billingMode),
+  );
 
   const s = io(API + '/driver', { auth: { token: d.token }, transports: ['websocket'] });
   await new Promise((res) => s.on('connect', res));
