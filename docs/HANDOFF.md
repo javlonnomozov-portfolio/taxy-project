@@ -137,8 +137,9 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
    qo'shadi. Zakaz ishlashi uchun **kamida bitta ONLINE haydovchi** VA uning
    mashinasi toifasi zakaz toifasiga **mos** bo'lishi shart — aks holda
    `NO_DRIVER`. Tariflar (3 ta) va sozlamalar saqlab qolindi.
-2. ~~FCM kaliti~~ — **HAL QILINDI (2026-08-17).** Push ishlayapti,
-   uchidan-uchiga tekshirilgan (Expo ticket + receipt = `ok`).
+2. ~~FCM kaliti~~ — **HAL QILINDI (2026-08-17).** Push ishlayapti:
+   Expo ticket + receipt = `ok` VA bildirishnoma haqiqiy telefonga
+   yetib kelgani foydalanuvchi tomonidan tasdiqlangan.
 
    ⚠️ **Nima bo'lgan edi:** Expo hisobi `javl9n` → `jav1on` ga
    ko'chirilganda FCM kaliti ESKI loyihada qolgan. Push jimgina ishlamay
