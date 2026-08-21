@@ -72,29 +72,40 @@ async function main() {
   check('amal qilish muddati bor', started.expiresInSec > 0, String(started.expiresInSec));
 
   const p0 = await j('POST', '/auth/customer/poll', { nonce: started.nonce });
-  check('Tasdiqlanmagan nonce → token YO\'Q (xato emas)', p0.token === null, JSON.stringify(p0));
+  check('Tasdiqlanmagan nonce → confirmed=false', p0.confirmed === false, JSON.stringify(p0));
 
   const conf = await j('POST', '/auth/customer/confirm', { nonce: started.nonce, telegramId: tgId }, INT);
   check('Bot tasdiqladi, 6 xonali kod keldi', /^\d{6}$/.test(conf.code), conf.code);
 
+  // XAVFSIZLIK: tasdiqlashning O'ZI yetarli EMAS.
+  //
+  // Avval `poll` shu yerda token berardi va bu hisobni o'g'irlash yo'lini
+  // ochardi: hujumchi o'z ilovasida nonce yaratib, deep link'ni qurbonga
+  // yuboradi, qurbon Telegram'da tasdiqlaydi va HUJUMCHINING ilovasi qurbon
+  // hisobiga kirib oladi. Kod ilova turgan qurilmaga kiritilishi shart.
   const p1 = await j('POST', '/auth/customer/poll', { nonce: started.nonce });
-  check('poll token berdi', typeof p1.token === 'string' && p1.token.length > 20);
-  const payload = decode(p1.token);
+  check('poll TOKEN BERMAYDI — faqat holat', p1.token === undefined, JSON.stringify(p1));
+  check('poll confirmed=true', p1.confirmed === true, JSON.stringify(p1));
+
+  const p1b = await j('POST', '/auth/customer/verify', { nonce: started.nonce, code: conf.code });
+  check('Kod bilan token berildi', typeof p1b.token === 'string' && p1b.token.length > 20);
+  const payload = decode(p1b.token);
   check('Token roli = customer', payload.role === 'customer', payload.role);
   check('Token egasi = o\'sha mijoz', payload.sub === customer.id, payload.sub);
+  const p1t = p1b;
 
   const p2 = await raw('/auth/customer/poll', { nonce: started.nonce });
-  check('nonce BIR MARTALIK — ikkinchi poll rad etildi', p2.status === 404, 'HTTP ' + p2.status);
+  check('nonce BIR MARTALIK — ikkinchi urinish rad etildi', p2.status === 404, 'HTTP ' + p2.status);
 
   // ---- 2: token haqiqatan ishlaydimi ----
   console.log('\n--- 2: token bilan himoyalangan endpoint ---');
   const meOk = await fetch(API + '/drivers/me', {
-    headers: { authorization: 'Bearer ' + p1.token },
+    headers: { authorization: 'Bearer ' + p1t.token },
   });
   check('Mijoz tokeni HAYDOVCHI endpointiga kirolmaydi', meOk.status === 403, 'HTTP ' + meOk.status);
 
   // ---- 3: zaxira yo'l — kod bilan ----
-  console.log('\n--- 3: kod bilan kirish (zaxira yo\'l) ---');
+  console.log('\n--- 3: kod bilan kirish (majburiy qadam) ---');
   const s2 = await j('POST', '/auth/customer/start', {});
   const c2 = await j('POST', '/auth/customer/confirm', { nonce: s2.nonce, telegramId: tgId }, INT);
   const wrong2 = c2.code === '000000' ? '111111' : '000000';
@@ -147,7 +158,7 @@ async function main() {
   // ishlatishi kerak. Avval mantiq har kanalda alohida yozilardi va bir kuni
   // biri yangilanmay qolardi — bu allaqachon ikki marta sodir bo'lgan.
   console.log('\n--- 6: ilova endpointlari va kanal pariteti ---');
-  const APP = { authorization: 'Bearer ' + p1.token };
+  const APP = { authorization: 'Bearer ' + p1t.token };
   const initData = signInitData(tgId);
 
   const none = await j('GET', '/customer/active', undefined, APP);

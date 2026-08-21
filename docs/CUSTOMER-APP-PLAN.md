@@ -43,17 +43,22 @@ Ilova                      Telegram bot                 API
   |<-- { token } ----------------------------------------|   DARHOL kiradi
 ```
 
-**Ikki yo'l, bitta server mantig'i:**
+**KOD MAJBURIY (2026-08-21 da o'zgartirildi).**
 
-1. **Avtomatik (asosiy).** Ilova `nonce` bilan deep link ochadi, so'ng
-   `poll` qiladi. Foydalanuvchi HECH NARSA YOZMAYDI — bot chatida "Kirish
-   tasdiqlandi" chiqadi, ilova o'zi ichkariga o'tadi.
-2. **Kod bilan (zaxira).** Deep link ishlamasa (Telegram o'rnatilmagan,
-   boshqa telefonda, brauzer ushlab qolgan) — bot bergan **6 xonali kodni**
-   ilovada qo'lda kiritish: `POST /auth/customer/verify { nonce, code }`.
+Avval `poll` tasdiqlangan zahoti token berardi va foydalanuvchi hech narsa
+yozmasdi. Bu HISOBNI O'G'IRLASH yo'lini ochardi — foydalanuvchi topdi:
 
-Zaxira yo'l SHART: deep link Android'da har doim ham ishlamaydi, va busiz
-foydalanuvchi boshi berk ko'chada qoladi.
+> Hujumchi o'z ilovasida nonce yaratadi va deep link'ni qurbonga yuboradi
+> ("shu havolani bosib bering"). Qurbon Telegram'da tasdiqlaydi. Nonce
+> qurbonning hisobiga bog'lanadi, va o'sha nonce'ni POLL QILAYOTGAN
+> HUJUMCHINING ilovasi qurbon hisobiga token oladi.
+
+Ildiz sabab: **tasdiqlovchi va ilovani ushlab turgan odam boshqa-boshqa
+bo'lishi mumkin.** Kod ikkalasini bog'laydi — u bot chatida ko'rsatiladi va
+ILOVA TURGAN QURILMAGA kiritilishi kerak.
+
+Oqim: deep link → bot kod beradi → `poll` faqat "tasdiqlandi" holatini
+qaytaradi (token EMAS) → `verify { nonce, code }` token beradi.
 
 ### Xavfsizlik shartlari (kelishilishi kerak)
 

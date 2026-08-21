@@ -23,14 +23,17 @@ import { JwtPayload } from './roles';
  * SMS yuborish xarajat, alohida parol esa yangi hujum yuzasi bo'lardi.
  * Telegram identifikatsiya manbai bo'lib qoladi.
  *
- * IKKI YO'L, bitta holat:
- *  1. AVTOMATIK — ilova `nonce` yaratib deep link ochadi, bot uni tasdiqlaydi,
- *     ilova `poll` bilan darhol kiradi. Foydalanuvchi hech narsa yozmaydi.
- *  2. KOD BILAN — deep link ishlamasa (Telegram boshqa telefonda, brauzer
- *     ushlab qolgan) bot bergan 6 xonali kod qo'lda kiritiladi.
+ * KOD MAJBURIY — tasdiqlashning O'ZI yetarli emas.
  *
- * Zaxira yo'l SHART: deep link Android'da har doim ishlamaydi va busiz
- * foydalanuvchi boshi berk ko'chada qolardi.
+ * Avval `poll` tasdiqlangan zahoti token berardi. Bu HISOBNI O'G'IRLASH
+ * yo'lini ochardi: hujumchi o'z ilovasida nonce yaratib, deep link'ni
+ * qurbonga yuboradi ("shuni bosib bering"), qurbon Telegram'da tasdiqlaydi
+ * va HUJUMCHINING ilovasi qurbon hisobiga kirib oladi. Tasdiqlovchi va
+ * ilovani ushlab turgan odam BOSHQA-BOSHQA bo'lishi mumkin edi.
+ *
+ * Endi kod bot chatida ko'rsatiladi va uni ILOVA TURGAN QURILMAGA kiritish
+ * shart — bu ikkalasi bir odam ekanini bog'laydi. `poll` faqat "tasdiqlandi,
+ * endi kodni kiriting" holatini qaytaradi, token BERMAYDI.
  */
 @Injectable()
 export class CustomerAuthService {
@@ -119,23 +122,20 @@ export class CustomerAuthService {
   }
 
   /**
-   * 3-qadam (avtomatik yo'l): ilova tasdiqni kutadi.
+   * 3-qadam: ilova tasdiqni kutadi.
    *
-   * `pending` — hali bot tasdiqlamagan; `null` token bilan qaytamiz, ilova
-   * kutishda davom etadi. Xato QAYTARMAYMIZ: bu odatiy holat.
+   * TOKEN BERMAYDI — faqat "bot tasdiqladimi" degan holat. Token uchun kod
+   * kiritilishi shart (`verify`), chunki tasdiqlovchi va ilovani ushlab
+   * turgan odam boshqa-boshqa bo'lishi mumkin (qarang: klass izohi).
    */
-  async poll(nonce: string): Promise<{ token: string | null }> {
+  async poll(nonce: string): Promise<{ confirmed: boolean }> {
     const raw = await this.redis.get(this.key(nonce));
     if (!raw) throw new NotFoundException('Kirish so‘rovi topilmadi yoki eskirgan');
     const state = JSON.parse(raw) as { status: string; customerId?: string };
-    if (state.status !== 'confirmed' || !state.customerId) return { token: null };
-
-    // BIR MARTALIK: token berildi — nonce o'chadi.
-    await this.redis.del(this.key(nonce));
-    return { token: await this.sign(state.customerId) };
+    return { confirmed: state.status === 'confirmed' && !!state.customerId };
   }
 
-  /** 3-qadam (zaxira yo'l): foydalanuvchi kodni qo'lda kiritdi. */
+  /** 4-qadam: foydalanuvchi bot chatidagi kodni ilovaga kiritdi. */
   async verify(nonce: string, code: string): Promise<{ token: string }> {
     const raw = await this.redis.get(this.key(nonce));
     if (!raw) throw new NotFoundException('Kirish so‘rovi topilmadi yoki eskirgan');

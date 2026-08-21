@@ -95,14 +95,14 @@ export class AuthController {
 
   @Public()
   @Post('customer/poll')
-  @ApiOperation({ summary: 'Ilova: tasdiq kutilmoqda (token yoki null)' })
+  @ApiOperation({ summary: 'Ilova: bot tasdiqladimi (token BERMAYDI — kod kerak)' })
   customerPoll(@Body() dto: CustomerNonceDto) {
     return this.customerAuth.poll(dto.nonce);
   }
 
   @Public()
   @Post('customer/verify')
-  @ApiOperation({ summary: 'Ilova: 6 xonali kod bilan kirish (zaxira yo‘l)' })
+  @ApiOperation({ summary: 'Ilova: 6 xonali kod bilan kirish (MAJBURIY qadam)' })
   customerVerify(@Body() dto: CustomerVerifyDto) {
     return this.customerAuth.verify(dto.nonce, dto.code);
   }

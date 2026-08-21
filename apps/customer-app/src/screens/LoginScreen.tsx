@@ -18,15 +18,19 @@ interface StartResp {
   expiresInSec: number;
 }
 
+type Phase = 'idle' | 'waiting' | 'code';
+
 /**
  * Kirish — Telegram bot orqali, parolsiz.
  *
- * IKKI YO'L, bittasi ikkinchisining zaxirasi:
- *  1. Deep link ochiladi, ilova `poll` qilib turadi va O'ZI kiradi.
- *  2. Deep link ishlamasa (Telegram boshqa telefonda, brauzer ushlab qolgan)
- *     — botdagi 6 xonali kod qo'lda kiritiladi.
+ * KOD MAJBURIY. Deep link ochiladi, bot 6 xonali kod beradi va u SHU
+ * qurilmaga kiritiladi.
  *
- * Zaxira yo'lsiz foydalanuvchi boshi berk ko'chada qolardi.
+ * Nega avtomatik kirish OLIB TASHLANDI: tasdiqlovchi va ilovani ushlab
+ * turgan odam boshqa-boshqa bo'lishi mumkin. Hujumchi o'z ilovasida havola
+ * yaratib uni qurbonga yuborsa ("shuni bosib bering"), qurbon Telegram'da
+ * tasdiqlaydi va HUJUMCHINING ilovasi qurbon hisobiga kirib olardi. Kod
+ * ikkalasi bir odam ekanini bog'laydi.
  */
 export function LoginScreen({
   lang,
@@ -41,6 +45,7 @@ export function LoginScreen({
 }) {
   const t = makeT(lang);
   const [start, setStart] = useState<StartResp | null>(null);
+  const [phase, setPhase] = useState<Phase>('idle');
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState('');
   const [err, setErr] = useState<string | null>(null);
@@ -59,8 +64,9 @@ export function LoginScreen({
     try {
       const r = await api<StartResp>('POST', '/auth/customer/start', {});
       setStart(r);
+      setPhase('waiting');
       await Linking.openURL(r.deepLink).catch(() => {
-        // Telegram o'rnatilmagan bo'lishi mumkin — kod yo'li ochiq qoladi.
+        // Telegram o'rnatilmagan bo'lishi mumkin — kod maydoni baribir ochiq.
       });
       stopPoll();
       pollRef.current = setInterval(() => void poll(r.nonce), 3000);
@@ -73,16 +79,18 @@ export function LoginScreen({
 
   async function poll(nonce: string) {
     try {
-      const r = await api<{ token: string | null }>('POST', '/auth/customer/poll', { nonce });
-      if (r.token) {
+      // Token BERMAYDI — faqat "bot tasdiqladi" holati. Token uchun kod kerak.
+      const r = await api<{ confirmed: boolean }>('POST', '/auth/customer/poll', { nonce });
+      if (r.confirmed) {
         stopPoll();
-        onLoggedIn(r.token);
+        setPhase('code');
       }
     } catch {
       // 404 = muddati tugadi. Kutishni to'xtatamiz va sababni KO'RSATAMIZ —
       // jimgina aylanaversa foydalanuvchi nima bo'layotganini bilmaydi.
       stopPoll();
       setStart(null);
+      setPhase('idle');
       setErr(t('login_expired'));
     }
   }
@@ -139,10 +147,19 @@ export function LoginScreen({
         </TouchableOpacity>
       ) : (
         <View>
-          <View style={[S.row, { justifyContent: 'center', gap: SP.sm }]}>
-            <ActivityIndicator color={C.accent} />
-            <Text style={{ color: C.text, fontSize: F.body }}>{t('login_waiting')}</Text>
-          </View>
+          {phase === 'waiting' ? (
+            <View style={[S.row, { justifyContent: 'center', gap: SP.sm }]}>
+              <ActivityIndicator color={C.accent} />
+              <Text style={{ color: C.text, fontSize: F.body }}>{t('login_waiting')}</Text>
+            </View>
+          ) : (
+            <View style={[S.row, { justifyContent: 'center', gap: SP.sm }]}>
+              <MaterialIcons name="check-circle" size={20} color={C.online} />
+              <Text style={{ color: C.online, fontSize: F.body, fontWeight: '700' }}>
+                {t('login_confirmed')}
+              </Text>
+            </View>
+          )}
 
           <Text style={[S.label, { marginTop: SP.xxl }]}>{t('login_code_hint')}</Text>
           <TextInput
