@@ -43,6 +43,7 @@ interface DispatchState {
   destAddress: string | null;
   note: string | null;
   customerPhone: string | null;
+  passengers: number | null; // mijoz ilovasidagi "yo'lovchilar soni"
   customerName: string | null; // showName bo'lsa
   windowSize: number;
   offerTimeoutMs: number;
@@ -240,6 +241,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       destLng: order.destLng,
       destAddress: order.destAddress,
       note: order.note,
+      passengers: order.passengers,
       customerPhone: customer?.phone ?? null,
       customerName:
         customer?.showName && (customer.firstName || customer.lastName)
@@ -531,6 +533,8 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       distanceM,
       category: state.category,
       note: state.note ?? undefined,
+      // Haydovchi mashinasiga hamma sig'ishini BILISHI kerak.
+      passengers: state.passengers ?? undefined,
       timeoutSec: Math.round(state.offerTimeoutMs / 1000),
       customer: { phone: state.customerPhone ?? '', name: state.customerName ?? undefined },
     });
@@ -557,6 +561,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         distanceM: o.distanceM,
         category: state.category,
         note: state.note ?? undefined,
+        passengers: state.passengers ?? undefined,
         timeoutSec: remainingSec,
         customer: { phone: state.customerPhone ?? '', name: state.customerName ?? undefined },
       });

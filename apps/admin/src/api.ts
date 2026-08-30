@@ -34,7 +34,12 @@ export async function api<T = unknown>(
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (res.status === 401) {
+  // Sessiya tugagan/token yaroqsiz bo'lsa — login sahifasiga qaytaramiz.
+  // Lekin login SO'ROVINING O'ZI 401 qaytarsa (parol xato) qayta yuklamaymiz:
+  // `location.href` sahifani yangilab, Login.tsx dagi xato xabarini o'chirib
+  // yuborardi va foydalanuvchi nima bo'lganini bilmay qolardi — forma
+  // shunchaki tozalanardi. Endi xato pastdagi throw orqali ekranga chiqadi.
+  if (res.status === 401 && !path.startsWith('/auth/')) {
     auth.clear();
     location.href = '/login';
   }

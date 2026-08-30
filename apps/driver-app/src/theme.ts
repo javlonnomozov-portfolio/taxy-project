@@ -26,6 +26,13 @@ export const C = {
   warn: '#FFB020', // "Ulanmoqda…", taymer ogohlantirishi
   warnSoft: 'rgba(255, 176, 32, 0.12)',
   gold: '#FFC53D', // reyting yulduzi
+
+  // --- xarita ustidagi elementlar ---------------------------------------
+  // MapView.tsx ikkala app'da BIR XIL fayl — ranglarni shu tokenlardan oladi,
+  // shuning uchun mijoz ilovasi yorug', haydovchi ilovasi to'q bo'la oladi.
+  // Bu app ATAYLAB to'q holicha: haydovchi mashinada, quyoshda va kechasi ishlaydi.
+  mapBg: '#0f1420', // xarita yuklanguncha ko'rinadigan fon
+  chrome: 'rgba(19, 27, 46, 0.92)', // xarita ustidagi tugma/panel foni
 };
 
 /** Burchak radiuslari. */

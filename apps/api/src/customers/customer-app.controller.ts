@@ -1,12 +1,22 @@
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
-import { IsEnum, IsInt, IsLatitude, IsLongitude, Max, Min, ValidateNested } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsLatitude,
+  IsLongitude,
+  IsOptional,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { VehicleCategory } from '@tty/shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { JwtPayload, Roles } from '../auth/roles';
 import { CustomerOrdersService } from './customer-orders.service';
+import { SettingsService } from '../settings/settings.service';
 
 class PointDto {
   @IsLatitude() lat!: number;
@@ -16,6 +26,8 @@ class PointDto {
 class CreateOrderDto {
   @IsEnum(VehicleCategory) category!: VehicleCategory;
   @ValidateNested() @Type(() => PointDto) pickup!: PointDto;
+  /** Yo'lovchilar soni — maketdagi "1ta-4ta / 5+" tanlagichi. */
+  @IsOptional() @IsInt() @Min(1) @Max(20) passengers?: number;
 }
 
 class RateDto {
@@ -35,10 +47,29 @@ class RateDto {
 @UseGuards(JwtAuthGuard)
 @Roles('customer')
 export class CustomerAppController {
-  constructor(private readonly orders: CustomerOrdersService) {}
+  constructor(
+    private readonly orders: CustomerOrdersService,
+    private readonly settings: SettingsService,
+  ) {}
 
   private me(req: Request): string {
     return (req as Request & { user: JwtPayload }).user.sub;
+  }
+
+  /**
+   * Toifalar va ularning boshlang'ich narxi.
+   *
+   * NEGA KERAK: maketda narxlar ("3 000 so'mdan") qattiq yozilgan edi. Admin
+   * tarifni o'zgartirsa ilova ESKI narxni ko'rsatib, mijozni chalg'itardi.
+   * Endi manba bitta — `tariffs` jadvali.
+   */
+  @Get('tariffs')
+  @ApiOperation({ summary: 'Toifalar va boshlang‘ich narx' })
+  async tariffs() {
+    const list = await this.settings.listTariffs();
+    return list
+      .map((t) => ({ category: t.category, baseFare: Number(t.baseFare) }))
+      .sort((a, b) => a.baseFare - b.baseFare);
   }
 
   @Get('active')
@@ -50,7 +81,7 @@ export class CustomerAppController {
   @Post('orders')
   @ApiOperation({ summary: 'Xaritadan tanlangan nuqta bilan buyurtma berish' })
   create(@Req() req: Request, @Body() dto: CreateOrderDto) {
-    return this.orders.createOrder(this.me(req), dto.category, dto.pickup);
+    return this.orders.createOrder(this.me(req), dto.category, dto.pickup, dto.passengers);
   }
 
   @Get('orders/:id')

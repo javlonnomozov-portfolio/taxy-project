@@ -93,9 +93,10 @@ export class CustomerOrdersService {
     customerId: string,
     category: VehicleCategory,
     pickup: { lat: number; lng: number },
+    passengers?: number,
   ): Promise<{ orderId: string }> {
     await this.rateLimit(customerId);
-    const order = await this.ordersService.create({ customerId, category, pickup });
+    const order = await this.ordersService.create({ customerId, category, pickup, passengers });
 
     // Botga xabar beramiz — busiz ilovadan/mini app'dan berilgan zakaz uchun
     // mijoz Telegram'da HECH QANDAY xabar olmasdi.

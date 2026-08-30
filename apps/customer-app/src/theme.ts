@@ -1,64 +1,69 @@
 import { StyleSheet } from 'react-native';
 
-// Dizayn tokenlari — Google Stitch maketlaridan olingan (2026-07-29).
-// Aniq eksport (HEX/Figma) kelganda FAQAT shu fayl yangilanadi, ekranlarga tegilmaydi.
+// Dizayn tokenlari — Figma "Toy taxi" maketidan (node 111:378, 2026-08-21).
+// Rang/o'lcham o'zgarsa FAQAT shu fayl tahrirlanadi.
+//
+// DIQQAT: mijoz ilovasi OCH temada, haydovchi ilovasi esa TO'Q temada.
+// Ular ataylab boshqacha — `driver-app/src/theme.ts` bilan aralashtirmang.
 
 export const C = {
-  bg: '#0A0F1E', // eng orqa fon — chuqur navy
-  panel: '#131B2E', // karta
-  panel2: '#1B2438', // ko'tarilgan yuza: input, chip, tab
-  border: '#24304A',
-  text: '#E8EDF7',
-  muted: '#8B98B4',
+  bg: '#FFFFFF',
+  sheet: '#FFFFFF', // xarita ustidagi pastki karta
+  text: '#171E2A',
+  muted: 'rgba(23, 30, 42, 0.5)',
+  border: '#999999',
 
-  accent: '#5B8DEF', // asosiy ko'k — brend, havolalar, birlamchi tugma
-  accentSoft: 'rgba(91, 141, 239, 0.14)', // ko'k fon (bosilgan tab, ikonka doirasi)
+  /** Asosiy amal — "Taksi chaqirish". */
+  primary: '#0CAF50',
+  primarySoft: '#E4F6EB', // tanlangan toifa kartasi foni
+  onPrimary: '#FFFFFF',
 
-  ok: '#00C853', // "Qabul qilish" / yakunlash — yorqin yashil
-  onOk: '#062713', // yashil ustidagi matn (qora-yashil, oq emas)
-  okSoft: 'rgba(0, 200, 83, 0.12)',
-  online: '#3DDC84', // "Onlayn" status rangi (tugmadan farqli, yumshoqroq)
+  /** Yo'lovchilar soni tanlagichi. */
+  accent: '#F68F0A',
+  onAccent: '#FFFFFF',
 
-  danger: '#FF7B72', // xato matni va ramka (marjon)
-  dangerSolid: '#E5484D', // to'ldirilgan qizil tugma ("Ishni tugatish")
-  dangerSoft: 'rgba(229, 72, 77, 0.12)',
+  danger: '#E5484D',
+  dangerSoft: 'rgba(229, 72, 77, 0.10)',
+  cardBg: '#FBFBFB',
+  mapBg: '#EDEDED',
 
-  warn: '#FFB020', // "Ulanmoqda…", taymer ogohlantirishi
-  warnSoft: 'rgba(255, 176, 32, 0.12)',
-  gold: '#FFC53D', // reyting yulduzi
+  // `MapView` va `ErrorBoundary` haydovchi ilovasi bilan BIR XIL fayl —
+  // ular faqat shu tokenlar orqali temaga bog'lanadi. Shuning uchun nomlar
+  // o'sha-o'sha qoladi, qiymatlar esa och temaga moslangan: fayllarni
+  // tahrirlasak, bir ilovadagi tuzatish ikkinchisiga o'tmay qolardi.
+  chrome: 'rgba(255, 255, 255, 0.94)', // xarita ustidagi tugma foni
+  panel: '#F5F5F5', // xato bloki foni
 };
 
-/** Burchak radiuslari. */
-export const R = { sm: 10, md: 14, lg: 16, xl: 20, pill: 999 };
+export const R = { sm: 12, md: 14, lg: 20, xl: 23, card: 14, pill: 999 };
 
-/** Shrift o'lchamlari. */
+/** Shrift o'lchamlari — maketdagi 1080px kenglikdan 3x ga bo'lingan. */
 export const F = {
-  hero: 44, // taksometr, yakuniy narx — ekrandagi eng katta son
-  display: 32, // "Xush kelibsiz!"
-  title: 24,
-  h2: 20,
+  hero: 25, // "Taksi chaqirish"
+  h2: 20, // `ErrorBoundary` ishlatadi (haydovchi ilovasi bilan umumiy fayl)
+  title: 20,
   h3: 17,
   body: 16,
-  label: 13,
+  label: 15,
+  small: 13,
   tiny: 11,
 };
 
-/** Bo'shliq shkalasi. */
-export const SP = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24 };
+export const SP = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 };
 
-/** Haydovchi mashinada, quyoshda, bir qo'l bilan bosadi — birlamchi tugma balandligi. */
 const TAP = 56;
 
 export const S = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg, padding: SP.xl },
   center: { flex: 1, justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center' },
 
-  title: { color: C.text, fontSize: F.title, fontWeight: '700', marginBottom: 6 },
-  subtitle: { color: C.muted, fontSize: 15, marginBottom: SP.xl, lineHeight: 22 },
-  label: { color: C.muted, fontSize: F.label, marginBottom: 6 },
+  title: { color: C.text, fontSize: F.title, fontWeight: '800', marginBottom: 6 },
+  subtitle: { color: C.muted, fontSize: F.label, marginBottom: SP.xl, lineHeight: 21 },
+  label: { color: C.muted, fontSize: F.small, marginBottom: 6 },
 
   input: {
-    backgroundColor: C.panel2,
+    backgroundColor: C.cardBg,
     borderColor: C.border,
     borderWidth: 1,
     borderRadius: R.md,
@@ -69,42 +74,39 @@ export const S = StyleSheet.create({
     marginBottom: SP.lg,
   },
 
+  /** Asosiy tugma — yashil, maketdagi "Taksi chaqirish". */
   btn: {
-    backgroundColor: C.accent,
-    borderRadius: R.md,
+    backgroundColor: C.primary,
+    borderRadius: R.card,
     minHeight: TAP,
-    flexDirection: 'row', // ikonka + matn yonma-yon turishi uchun
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: SP.lg,
   },
-  btnText: { color: '#FFFFFF', fontSize: F.body, fontWeight: '700' },
+  btnText: { color: C.onPrimary, fontSize: F.body, fontWeight: '800' },
+
   btnGhost: {
-    backgroundColor: C.panel2,
+    backgroundColor: C.cardBg,
     borderColor: C.border,
     borderWidth: 1,
-    borderRadius: R.md,
+    borderRadius: R.card,
     minHeight: 50,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: SP.md,
   },
-  btnGhostText: { color: C.text, fontSize: 15, fontWeight: '600' },
-  // Yashil ustida OQ emas, to'q matn — yorqin yashilda kontrast shunda yuqori.
-  btnOk: { backgroundColor: C.ok },
-  btnOkText: { color: C.onOk, fontSize: F.h3, fontWeight: '800' },
-  btnDanger: { backgroundColor: C.dangerSolid },
+  btnGhostText: { color: C.text, fontSize: F.label, fontWeight: '700' },
 
   card: {
-    backgroundColor: C.panel,
+    backgroundColor: C.bg,
     borderColor: C.border,
     borderWidth: 1,
-    borderRadius: R.lg,
-    padding: 18,
+    borderRadius: R.card,
+    padding: SP.lg,
   },
 
-  err: { color: C.danger, fontSize: F.label, marginBottom: SP.md },
-  /** Xato bloki — popup emas, ekranda turadi (diagnostika uchun muhim). */
+  err: { color: C.danger, fontSize: F.small, marginBottom: SP.md },
   errBox: {
     backgroundColor: C.dangerSoft,
     borderColor: 'rgba(229, 72, 77, 0.35)',
@@ -114,28 +116,30 @@ export const S = StyleSheet.create({
     paddingVertical: SP.sm,
   },
 
-  row: { flexDirection: 'row', alignItems: 'center' },
-
-  /** Yuqori panel: logo + o'ng tomonda amallar. */
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SP.xl,
     paddingVertical: SP.md,
-    borderBottomColor: C.border,
+    borderBottomColor: '#EEEEEE',
     borderBottomWidth: 1,
+    backgroundColor: C.bg,
   },
-  brand: { color: C.accent, fontSize: F.h2, fontWeight: '800', letterSpacing: 0.2 },
+  brand: { color: C.text, fontSize: F.title, fontWeight: '800' },
 
-  /** Holat yorlig'i ("ONLAYN"), yumaloq. */
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: R.pill,
+  /** Xarita ustida turadigan pastki karta. */
+  sheet: {
+    backgroundColor: C.sheet,
+    borderTopLeftRadius: R.xl,
+    borderTopRightRadius: R.xl,
     paddingHorizontal: SP.md,
-    paddingVertical: 6,
-    borderWidth: 1,
+    paddingTop: SP.lg,
+    paddingBottom: SP.lg,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 12,
   },
 });

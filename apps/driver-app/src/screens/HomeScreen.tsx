@@ -23,6 +23,8 @@ interface Offer {
   destAddress?: string;
   distanceM: number;
   note?: string;
+  /** Mijoz ilovasidagi "yo'lovchilar soni" (bot/Mini App bermaydi). */
+  passengers?: number;
   timeoutSec?: number;
   customer: { phone: string; name?: string };
 }
@@ -1187,6 +1189,29 @@ export function HomeScreen({
                     <View style={[S.row, { gap: 6, marginTop: SP.md }]}>
                       <MaterialIcons name="location-on" size={18} color={C.accent} />
                       <Text style={{ color: C.text, fontSize: 15, flex: 1 }}>{o.pickupAddress}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Yo'lovchilar soni — mashinaga hamma sig'ishini bilish
+                      QABUL QILISHDAN OLDIN kerak, shuning uchun izohdan
+                      oldinda turadi. */}
+                  {o.passengers && o.passengers >= 5 ? (
+                    <View
+                      style={[
+                        S.row,
+                        {
+                          gap: SP.sm,
+                          marginTop: SP.md,
+                          backgroundColor: C.warnSoft,
+                          borderRadius: R.sm,
+                          padding: SP.md,
+                        },
+                      ]}
+                    >
+                      <MaterialIcons name="groups" size={18} color={C.warn} />
+                      <Text style={{ color: C.text, fontSize: 15, fontWeight: '700', flex: 1 }}>
+                        {t('passengers')}: {o.passengers}+
+                      </Text>
                     </View>
                   ) : null}
 

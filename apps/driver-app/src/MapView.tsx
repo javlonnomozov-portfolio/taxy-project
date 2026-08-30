@@ -1,4 +1,14 @@
-import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  ReactNode,
+  RefObject,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { WebView } from 'react-native-webview';
 import { Modal, Platform, StatusBar, TouchableOpacity, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -19,15 +29,19 @@ function buildHtml(line: boolean) {
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>html,body,#m{margin:0;padding:0;height:100%;width:100%;background:#0f1420}</style>
+<style>html,body,#m{margin:0;padding:0;height:100%;width:100%;background:${C.mapBg}}</style>
 </head><body><div id="m"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  var map = L.map('m',{zoomControl:true,attributionControl:false}).setView([39.7683,67.2792],14);
+  // Leaflet'ning o'z +/- boshqaruvi O'CHIRILGAN: u brauzer uslubida chiqadi va
+  // dizaynga mos kelmaydi. O'rniga RN tomonda ZoomControl chiziladi va
+  // window.__zoom orqali shu xaritaga buyruq beradi.
+  var map = L.map('m',{zoomControl:false,attributionControl:false}).setView([39.7683,67.2792],14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
   var layer = L.layerGroup().addTo(map);
   var LINE = ${line ? 'true' : 'false'};
   var framed = false;
+  window.__zoom = function(d){ if(d > 0){ map.zoomIn(); } else { map.zoomOut(); } };
   window.__setMarkers = function(ms){
     layer.clearLayers();
     var pts = [];
@@ -37,7 +51,7 @@ function buildHtml(line: boolean) {
       pts.push([m.lat,m.lng]);
     });
     if(LINE && ms.length>=2){
-      L.polyline([[ms[0].lat,ms[0].lng],[ms[1].lat,ms[1].lng]],{color:'#4c8dff',dashArray:'6',weight:3}).addTo(layer);
+      L.polyline([[ms[0].lat,ms[0].lng],[ms[1].lat,ms[1].lng]],{color:'${C.accent}',dashArray:'6',weight:3}).addTo(layer);
     }
     // Ko'rinishni FAQAT birinchi marta moslaymiz — aks holda haydovchi
     // xaritani surgan/kattalashtirgan zahoti keyingi GPS yangilanishi uni qaytarib olardi.
@@ -73,7 +87,7 @@ function MapButton({
         borderRadius: R.sm,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(19, 27, 46, 0.92)',
+        backgroundColor: C.chrome,
         borderColor: C.border,
         borderWidth: 1,
         // Android'da WebView ustidagi element `elevation`siz bosilmay qolishi mumkin.
@@ -83,6 +97,59 @@ function MapButton({
     >
       <MaterialIcons name={icon} size={22} color={C.text} />
     </TouchableOpacity>
+  );
+}
+
+/** WebView ichidagi Leaflet xaritasiga tashqaridan buyruq berish uchun. */
+export interface MapHandle {
+  zoomIn(): void;
+  zoomOut(): void;
+}
+
+/**
+ * Xarita ustidagi +/- ustuni — Leaflet'ning o'chirilgan `zoomControl`i o'rniga.
+ *
+ * Fon/ramka `MapButton` bilan bir xil (`C.chrome`), chunki ikkalasi bitta
+ * xarita ustida yonma-yon turadi — mijoz ilovasida oq, haydovchinikida to'q.
+ */
+function ZoomControl({
+  onZoomIn,
+  onZoomOut,
+  t,
+}: {
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  t: (key: string) => string;
+}) {
+  const cell = (icon: 'add' | 'remove', onPress: () => void, key: string) => (
+    <TouchableOpacity
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t(key)}
+      hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+      style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <MaterialIcons name={icon} size={22} color={C.text} />
+    </TouchableOpacity>
+  );
+
+  return (
+    <View
+      style={{
+        borderRadius: R.pill,
+        overflow: 'hidden',
+        backgroundColor: C.chrome,
+        borderColor: C.border,
+        borderWidth: 1,
+        // Android'da WebView ustidagi element `elevation`siz bosilmay qolishi mumkin.
+        elevation: 4,
+        zIndex: 2,
+      }}
+    >
+      {cell('add', onZoomIn, 'zoom_in')}
+      <View style={{ height: 1, marginHorizontal: 8, backgroundColor: C.border }} />
+      {cell('remove', onZoomOut, 'zoom_out')}
+    </View>
   );
 }
 
@@ -102,15 +169,14 @@ function MapButton({
  * (b) hali ekranda turgan bo'lsa. Yechib olinganda bayroq DARHOL o'chadi,
  * ya'ni keyin hech qanday inject navbatga qo'yilmaydi.
  */
-function MapWebView({
-  html,
-  markersJson,
-  scroll,
-}: {
-  html: string;
-  markersJson: string;
-  scroll: boolean;
-}) {
+const MapWebView = forwardRef<
+  MapHandle,
+  {
+    html: string;
+    markersJson: string;
+    scroll: boolean;
+  }
+>(function MapWebView({ html, markersJson, scroll }, handle) {
   const ref = useRef<WebView>(null);
   const alive = useRef(false); // ekranda VA yuklanib bo'lganmi
 
@@ -125,6 +191,15 @@ function MapWebView({
     ref.current?.injectJavaScript(`window.__setMarkers && window.__setMarkers(${json}); true;`);
   }, []);
 
+  // Zoom ham AYNAN o'sha `alive` qo'riqchisidan o'tadi — yechib olingan
+  // WebView'ga inject qilish yuqorida tasvirlangan JNI yiqilishini beradi.
+  const zoom = useCallback((dir: 1 | -1) => {
+    if (!alive.current) return;
+    ref.current?.injectJavaScript(`window.__zoom && window.__zoom(${dir}); true;`);
+  }, []);
+
+  useImperativeHandle(handle, () => ({ zoomIn: () => zoom(1), zoomOut: () => zoom(-1) }), [zoom]);
+
   useEffect(() => {
     push(markersJson);
   }, [markersJson, push]);
@@ -133,7 +208,7 @@ function MapWebView({
     <WebView
       ref={ref}
       source={{ html }}
-      style={{ flex: 1, backgroundColor: '#0f1420' }}
+      style={{ flex: 1, backgroundColor: C.mapBg }}
       scrollEnabled={scroll}
       originWhitelist={['*']}
       javaScriptEnabled
@@ -145,7 +220,7 @@ function MapWebView({
       }}
     />
   );
-}
+});
 
 // Ichki xarita — WebView + Leaflet/OSM (Google Maps API key kerak emas).
 // markers[0] odatda pickup/mijoz, markers[1] haydovchi yoki manzil bo'ladi.
@@ -176,16 +251,31 @@ export function MiniMap({
   // Effekt har render qayta ishlamasligi uchun nuqtalar solishtiriladigan kalit.
   const key = JSON.stringify(markers);
 
-  const web = (scroll: boolean) => <MapWebView html={html} markersJson={key} scroll={scroll} />;
+  // Ichki va to'liq ekran WebView'lari uchun ALOHIDA ref: bir vaqtda faqat
+  // bittasi ekranda bo'ladi, zoom buyrug'i o'sha turganiga ketishi kerak.
+  const inlineMap = useRef<MapHandle>(null);
+  const fullMap = useRef<MapHandle>(null);
+
+  const web = (scroll: boolean, r: RefObject<MapHandle>) => (
+    <MapWebView ref={r} html={html} markersJson={key} scroll={scroll} />
+  );
 
   // To'liq ekran ochiq bo'lganda ichki WebView yechib olinadi: arzon Android
   // telefonlarda ikkita Leaflet WebView bir vaqtda ilovani yiqitishi mumkin.
   return (
-    <View style={{ height, borderRadius: 12, overflow: 'hidden', backgroundColor: '#0f1420' }}>
-      {!full && web(false)}
+    <View style={{ height, borderRadius: 12, overflow: 'hidden', backgroundColor: C.mapBg }}>
+      {!full && web(false, inlineMap)}
 
       <View style={{ position: 'absolute', top: SP.sm, right: SP.sm }}>
         <MapButton icon="fullscreen" label={t('fullscreen')} onPress={() => setFull(true)} />
+      </View>
+
+      <View style={{ position: 'absolute', right: SP.sm, bottom: SP.sm }}>
+        <ZoomControl
+          t={t}
+          onZoomIn={() => inlineMap.current?.zoomIn()}
+          onZoomOut={() => inlineMap.current?.zoomOut()}
+        />
       </View>
 
       <Modal
@@ -195,8 +285,8 @@ export function MiniMap({
         onRequestClose={() => setFull(false)}
         statusBarTranslucent
       >
-        <View style={{ flex: 1, backgroundColor: '#0f1420' }}>
-          {full && web(true)}
+        <View style={{ flex: 1, backgroundColor: C.mapBg }}>
+          {full && web(true, fullMap)}
           <View
             style={{
               position: 'absolute',
@@ -209,6 +299,22 @@ export function MiniMap({
               icon="fullscreen-exit"
               label={t('exit_fullscreen')}
               onPress={() => setFull(false)}
+            />
+          </View>
+
+          <View
+            style={{
+              position: 'absolute',
+              right: SP.lg,
+              top: '50%',
+              // Ustun balandligi 83 (40 + 1 ajratkich + 40 + 2 ramka) — markazga tekislash.
+              transform: [{ translateY: -41 }],
+            }}
+          >
+            <ZoomControl
+              t={t}
+              onZoomIn={() => fullMap.current?.zoomIn()}
+              onZoomOut={() => fullMap.current?.zoomOut()}
             />
           </View>
 
@@ -225,7 +331,7 @@ export function MiniMap({
                 paddingHorizontal: SP.lg,
                 paddingTop: SP.lg,
                 paddingBottom: SP.xxl,
-                backgroundColor: 'rgba(10, 15, 30, 0.92)',
+                backgroundColor: C.chrome,
                 borderTopLeftRadius: R.xl,
                 borderTopRightRadius: R.xl,
                 borderTopWidth: 1,

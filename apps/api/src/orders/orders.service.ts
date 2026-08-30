@@ -24,6 +24,8 @@ export interface CreateOrderInput {
   destAddress?: string;
   note?: string;
   orderType?: OrderType;
+  /** Yo'lovchilar soni (mijoz ilovasi). Bot va Mini App bermaydi. */
+  passengers?: number;
   scheduledAt?: string; // ISO — oldindan buyurtma uchun
 }
 
@@ -63,6 +65,7 @@ export class OrdersService {
       destLng: input.destination?.lng ?? null,
       destAddress: input.destAddress ?? null,
       note: input.note ?? null,
+      passengers: input.passengers ?? null,
       scheduledAt: isScheduled ? new Date(input.scheduledAt!) : null,
     });
     await this.orders.save(order);

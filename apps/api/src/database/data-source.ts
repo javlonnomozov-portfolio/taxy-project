@@ -4,7 +4,10 @@ import { DataSource } from 'typeorm';
 import { join } from 'path';
 
 // TypeORM CLI (migratsiya) va NestJS uchun umumiy DataSource.
-loadEnv();
+// `.env` monorepo ILDIZIDA — cwd ga tayanib bo'lmaydi, chunki
+// `pnpm --filter @tty/api migration:run` uni apps/api ga o'zgartiradi.
+// __dirname: src/database/ (dev) yoki dist/database/ (build) — 4 daraja yuqori.
+loadEnv({ path: join(__dirname, '../../../../.env') });
 
 export const AppDataSource = new DataSource({
   type: 'postgres',

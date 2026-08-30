@@ -56,6 +56,13 @@ export class Order {
   @Column({ type: 'text', nullable: true })
   note!: string | null;
 
+  /**
+   * Yo'lovchilar soni (mijoz ilovasidagi tanlagich). Bot/Mini App orqali
+   * kelgan zakazlarda `null` — bu normal.
+   */
+  @Column({ type: 'int', nullable: true })
+  passengers!: number | null;
+
   @Column({ type: 'timestamptz', name: 'scheduled_at', nullable: true })
   scheduledAt!: Date | null;
 

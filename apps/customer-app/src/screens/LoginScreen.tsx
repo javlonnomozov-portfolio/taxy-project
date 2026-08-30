@@ -123,14 +123,14 @@ export function LoginScreen({
       </TouchableOpacity>
 
       <View style={{ alignItems: 'center', marginBottom: SP.xxl }}>
-        <MaterialIcons name="local-taxi" size={56} color={C.accent} />
+        <MaterialIcons name="local-taxi" size={56} color={C.primary} />
         <Text style={[S.title, { marginTop: SP.md }]}>{t('login_title')}</Text>
         <Text style={[S.subtitle, { textAlign: 'center' }]}>{t('login_sub')}</Text>
       </View>
 
       {notice ? (
         <View style={[S.errBox, { marginBottom: SP.lg }]}>
-          <Text style={{ color: C.warn, fontSize: F.label }}>{t(notice)}</Text>
+          <Text style={{ color: C.accent, fontSize: F.label }}>{t(notice)}</Text>
         </View>
       ) : null}
 
@@ -154,8 +154,8 @@ export function LoginScreen({
             </View>
           ) : (
             <View style={[S.row, { justifyContent: 'center', gap: SP.sm }]}>
-              <MaterialIcons name="check-circle" size={20} color={C.online} />
-              <Text style={{ color: C.online, fontSize: F.body, fontWeight: '700' }}>
+              <MaterialIcons name="check-circle" size={20} color={C.primary} />
+              <Text style={{ color: C.primary, fontSize: F.body, fontWeight: '700' }}>
                 {t('login_confirmed')}
               </Text>
             </View>
