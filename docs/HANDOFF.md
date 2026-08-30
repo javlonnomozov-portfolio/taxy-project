@@ -1,7 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
 > **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `990e861`
+> **Oxirgi commit:** `ed8a56d`
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -38,7 +38,7 @@ EAS projectId `862b155e-1193-4c77-87fb-0cb63e29ee9e`
 | **api** | https://api-production-13444.up.railway.app · `/health` ok · `/trips/active` · `/miniapp/rate` · `/miniapp/cancel` · `/auth/customer/*` (2026-08-17) |
 | **admin** | https://admin-production-42e5.up.railway.app · yangi dizayn |
 | **bot** | `@toy_taxy_bot` · polling · barqaror · `CANCELLED_BY_CUSTOMER` ishlanadi (2026-08-01) |
-| Postgres + Redis | Railway plugin · **migratsiya 8** qo'llangan |
+| Postgres + Redis | Railway plugin · **migratsiya 9** qo'llangan (`orders.passengers`) |
 
 **Deploy:** `railway up --service api|admin|bot --ci` (repo rootdan).
 **GitHub'ga ulanmagan** — merge deploy qilmaydi, qo'lda ishga tushiriladi.
@@ -76,7 +76,7 @@ Migratsiyalar konteyner startida **avtomatik** ishlaydi (`Dockerfile` CMD).
 
 ```
 apps/driver-app/toy-taxy-driver-990e861.apk    (66 MB, .gitignore'da)
-apps/customer-app/toy-taxy-customer-7efd926.apk (65 MB, MIJOZ ilovasi)
+apps/customer-app/toy-taxy-customer-ed8a56d.apk (63 MB, MIJOZ ilovasi)
 ```
 
 ⚠️ **Keystore o'zgargan** (Expo hisobi `javl9n` → `jav1on`, loyiha
@@ -232,6 +232,11 @@ bu ogohlantirish bosqichi, keyin `Build successful` keladi.
 | `f5ab131` | **Yangi haydovchi 5.00 reyting** bilan boshlaydi (urug' ovoz, suyuladi) |
 | `dcbf156` | Mijoz ilovasi rejasi — `docs/CUSTOMER-APP-PLAN.md` |
 | `eec7c94` | **Mijoz ilovasiga Telegram orqali kirish** (nonce + kod, `customer` roli) |
+
+**APK tarqatish:** GitHub Release `v1.0.0` — havolalar o'zgarmaydi:
+`github.com/javlonnomozov-portfolio/taxy-project/releases/tag/v1.0.0`
+Yangilash: `gh release upload v1.0.0 <apk> --clobber` (yangi teg SHART EMAS,
+shunda odamlardagi havola ishlayveradi).
 
 **Sessiya yozuvi:** `docs/SESSION-2026-08.md` — qarorlar, ildiz sabablar,
 ochiq savollar va boshqa kompyuterda davom ettirish yo'riqnomasi.
