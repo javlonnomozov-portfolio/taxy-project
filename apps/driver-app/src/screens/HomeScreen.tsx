@@ -23,10 +23,11 @@ interface Offer {
   destAddress?: string;
   distanceM: number;
   note?: string;
-  timeoutSec?: number;
+  /** Yo'lovchilar soni (mijoz aytgan bo'lsa). 4 dan ko'p bo'lsa server
+      allaqachon faqat sig'adigan mashinalarga yuborgan. */
+  passengers?: number;
   customer: { phone: string; name?: string };
 }
-type PendingOffer = Offer & { expiresAt: number };
 /** `GET /trips/active` javobi — `order:assigned` bilan bir xil shakl + `stage`. */
 interface ActiveTrip {
   orderId: string;
@@ -108,9 +109,8 @@ export function HomeScreen({
   const t = makeT(lang);
   const [intent, setIntent] = useState(false); // haydovchi ishlashni xohlaydi (tugma bosilgan)
   const [online, setOnline] = useState(false); // backend TASDIQLAGAN holat (ack + ulanish)
-  const [offers, setOffers] = useState<PendingOffer[]>([]); // kutilayotgan takliflar ro'yxati
+  const [offers, setOffers] = useState<Offer[]>([]); // kutilayotgan takliflar ro'yxati
   const [expandedId, setExpandedId] = useState<string | null>(null); // xaritasi ochilgan taklif
-  const [, setTick] = useState(0); // countdown uchun qayta render
   const [trip, setTrip] = useState<Trip | null>(null);
   const [distanceM, setDistanceM] = useState(0);
   const [done, setDone] = useState<{ price: number } | null>(null);
@@ -130,15 +130,14 @@ export function HomeScreen({
   distanceRef.current = distanceM;
   const wantOnlineRef = useRef(false); // socket handlerlari uchun "onlayn bo'lishni xohlayapti"
   const registerOnlineRef = useRef<() => void>(() => {});
-  const offersRef = useRef<PendingOffer[]>([]);
+  const offersRef = useRef<Offer[]>([]);
   offersRef.current = offers;
 
   const upsertOffer = (o: Offer) => {
-    const expiresAt = Date.now() + (o.timeoutSec ?? 120) * 1000;
     setOffers((cur) =>
       cur.some((x) => x.orderId === o.orderId)
-        ? cur.map((x) => (x.orderId === o.orderId ? { ...o, expiresAt } : x))
-        : [...cur, { ...o, expiresAt }],
+        ? cur.map((x) => (x.orderId === o.orderId ? o : x))
+        : [...cur, o],
     );
   };
   const removeOffer = (orderId: string) =>
@@ -156,7 +155,7 @@ export function HomeScreen({
     }
     try {
       const list = await api<Offer[]>('GET', '/offers/pending', undefined, token);
-      setOffers(list.map((o) => ({ ...o, expiresAt: Date.now() + (o.timeoutSec ?? 120) * 1000 })));
+      setOffers(list);
     } catch {
       /* ignore */
     }
@@ -363,15 +362,6 @@ export function HomeScreen({
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intent]);
-
-  // Har soniyada: countdown yangilanadi va muddati tugagan takliflar ro'yxatdan chiqadi.
-  useEffect(() => {
-    const id = setInterval(() => {
-      setTick((n) => n + 1);
-      setOffers((cur) => cur.filter((o) => o.expiresAt > Date.now()));
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
 
   // Fondan qaytganda va bildirishnoma bosilganda kutilayotgan takliflarni yangilaymiz.
   useEffect(() => {
@@ -688,15 +678,15 @@ export function HomeScreen({
       trip.meter.baseFare + (trip.meter.perKm * distanceM) / 1000;
     const goingToCustomer = trip.stage !== 'in_progress';
     const me = lastLoc.current
-      ? [{ lat: lastLoc.current.lat, lng: lastLoc.current.lng, color: '#3ddc84', label: t('online') }]
+      ? [{ lat: lastLoc.current.lat, lng: lastLoc.current.lng, color: C.online, label: t('online') }]
       : [];
     const tripMarkers: MapMarker[] = goingToCustomer
-      ? [{ lat: trip.pickup.lat, lng: trip.pickup.lng, color: '#ff4d4f', label: t('customer') }, ...me]
+      ? [{ lat: trip.pickup.lat, lng: trip.pickup.lng, color: C.danger, label: t('customer') }, ...me]
       : [
           ...me,
           trip.dest
             ? { lat: trip.dest.lat, lng: trip.dest.lng, color: '#4c8dff', label: t('destination') }
-            : { lat: trip.pickup.lat, lng: trip.pickup.lng, color: '#ff4d4f', label: t('customer') },
+            : { lat: trip.pickup.lat, lng: trip.pickup.lng, color: C.danger, label: t('customer') },
         ];
     const navTarget = !goingToCustomer && trip.dest ? trip.dest : trip.pickup;
 
@@ -1071,11 +1061,10 @@ export function HomeScreen({
             <Text style={{ color: C.text, fontSize: F.h3, fontWeight: '700', marginBottom: SP.md }}>
               {t('new_orders')} ({offers.length})
             </Text>
-            {offers.map((o) => {
-              const remaining = Math.max(0, Math.ceil((o.expiresAt - Date.now()) / 1000));
-              const urgent = remaining <= 20;
+            {/* Eng yaqinidan boshlab — haydovchi qaysi zakazga borish arzonroq
+                ekanini bir qarashda ko'rsin (foydalanuvchi so'rovi, 2026-08-23). */}
+            {[...offers].sort((a, b) => a.distanceM - b.distanceM).map((o) => {
               const expanded = expandedId === o.orderId;
-              const total = o.timeoutSec ?? 120;
 
               // "Rad etish" tor va rangsiz, "Qabul qilish" keng va yashil —
               // ular tasodifan almashtirilmasligi kerak.
@@ -1099,25 +1088,12 @@ export function HomeScreen({
                 </View>
               );
 
-              // To'liq ekranda ham qolgan vaqt KO'RINISHI shart — taklif
-              // muddati o'tib ketayotganini bilmasdan xaritaga qarab qolmasin.
               const offerOverlay = (
                 <>
-                  <View style={[S.row, { justifyContent: 'space-between', marginBottom: SP.md }]}>
-                    <View style={[S.row, { gap: 6 }]}>
-                      <MaterialIcons name="near-me" size={18} color={C.accent} />
-                      <Text style={{ color: C.text, fontSize: F.h3, fontWeight: '800' }}>
-                        ~{(o.distanceM / 1000).toFixed(1)} {t('km')}
-                      </Text>
-                    </View>
-                    <Text
-                      style={{
-                        color: urgent ? C.danger : C.warn,
-                        fontSize: F.h2,
-                        fontWeight: '800',
-                      }}
-                    >
-                      {remaining}s
+                  <View style={[S.row, { gap: 6, marginBottom: SP.md }]}>
+                    <MaterialIcons name="near-me" size={18} color={C.accent} />
+                    <Text style={{ color: C.text, fontSize: F.h3, fontWeight: '800' }}>
+                      ~{(o.distanceM / 1000).toFixed(1)} {t('km')}
                     </Text>
                   </View>
                   {respondRow}
@@ -1129,64 +1105,41 @@ export function HomeScreen({
                   key={o.orderId}
                   style={[S.card, { marginBottom: SP.md, padding: SP.lg, borderColor: C.border }]}
                 >
-                  <View style={[S.row, { justifyContent: 'space-between', alignItems: 'flex-start' }]}>
-                    <View>
-                      <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 0.6 }}>
-                        {t('distance_away').toUpperCase()}
-                      </Text>
-                      <View style={[S.row, { gap: 6, marginTop: 2 }]}>
-                        <MaterialIcons name="near-me" size={20} color={C.accent} />
-                        <Text style={{ color: C.text, fontSize: F.title, fontWeight: '800' }}>
-                          ~{(o.distanceM / 1000).toFixed(1)} {t('km')}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text
-                        style={{
-                          color: urgent ? C.danger : C.muted,
-                          fontSize: F.tiny,
-                          letterSpacing: 0.6,
-                        }}
-                      >
-                        {urgent ? t('hurry') : ''}
-                      </Text>
-                      <Text
-                        style={{
-                          color: urgent ? C.danger : C.warn,
-                          fontSize: F.h2,
-                          fontWeight: '800',
-                          marginTop: 2,
-                        }}
-                      >
-                        {remaining}s
+                  <View>
+                    <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 0.6 }}>
+                      {t('distance_away').toUpperCase()}
+                    </Text>
+                    <View style={[S.row, { gap: 6, marginTop: 2 }]}>
+                      <MaterialIcons name="near-me" size={20} color={C.accent} />
+                      <Text style={{ color: C.text, fontSize: F.title, fontWeight: '800' }}>
+                        ~{(o.distanceM / 1000).toFixed(1)} {t('km')}
                       </Text>
                     </View>
-                  </View>
-
-                  {/* Vaqt tugab borayotgani chiziq bilan ham ko'rinsin (raqamga qaramasdan). */}
-                  <View
-                    style={{
-                      height: 3,
-                      borderRadius: 2,
-                      backgroundColor: C.border,
-                      marginTop: SP.md,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: `${Math.min(100, (remaining / total) * 100)}%`,
-                        height: '100%',
-                        backgroundColor: urgent ? C.danger : C.warn,
-                      }}
-                    />
                   </View>
 
                   {o.pickupAddress ? (
                     <View style={[S.row, { gap: 6, marginTop: SP.md }]}>
                       <MaterialIcons name="location-on" size={18} color={C.accent} />
                       <Text style={{ color: C.text, fontSize: 15, flex: 1 }}>{o.pickupAddress}</Text>
+                    </View>
+                  ) : null}
+
+                  {o.passengers ? (
+                    <View style={[S.row, { gap: 6, marginTop: SP.sm }]}>
+                      <MaterialIcons
+                        name="group"
+                        size={18}
+                        color={o.passengers > 4 ? C.warn : C.muted}
+                      />
+                      <Text
+                        style={{
+                          color: o.passengers > 4 ? C.warn : C.muted,
+                          fontSize: 15,
+                          fontWeight: o.passengers > 4 ? '700' : '400',
+                        }}
+                      >
+                        {o.passengers} {t('passengers_short')}
+                      </Text>
                     </View>
                   ) : null}
 

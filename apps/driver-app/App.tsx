@@ -96,7 +96,7 @@ export default function App() {
         paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 0) : 0,
       }}
     >
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       {screen === 'loading' && (
         <View style={[S.screen, S.center, { alignItems: 'center' }]}>
           <ActivityIndicator color={C.accent} size="large" />

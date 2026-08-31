@@ -19,7 +19,7 @@ function buildHtml(line: boolean) {
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>html,body,#m{margin:0;padding:0;height:100%;width:100%;background:#0f1420}</style>
+<style>html,body,#m{margin:0;padding:0;height:100%;width:100%;background:${C.mapBg}}</style>
 </head><body><div id="m"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -73,7 +73,7 @@ function MapButton({
         borderRadius: R.sm,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(19, 27, 46, 0.92)',
+        backgroundColor: 'rgba(255, 255, 255, 0.94)',
         borderColor: C.border,
         borderWidth: 1,
         // Android'da WebView ustidagi element `elevation`siz bosilmay qolishi mumkin.
@@ -133,7 +133,7 @@ function MapWebView({
     <WebView
       ref={ref}
       source={{ html }}
-      style={{ flex: 1, backgroundColor: '#0f1420' }}
+      style={{ flex: 1, backgroundColor: C.mapBg }}
       scrollEnabled={scroll}
       originWhitelist={['*']}
       javaScriptEnabled
@@ -181,7 +181,7 @@ export function MiniMap({
   // To'liq ekran ochiq bo'lganda ichki WebView yechib olinadi: arzon Android
   // telefonlarda ikkita Leaflet WebView bir vaqtda ilovani yiqitishi mumkin.
   return (
-    <View style={{ height, borderRadius: 12, overflow: 'hidden', backgroundColor: '#0f1420' }}>
+    <View style={{ height, borderRadius: 12, overflow: 'hidden', backgroundColor: C.mapBg }}>
       {!full && web(false)}
 
       <View style={{ position: 'absolute', top: SP.sm, right: SP.sm }}>
@@ -195,7 +195,7 @@ export function MiniMap({
         onRequestClose={() => setFull(false)}
         statusBarTranslucent
       >
-        <View style={{ flex: 1, backgroundColor: '#0f1420' }}>
+        <View style={{ flex: 1, backgroundColor: C.mapBg }}>
           {full && web(true)}
           <View
             style={{
@@ -225,7 +225,7 @@ export function MiniMap({
                 paddingHorizontal: SP.lg,
                 paddingTop: SP.lg,
                 paddingBottom: SP.xxl,
-                backgroundColor: 'rgba(10, 15, 30, 0.92)',
+                backgroundColor: 'rgba(255, 255, 255, 0.94)',
                 borderTopLeftRadius: R.xl,
                 borderTopRightRadius: R.xl,
                 borderTopWidth: 1,

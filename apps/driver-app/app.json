@@ -5,13 +5,13 @@
     "owner": "jav1on",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "scheme": "ttydriver",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0f1420"
+      "backgroundColor": "#F7F8FA"
     },
     "assetBundlePatterns": [
       "**/*"

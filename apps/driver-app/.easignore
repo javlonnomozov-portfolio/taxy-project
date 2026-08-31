@@ -1,0 +1,6 @@
+# Standart EAS Build: git bilan kuzatilmagan fayllarni chiqarib tashlaydi.
+# Shu fayl borligi bilan git kuzatuvidan MUSTAQIL bo'lamiz — `.eas/hooks/`
+# skripti va lokal build artefaktlari (`*.apk`) shu tufayli kerak bo'lganda
+# ham kiradi, kerak bo'lmaganda chiqarib tashlanadi.
+node_modules/
+*.apk
