@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
+  Platform,
+  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
@@ -9,7 +11,7 @@ import {
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { api } from '../api';
-import { C, F, R, S, SP } from '../theme';
+import { C, F, S, SP } from '../theme';
 import { Lang, makeT } from '../i18n';
 
 interface StartResp {
@@ -19,6 +21,13 @@ interface StartResp {
 }
 
 type Phase = 'idle' | 'waiting' | 'code';
+
+/**
+ * Status bar balandligi — `App.tsx` endi umumiy chekka QO'YMAYDI (xarita
+ * to'liq ekran bo'ylab cho'zilsin uchun), shuning uchun uni shu ekran
+ * o'zi hisoblaydi. `SafeAreaView` Android'da hech narsa qilmaydi.
+ */
+const STATUS_PAD = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 44;
 
 /**
  * Kirish — Telegram bot orqali, parolsiz.
@@ -114,10 +123,10 @@ export function LoginScreen({
   }
 
   return (
-    <View style={[S.screen, { justifyContent: 'center' }]}>
+    <View style={[S.screen, { justifyContent: 'center', paddingTop: STATUS_PAD + SP.xl }]}>
       <TouchableOpacity
         onPress={onToggleLang}
-        style={{ position: 'absolute', top: SP.xl, right: SP.xl, padding: SP.sm }}
+        style={{ position: 'absolute', top: STATUS_PAD + SP.sm, right: SP.xl, padding: SP.sm }}
       >
         <Text style={{ color: C.accent, fontWeight: '700' }}>{t('lang_switch')}</Text>
       </TouchableOpacity>

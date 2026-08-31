@@ -1,9 +1,7 @@
-import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { WebView } from 'react-native-webview';
-import { Modal, Platform, StatusBar, TouchableOpacity, View } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { C, R, SP } from './theme';
-import { Lang, makeT } from './i18n';
+import { View } from 'react-native';
+import { C } from './theme';
 
 export interface MapMarker {
   lat: number;
@@ -19,15 +17,19 @@ function buildHtml(line: boolean) {
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>html,body,#m{margin:0;padding:0;height:100%;width:100%;background:#0f1420}</style>
+<style>html,body,#m{margin:0;padding:0;height:100%;width:100%;background:${C.mapBg}}</style>
 </head><body><div id="m"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  var map = L.map('m',{zoomControl:true,attributionControl:false}).setView([39.7683,67.2792],14);
+  var map = L.map('m',{zoomControl:false,attributionControl:false}).setView([39.7683,67.2792],14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
   var layer = L.layerGroup().addTo(map);
   var LINE = ${line ? 'true' : 'false'};
   var framed = false;
+  // Nuqtalar panel USTIDAGI ko'rinadigan maydonga sig'sin — pastdagi
+  // inset (panel balandligi) hisobga olinadi.
+  var inset = 0;
+  window.__setInset = function(px){ inset = px; };
   window.__setMarkers = function(ms){
     layer.clearLayers();
     var pts = [];
@@ -36,83 +38,238 @@ function buildHtml(line: boolean) {
       if(m.label){ mk.bindTooltip(m.label,{permanent:true,direction:'top',offset:[0,-8]}); }
       pts.push([m.lat,m.lng]);
     });
-    if(LINE && ms.length>=2){
-      L.polyline([[ms[0].lat,ms[0].lng],[ms[1].lat,ms[1].lng]],{color:'#4c8dff',dashArray:'6',weight:3}).addTo(layer);
-    }
-    // Ko'rinishni FAQAT birinchi marta moslaymiz — aks holda haydovchi
-    // xaritani surgan/kattalashtirgan zahoti keyingi GPS yangilanishi uni qaytarib olardi.
+    // Ko'rinishni FAQAT birinchi marta moslaymiz — aks holda foydalanuvchi
+    // xaritani surgan zahoti keyingi GPS yangilanishi uni qaytarib olardi.
     if(!framed && pts.length){
-      if(pts.length>1){ map.fitBounds(pts,{padding:[40,40],maxZoom:16}); }
+      if(pts.length>1){ map.fitBounds(pts,{paddingTopLeft:[40,40],paddingBottomRight:[40,inset+40],maxZoom:16}); }
       else { map.setView(pts[0],15); }
       framed = true;
+    }
+    if(LINE && ms.length>=2){
+      L.polyline([[ms[0].lat,ms[0].lng],[ms[1].lat,ms[1].lng]],{color:'${C.accent}',dashArray:'6',weight:3}).addTo(layer);
     }
   };
 </script></body></html>`;
 }
 
-/** Xarita ustidagi yumaloq tugma — kattalashtirish/kichiklashtirish. */
-function MapButton({
-  icon,
-  onPress,
-  label,
+// Markaziy pin QATTIQ ekranga yopishtirilgan (Leaflet marker emas) — foydalanuvchi
+// xaritani suradi, pin joyida qoladi, pin ostidagi koordinata "tanlangan nuqta" bo'ladi.
+//
+// PIN EKRAN MARKAZIDA EMAS: pastdagi panel xaritaning bir qismini yopadi va
+// pin markazda tursa PANEL ORQASIDA qolardi — foydalanuvchi tanlayotgan
+// nuqtasini umuman ko'rmasdi (avvalgi versiyadagi haqiqiy nuqson). Shuning
+// uchun `inset` — panel balandligi — beriladi va pin ko'rinadigan maydon
+// markaziga qo'yiladi. Shu sababli `map.getCenter()` ham ishlatilmaydi:
+// pin ostidagi nuqta `containerPointToLatLng` bilan olinadi.
+function buildPickerHtml() {
+  return `<!DOCTYPE html><html><head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  html,body,#m{margin:0;padding:0;height:100%;width:100%;background:${C.mapBg}}
+  .pin{position:absolute;left:50%;top:50%;width:30px;height:38px;margin-left:-15px;margin-top:-38px;pointer-events:none;z-index:1000}
+  .dot{position:absolute;left:50%;top:50%;width:8px;height:8px;margin-left:-4px;margin-top:-4px;border-radius:4px;background:rgba(16,24,40,.35);pointer-events:none;z-index:999}
+</style>
+</head><body><div id="m"></div>
+<svg class="pin" viewBox="0 0 24 24" fill="${C.accent}"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8zm0 11a3 3 0 110-6 3 3 0 010 6z"/></svg>
+<div class="dot"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  var map = L.map('m',{zoomControl:false,attributionControl:false}).setView([39.7683,67.2792],16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+  var pinEl = document.querySelector('.pin');
+  var dotEl = document.querySelector('.dot');
+  var inset = 0; // panel egallagan balandlik (px)
+
+  function pinY(){ return Math.max(60, (map.getSize().y - inset) / 2); }
+  function place(){
+    var y = pinY() + 'px';
+    pinEl.style.top = y;
+    dotEl.style.top = y;
+  }
+  function send(){
+    var c = map.containerPointToLatLng([map.getSize().x/2, pinY()]);
+    window.ReactNativeWebView.postMessage(JSON.stringify({lat:c.lat,lng:c.lng}));
+  }
+
+  // Berilgan nuqtani PIN OSTIGA olib keladi (xarita markaziga emas).
+  window.__setCenter = function(lat,lng){
+    var z = map.getZoom();
+    var target = map.project([lat,lng], z);
+    var half = map.getSize().divideBy(2);
+    var pin = L.point(map.getSize().x/2, pinY());
+    map.setView(map.unproject(target.add(half.subtract(pin)), z), z, {animate:false});
+  };
+
+  // Panel balandligi o'zgarganda pin ostidagi NUQTA saqlanadi — aks holda
+  // panel o'zgargani sayin tanlangan joy o'zicha siljib ketardi.
+  window.__setInset = function(px){
+    if (px === inset) return;
+    var keep = map.containerPointToLatLng([map.getSize().x/2, pinY()]);
+    inset = px;
+    place();
+    window.__setCenter(keep.lat, keep.lng);
+    send();
+  };
+
+  map.on('moveend', send);
+  map.on('resize', place);
+
+  // Foydalanuvchining HAQIQIY joylashuvi — ko'k doira. Pin "tanlangan nuqta",
+  // bu esa "men shu yerdaman": xaritani surgandan keyin ham o'z joyini
+  // yo'qotib qo'ymaslik uchun.
+  var me = null;
+  window.__setMe = function(lat,lng){
+    if (me) { me.setLatLng([lat,lng]); return; }
+    me = L.circleMarker([lat,lng], {
+      radius: 7, color: '#FFFFFF', weight: 3,
+      fillColor: '#3B82F6', fillOpacity: 1,
+    }).addTo(map);
+  };
+
+  place();
+</script></body></html>`;
+}
+
+/**
+ * Buyurtma berishda "qayerdan olib ketamiz" nuqtasini tanlash — xarita
+ * suriladi, pin joyida qoladi. Faqat pickup uchun (borish joyi
+ * tanlanmaydi — mahsulot qarori: `CUSTOMER-APP-PLAN.md` §2.4).
+ */
+export function PickupPicker({
+  center,
+  moveToken,
+  myLocation,
+  bottomInset,
+  onChange,
 }: {
-  icon: 'fullscreen' | 'fullscreen-exit';
-  onPress: () => void;
-  label: string;
+  center: { lat: number; lng: number };
+  /**
+   * Xaritani `center` ga MAJBURAN ko'chirish signali — har oshganda
+   * bir marta `setView` chaqiriladi.
+   *
+   * NEGA COUNTER, masofa solishtiruvi EMAS: `moveend` xaritaning o'z
+   * harakatida ham, dasturiy `setView` da ham bir xil ishlaydi, ya'ni
+   * `center` prop ikkala holatda ham yangilanadi. Avval ularni masofa
+   * bilan farqlardik (`d < 0.0001` bo'lsa "o'zi ko'chdi" deb) — lekin
+   * foydalanuvchi tanlagan nuqta hozirgi markazga yaqin bo'lsa, bu
+   * heuristika "o'zi ko'chdi" deb xato o'ylab, xaritani JOYIDA qoldirardi.
+   * Aynan shu sabab "Uy"/"Ish" bosilgandan keyin GPS tugmasi ishlamay
+   * qolgan edi. Counter aniq signal: uni faqat RN tomoni oshiradi,
+   * `moveend` hech qachon oshirmaydi — cheksiz halqa ham bo'lmaydi.
+   */
+  moveToken: number;
+  /** Foydalanuvchining haqiqiy joylashuvi — ko'k doira (tanlangan nuqta emas). */
+  myLocation: { lat: number; lng: number } | null;
+  /** Pastki panel egallagan balandlik (dp) — pin shuning ustida turadi. */
+  bottomInset: number;
+  onChange: (p: { lat: number; lng: number }) => void;
 }) {
+  const ref = useRef<WebView>(null);
+  const alive = useRef(false);
+  const html = useMemo(buildPickerHtml, []);
+  // `center` ni ref'da saqlaymiz: ko'chirish effekti FAQAT `moveToken` ga
+  // bog'liq bo'lsin (aks holda har `moveend` dan keyin qayta ishga tushardi).
+  const latest = useRef(center);
+  latest.current = center;
+
+  useEffect(() => {
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  const applyCenter = useCallback(() => {
+    if (!alive.current) return;
+    const { lat, lng } = latest.current;
+    ref.current?.injectJavaScript(
+      `window.__setCenter && window.__setCenter(${lat}, ${lng}); true;`,
+    );
+  }, []);
+
+  useEffect(() => {
+    applyCenter();
+  }, [moveToken, applyCenter]);
+
+  useEffect(() => {
+    if (!alive.current) return;
+    ref.current?.injectJavaScript(
+      `window.__setInset && window.__setInset(${Math.round(bottomInset)}); true;`,
+    );
+  }, [bottomInset]);
+
+  // Ko'k doira — GPS nuqtasi o'zgarganda yangilanadi.
+  useEffect(() => {
+    if (!alive.current || !myLocation) return;
+    ref.current?.injectJavaScript(
+      `window.__setMe && window.__setMe(${myLocation.lat}, ${myLocation.lng}); true;`,
+    );
+  }, [myLocation]);
+
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      // Haydovchi mashinada bosadi — teginish maydoni ikonkadan kattaroq.
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      style={{
-        width: 40,
-        height: 40,
-        borderRadius: R.sm,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(19, 27, 46, 0.92)',
-        borderColor: C.border,
-        borderWidth: 1,
-        // Android'da WebView ustidagi element `elevation`siz bosilmay qolishi mumkin.
-        elevation: 4,
-        zIndex: 2,
+    <WebView
+      ref={ref}
+      source={{ html }}
+      style={{ flex: 1, backgroundColor: C.mapBg }}
+      originWhitelist={['*']}
+      javaScriptEnabled
+      domStorageEnabled
+      onLoadEnd={() => {
+        alive.current = true;
+        // Tartib MUHIM: avval panel balandligi, keyin markaz — aks holda
+        // xarita bir marta noto'g'ri joyga o'rnatilib, ko'zga tashlanardi.
+        ref.current?.injectJavaScript(
+          `window.__setInset && window.__setInset(${Math.round(bottomInset)}); true;`,
+        );
+        applyCenter();
+        if (myLocation) {
+          ref.current?.injectJavaScript(
+            `window.__setMe && window.__setMe(${myLocation.lat}, ${myLocation.lng}); true;`,
+          );
+        }
       }}
-    >
-      <MaterialIcons name={icon} size={22} color={C.text} />
-    </TouchableOpacity>
+      onMessage={(e) => {
+        try {
+          const p = JSON.parse(e.nativeEvent.data) as { lat: number; lng: number };
+          if (typeof p.lat === 'number' && typeof p.lng === 'number') onChange(p);
+        } catch {
+          /* ignore */
+        }
+      }}
+    />
   );
 }
 
 /**
- * Bitta WebView — nuqtalarni O'ZI yangilaydi.
+ * Kuzatuv xaritasi — mijoz va haydovchi nuqtalari, to'liq ekran bo'ylab.
  *
- * NEGA ALOHIDA KOMPONENT: avval ota-komponent ikkita `ref` ushlab, nuqtalar
- * o'zgarganda IKKALASIGA ham `injectJavaScript` yozardi — jumladan to'liq
- * ekran ochilganda YECHIB OLINGAN ichki WebView'ga ham. `ref.current` hali
- * null bo'lmasligi mumkin, native ko'rinish esa allaqachon yo'q qilingan;
- * native tomon null obyektga murojaat qilib ilovani YIQITARDI:
+ * NEGA WebView O'ZIGA YOZADI (ota-komponentda `ref` emas): avval nuqtalar
+ * o'zgarganda YECHIB OLINGAN WebView'ga ham `injectJavaScript` yozilardi.
+ * `ref.current` hali null bo'lmasligi mumkin, native ko'rinish esa allaqachon
+ * yo'q qilingan — native tomon null obyektga murojaat qilib ilovani YIQITARDI:
  *
  *   JNI DETECTED ERROR IN APPLICATION: obj == null
  *   in call to CallVoidMethodV ... (tid mqt_native_modu)
  *
- * Endi har WebView faqat O'ZIGA yozadi va faqat (a) yuklanib bo'lgan,
- * (b) hali ekranda turgan bo'lsa. Yechib olinganda bayroq DARHOL o'chadi,
- * ya'ni keyin hech qanday inject navbatga qo'yilmaydi.
+ * Endi inject faqat (a) yuklanib bo'lgan, (b) hali ekranda turgan WebView'ga
+ * boradi — yechib olinganda bayroq DARHOL o'chadi.
  */
-function MapWebView({
-  html,
-  markersJson,
-  scroll,
+export function LiveMap({
+  markers,
+  bottomInset = 0,
+  line = true,
 }: {
-  html: string;
-  markersJson: string;
-  scroll: boolean;
+  markers: MapMarker[];
+  /** Pastki panel balandligi — nuqtalar shuning ustiga sig'diriladi. */
+  bottomInset?: number;
+  line?: boolean;
 }) {
   const ref = useRef<WebView>(null);
-  const alive = useRef(false); // ekranda VA yuklanib bo'lganmi
+  const alive = useRef(false);
+  const html = useMemo(() => buildHtml(line), [line]);
+  // Effekt har render qayta ishlamasligi uchun nuqtalar solishtiriladigan kalit.
+  const markersJson = JSON.stringify(markers);
 
   useEffect(() => {
     return () => {
@@ -120,124 +277,34 @@ function MapWebView({
     };
   }, []);
 
-  const push = useCallback((json: string) => {
+  const push = useCallback((json: string, inset: number) => {
     if (!alive.current) return;
-    ref.current?.injectJavaScript(`window.__setMarkers && window.__setMarkers(${json}); true;`);
+    ref.current?.injectJavaScript(
+      `window.__setInset && window.__setInset(${Math.round(inset)});` +
+        `window.__setMarkers && window.__setMarkers(${json}); true;`,
+    );
   }, []);
 
   useEffect(() => {
-    push(markersJson);
-  }, [markersJson, push]);
+    push(markersJson, bottomInset);
+  }, [markersJson, bottomInset, push]);
 
   return (
-    <WebView
-      ref={ref}
-      source={{ html }}
-      style={{ flex: 1, backgroundColor: '#0f1420' }}
-      scrollEnabled={scroll}
-      originWhitelist={['*']}
-      javaScriptEnabled
-      domStorageEnabled
-      // Sahifa bo'sh yuklanadi — joriy nuqtalarni yuklanish tugagach beramiz.
-      onLoadEnd={() => {
-        alive.current = true;
-        push(markersJson);
-      }}
-    />
-  );
-}
-
-// Ichki xarita — WebView + Leaflet/OSM (Google Maps API key kerak emas).
-// markers[0] odatda pickup/mijoz, markers[1] haydovchi yoki manzil bo'ladi.
-export function MiniMap({
-  markers,
-  height = 200,
-  line = true,
-  lang = 'uz',
-  overlay,
-}: {
-  markers: MapMarker[];
-  height?: number;
-  line?: boolean;
-  lang?: Lang;
-  /**
-   * To'liq ekranda xarita USTIDA turadigan asosiy amallar
-   * ("Qabul qilish", "Yetib keldim" va h.k.).
-   *
-   * Xarita butun ekranni egallaganda haydovchi safarni boshqara olmay qolardi —
-   * tugmalarga yetish uchun har safar kichiklashtirish kerak edi.
-   */
-  overlay?: ReactNode;
-}) {
-  const [full, setFull] = useState(false);
-  const t = makeT(lang);
-  const html = useMemo(() => buildHtml(line), [line]);
-
-  // Effekt har render qayta ishlamasligi uchun nuqtalar solishtiriladigan kalit.
-  const key = JSON.stringify(markers);
-
-  const web = (scroll: boolean) => <MapWebView html={html} markersJson={key} scroll={scroll} />;
-
-  // To'liq ekran ochiq bo'lganda ichki WebView yechib olinadi: arzon Android
-  // telefonlarda ikkita Leaflet WebView bir vaqtda ilovani yiqitishi mumkin.
-  return (
-    <View style={{ height, borderRadius: 12, overflow: 'hidden', backgroundColor: '#0f1420' }}>
-      {!full && web(false)}
-
-      <View style={{ position: 'absolute', top: SP.sm, right: SP.sm }}>
-        <MapButton icon="fullscreen" label={t('fullscreen')} onPress={() => setFull(true)} />
-      </View>
-
-      <Modal
-        visible={full}
-        animationType="fade"
-        // Android'da "orqaga" tugmasi ham to'liq ekrandan chiqaradi.
-        onRequestClose={() => setFull(false)}
-        statusBarTranslucent
-      >
-        <View style={{ flex: 1, backgroundColor: '#0f1420' }}>
-          {full && web(true)}
-          <View
-            style={{
-              position: 'absolute',
-              right: SP.lg,
-              // Android'da SafeAreaView ishlamaydi — status bar balandligi qo'lda.
-              top: (Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 44) + SP.lg,
-            }}
-          >
-            <MapButton
-              icon="fullscreen-exit"
-              label={t('exit_fullscreen')}
-              onPress={() => setFull(false)}
-            />
-          </View>
-
-          {overlay ? (
-            <View
-              // `pointerEvents="box-none"` — tugmalar bosiladi, lekin ular
-              // orasidagi bo'sh joydan xaritani surish mumkin bo'lib qoladi.
-              pointerEvents="box-none"
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                paddingHorizontal: SP.lg,
-                paddingTop: SP.lg,
-                paddingBottom: SP.xxl,
-                backgroundColor: 'rgba(10, 15, 30, 0.92)',
-                borderTopLeftRadius: R.xl,
-                borderTopRightRadius: R.xl,
-                borderTopWidth: 1,
-                borderColor: C.border,
-                elevation: 8,
-              }}
-            >
-              {overlay}
-            </View>
-          ) : null}
-        </View>
-      </Modal>
+    <View style={{ flex: 1, backgroundColor: C.mapBg }}>
+      <WebView
+        ref={ref}
+        source={{ html }}
+        style={{ flex: 1, backgroundColor: C.mapBg }}
+        scrollEnabled={false}
+        originWhitelist={['*']}
+        javaScriptEnabled
+        domStorageEnabled
+        // Sahifa bo'sh yuklanadi — joriy nuqtalarni yuklanish tugagach beramiz.
+        onLoadEnd={() => {
+          alive.current = true;
+          push(markersJson, bottomInset);
+        }}
+      />
     </View>
   );
 }

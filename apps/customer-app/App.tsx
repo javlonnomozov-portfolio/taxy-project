@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, StatusBar as RNStatusBar, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
+import { AccountScreen } from './src/screens/AccountScreen';
 import { storage } from './src/storage';
 import { setUnauthorizedHandler } from './src/api';
 import { Lang } from './src/i18n';
 import { C, S } from './src/theme';
 import { ErrorBoundary } from './src/ErrorBoundary';
 
-type Screen = 'loading' | 'login' | 'home';
+type Screen = 'loading' | 'login' | 'home' | 'account';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('loading');
@@ -42,10 +43,13 @@ export default function App() {
     return () => setUnauthorizedHandler(null);
   }, []);
 
-  function toggleLang() {
-    const next: Lang = lang === 'uz' ? 'ru' : 'uz';
+  function changeLang(next: Lang) {
     setLang(next);
     void storage.setLang(next);
+  }
+
+  function toggleLang() {
+    changeLang(lang === 'uz' ? 'ru' : 'uz');
   }
 
   async function onLoggedIn(t: string) {
@@ -63,16 +67,13 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: C.bg,
-          // `SafeAreaView` Android'da hech narsa qilmaydi (faqat iOS) —
-          // status bar balandligi qo'lda beriladi.
-          paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight ?? 0) : 0,
-        }}
-      >
-        <StatusBar style="light" />
+      {/*
+        Status bar TAGIDAN joy AJRATILMAYDI — xarita to'liq ekran bo'ylab
+        cho'ziladi (maketdagidek). Kerak bo'lgan ekranlar (kirish, kabinet)
+        o'z chekkasini o'zi qo'yadi.
+      */}
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+        <StatusBar style="dark" translucent />
         {screen === 'loading' && (
           <View style={[S.screen, S.center, { alignItems: 'center' }]}>
             <ActivityIndicator color={C.accent} size="large" />
@@ -87,7 +88,17 @@ export default function App() {
           />
         )}
         {screen === 'home' && token && (
-          <HomeScreen lang={lang} token={token} onToggleLang={toggleLang} onLogout={logout} />
+          <HomeScreen lang={lang} token={token} onOpenAccount={() => setScreen('account')} />
+        )}
+        {screen === 'account' && token && (
+          <AccountScreen
+            lang={lang}
+            token={token}
+            initial="history"
+            onClose={() => setScreen('home')}
+            onLangChange={changeLang}
+            onLogout={logout}
+          />
         )}
       </View>
     </ErrorBoundary>
