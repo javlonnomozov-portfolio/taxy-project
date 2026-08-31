@@ -35,9 +35,11 @@ export const envSchema = z.object({
   LOGIN_RATE_LIMIT: z.coerce.number().default(5),
   // Dispatch sozlamalari (default; keyin DB settings bilan almashtiriladi)
   DISPATCH_WINDOW_SIZE: z.coerce.number().default(6),
-  DISPATCH_OFFER_TIMEOUT_SEC: z.coerce.number().default(120), // taklif oynasi — kamida 2 daqiqa
   DISPATCH_RADIUS_STEPS_M: z.string().default('2000,4000,6000'),
-  DISPATCH_NO_DRIVER_TIMEOUT_SEC: z.coerce.number().default(180), // taklif oynasidan uzunroq
+  // Taklif takliflar MUDDATSIZ (2026-08-23) — bu faqat "hech kim javob
+  // bermasa qачон operator ogohlantirilsin" ichki davri, haydovchiga
+  // ko'rinmaydi.
+  DISPATCH_NO_DRIVER_TIMEOUT_SEC: z.coerce.number().default(180),
   // "Yetib keldim" tugmasi shu radiusdan uzoqda bosilsa RAD ETILADI — aks holda
   // haydovchi yo'lda turib bosib, kutish soatini erta ishga tushirardi (mijoz
   // ortiqcha to'lardi va "taksi keldi" degan yolg'on xabar olardi).

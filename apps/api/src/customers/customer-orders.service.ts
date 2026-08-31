@@ -17,9 +17,11 @@ import { DriversService } from '../drivers/drivers.service';
 import { OrdersService } from '../orders/orders.service';
 import { ReputationService } from '../reputation/reputation.service';
 import { TripsService } from '../trips/trips.service';
+import { SettingsService } from '../settings/settings.service';
 import {
   ACTIVE_STATUSES,
   CUSTOMER_CANCELLABLE_STATUSES,
+  TERMINAL_STATUSES,
 } from '../orders/orders.constants';
 
 /**
@@ -62,7 +64,46 @@ export class CustomerOrdersService {
     private readonly ordersService: OrdersService,
     private readonly reputation: ReputationService,
     private readonly trips: TripsService,
+    private readonly settings: SettingsService,
   ) {}
+
+  /**
+   * Toifalar bazaviy narxi bilan — tanlash oynasida "...dan boshlab" uchun.
+   * Km oldindan noma'lum (borish joyi tanlanmaydi), shuning uchun yakuniy
+   * narx EMAS, faqat admin panelda sozlangan bazaviy narx ko'rsatiladi.
+   */
+  async tariffs(): Promise<{ category: VehicleCategory; baseFare: number; perKm: number }[]> {
+    const rows = await this.settings.listTariffs();
+    return rows.map((t) => ({ category: t.category, baseFare: t.baseFare, perKm: t.perKm }));
+  }
+
+  /**
+   * Tugagan buyurtmalar tarixi — VAQT bo'yicha, eng yangisi birinchi.
+   *
+   * `COALESCE(completed_at, created_at)` ishlatiladi — `DriversService.tripHistory`
+   * dagi bilan bir xil sabab: Postgres `DESC`da NULL'ni BIRINCHI qo'yadi, bekor
+   * qilingan buyurtmalarda `completed_at` bo'sh, ular ro'yxat boshini egallab
+   * qolardi.
+   */
+  async history(customerId: string): Promise<HistoryItem[]> {
+    const rows = await this.orders
+      .createQueryBuilder('o')
+      .where('o.customer_id = :customerId AND o.status IN (:...st)', {
+        customerId,
+        st: TERMINAL_STATUSES,
+      })
+      .orderBy('COALESCE(o.completed_at, o.created_at)', 'DESC')
+      .take(50)
+      .getMany();
+
+    return rows.map((o) => ({
+      orderId: o.id,
+      category: o.vehicleCategory,
+      status: o.status,
+      finalPrice: o.finalPrice,
+      at: (o.completedAt ?? o.createdAt).toISOString(),
+    }));
+  }
 
   /** Zakaz shu mijozniki ekanini tekshirib qaytaradi. */
   private async mustOwn(customerId: string, orderId: string): Promise<Order> {
@@ -93,9 +134,10 @@ export class CustomerOrdersService {
     customerId: string,
     category: VehicleCategory,
     pickup: { lat: number; lng: number },
+    passengers?: number,
   ): Promise<{ orderId: string }> {
     await this.rateLimit(customerId);
-    const order = await this.ordersService.create({ customerId, category, pickup });
+    const order = await this.ordersService.create({ customerId, category, pickup, passengers });
 
     // Botga xabar beramiz — busiz ilovadan/mini app'dan berilgan zakaz uchun
     // mijoz Telegram'da HECH QANDAY xabar olmasdi.
@@ -137,6 +179,7 @@ export class CustomerOrdersService {
               .filter(Boolean)
               .join(' '),
             phone: info.driver.phone,
+            rating: info.driver.ratingAvg,
           }
         : null,
       finished: CustomerOrdersService.FINISHED.includes(order.status),
@@ -163,18 +206,23 @@ export class CustomerOrdersService {
    * haydovchining reytingi qaysi oynadan baholanganiga qarab boshqacha
    * hisoblanardi.
    */
-  async rate(customerId: string, orderId: string, score: number): Promise<{ ok: true }> {
+  async rate(
+    customerId: string,
+    orderId: string,
+    score: number,
+    comment?: string,
+  ): Promise<{ ok: true }> {
     const order = await this.mustOwn(customerId, orderId);
     if (order.status !== OrderStatus.COMPLETED) {
       throw new BadRequestException('Safar yakunlanmagan');
     }
     // Takroriy baho `ReputationService.submit` da jimgina e'tiborsiz qoldiriladi.
-    await this.reputation.submit(orderId, 'customer_to_driver', {
-      manners: score,
-      driving: score,
-      car_condition: score,
-      punctuality: score,
-    });
+    await this.reputation.submit(
+      orderId,
+      'customer_to_driver',
+      { manners: score, driving: score, car_condition: score, punctuality: score },
+      comment,
+    );
     return { ok: true };
   }
 
@@ -194,7 +242,7 @@ export interface TrackView {
   pickup: { lat: number; lng: number };
   dest: { lat: number; lng: number } | null;
   driver: { lat: number; lng: number; at: string | null } | null;
-  car: { name: string; plate: string; model: string; phone: string } | null;
+  car: { name: string; plate: string; model: string; phone: string; rating: number } | null;
   /** Safar tugadi — sahifa so'rovlarni to'xtatsin. */
   finished: boolean;
   /** Yakuniy narx — faqat COMPLETED bo'lganda to'ladi. */
@@ -205,4 +253,13 @@ export interface TrackView {
   rated: boolean;
   /** Hozir bekor qilsa bo'ladimi. */
   cancellable: boolean;
+}
+
+export interface HistoryItem {
+  orderId: string;
+  category: VehicleCategory;
+  status: OrderStatus;
+  finalPrice: number | null;
+  /** ISO vaqt — `completedAt ?? createdAt` (bekor qilinganlarda `completedAt` bo'sh). */
+  at: string;
 }

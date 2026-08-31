@@ -1,6 +1,9 @@
 import {
   IsEnum,
+  IsInt,
   IsISO8601,
+  Max,
+  Min,
   IsLatitude,
   IsLongitude,
   IsOptional,
@@ -25,6 +28,11 @@ export class CreateOrderDto {
   @IsOptional() @ValidateNested() @Type(() => PointDto) destination?: PointDto;
   @IsOptional() @IsString() destAddress?: string;
   @IsOptional() @IsString() note?: string;
+  /**
+   * Yo'lovchilar soni — 4 dan ko'p bo'lsa dispatch faqat sig'adigan
+   * mashinalarga taklif yuboradi. Berilmasa filtr umuman ishlamaydi.
+   */
+  @IsOptional() @IsInt() @Min(1) @Max(8) passengers?: number;
   @IsOptional() @IsEnum(OrderType) orderType?: OrderType;
   /** Oldindan buyurtma vaqti (ISO 8601), `orderType=scheduled` bilan. */
   @IsOptional() @IsISO8601() scheduledAt?: string;

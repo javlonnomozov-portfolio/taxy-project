@@ -67,9 +67,10 @@ export class MiniappService {
     initData: string,
     category: VehicleCategory,
     pickup: { lat: number; lng: number },
+    passengers?: number,
   ): Promise<{ orderId: string }> {
     const customer = await this.requireCustomer(initData);
-    return this.shared.createOrder(customer.id, category, pickup);
+    return this.shared.createOrder(customer.id, category, pickup, passengers);
   }
 
   async track(initData: string, orderId: string): Promise<TrackView> {

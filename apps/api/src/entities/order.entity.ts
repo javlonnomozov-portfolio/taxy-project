@@ -35,6 +35,13 @@ export class Order {
   })
   vehicleCategory!: VehicleCategory;
 
+  /**
+   * Mijoz so'ragan yo'lovchilar soni. `null` = aytmadi (bot/Mini App oqimi) —
+   * bunda sig'im filtri UMUMAN ishlamaydi va hammasi avvalgidek qoladi.
+   */
+  @Column({ type: 'int', nullable: true })
+  passengers!: number | null;
+
   @Column({ type: 'double precision', name: 'pickup_lat' })
   pickupLat!: number;
 

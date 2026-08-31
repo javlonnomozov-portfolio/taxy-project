@@ -170,9 +170,23 @@ export class OpsService {
     phone: string;
     firstName?: string;
     lastName?: string;
-    vehicle: { make?: string; model?: string; color?: string; plate?: string; category: VehicleCategory };
+    vehicle: {
+      make?: string;
+      model?: string;
+      color?: string;
+      plate?: string;
+      category: VehicleCategory;
+      /** Yo'lovchi o'rinlari (Damas 7, Cobalt 4). Berilmasa entity default = 4. */
+      seats?: number;
+    };
   }) {
     return this.drivers.createByAdmin(data);
+  }
+  updateDriverVehicle(
+    driverId: string,
+    patch: { make?: string; model?: string; color?: string; plate?: string; seats?: number },
+  ) {
+    return this.drivers.updateVehicle(driverId, patch);
   }
   topUpDriver(driverId: string, amount: number, note?: string) {
     return this.billing.topUp(driverId, amount, note);

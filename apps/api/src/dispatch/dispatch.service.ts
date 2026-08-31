@@ -21,6 +21,7 @@ import {
 import { Order } from '../entities/order.entity';
 import { Customer } from '../entities/customer.entity';
 import { Driver } from '../entities/driver.entity';
+import { Vehicle } from '../entities/vehicle.entity';
 import { Tariff } from '../entities/tariff.entity';
 import { OrderEventsService } from '../orders/order-events.service';
 import { GeoService } from '../geo/geo.service';
@@ -44,11 +45,18 @@ interface DispatchState {
   note: string | null;
   customerPhone: string | null;
   customerName: string | null; // showName bo'lsa
+  /**
+   * Mijoz so'ragan yo'lovchilar soni (`null` = aytmagan).
+   *
+   * Faqat `> SEAT_FILTER_THRESHOLD` bo'lganda mashina sig'imi tekshiriladi.
+   * Oddiy zakazlarda filtr UMUMAN ishlamaydi — aks holda "taksi topilmadi"
+   * xavfi hamma zakazga tarqalardi (SESSION-2026-08.md §2.5).
+   */
+  passengers: number | null;
   windowSize: number;
-  offerTimeoutMs: number;
   radiusSteps: number[];
   radiusIdx: number;
-  offered: Map<string, { timer: NodeJS.Timeout; at: number; distanceM: number }>;
+  offered: Map<string, { distanceM: number }>;
   declined: Set<string>;
   active: boolean;
   noDriverTimer?: NodeJS.Timeout;
@@ -74,6 +82,12 @@ const RETRY_THROTTLE_MS = 20_000;
 
 @Injectable()
 export class DispatchService implements OnModuleInit, OnModuleDestroy {
+  /**
+   * Shu sondan KO'P yo'lovchi so'ralganda mashina sig'imi tekshiriladi.
+   * 4 — eng kichik mashinaning sig'imi, ya'ni 1-4 yo'lovchi hammaga sig'adi.
+   */
+  private static readonly SEAT_FILTER_THRESHOLD = 4;
+
   private readonly log = new Logger(DispatchService.name);
   private readonly states = new Map<string, DispatchState>();
   // NO_DRIVER'dan keyin operator hal qilmasa — mijozni xabardor qilish taymeri.
@@ -85,6 +99,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     @InjectRepository(Order) private readonly orders: Repository<Order>,
     @InjectRepository(Customer) private readonly customers: Repository<Customer>,
     @InjectRepository(Driver) private readonly driverRepo: Repository<Driver>,
+    @InjectRepository(Vehicle) private readonly vehicleRepo: Repository<Vehicle>,
     @InjectRepository(Tariff) private readonly tariffRepo: Repository<Tariff>,
     private readonly events: OrderEventsService,
     private readonly geo: GeoService,
@@ -127,8 +142,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     for (const state of this.states.values()) {
       state.active = false;
       if (state.noDriverTimer) clearTimeout(state.noDriverTimer);
-      for (const [driverId, offer] of state.offered) {
-        clearTimeout(offer.timer);
+      for (const driverId of state.offered.keys()) {
         this.realtime.emitToDriver(driverId, SOCKET_EVENTS.driver.orderOfferCancelled, {
           orderId: state.orderId,
         });
@@ -245,8 +259,8 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         customer?.showName && (customer.firstName || customer.lastName)
           ? [customer.firstName, customer.lastName].filter(Boolean).join(' ')
           : null,
+      passengers: order.passengers,
       windowSize: this.config.get<number>('DISPATCH_WINDOW_SIZE')!,
-      offerTimeoutMs: this.config.get<number>('DISPATCH_OFFER_TIMEOUT_SEC')! * 1000,
       radiusSteps,
       radiusIdx: 0,
       offered: new Map(),
@@ -440,8 +454,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     if (!state) return;
     state.active = false;
     if (state.noDriverTimer) clearTimeout(state.noDriverTimer);
-    for (const [id, t] of state.offered) {
-      clearTimeout(t.timer);
+    for (const id of state.offered.keys()) {
       this.realtime.emitToDriver(id, SOCKET_EVENTS.driver.orderOfferCancelled, { orderId });
     }
     state.offered.clear();
@@ -457,9 +470,10 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       const radius = state.radiusSteps[state.radiusIdx];
       const count = state.windowSize + state.offered.size + state.declined.size + 5;
       const nearest = await this.geo.nearestDrivers(state.category, state.lng, state.lat, radius, count);
-      const fresh = nearest.filter(
+      let fresh = nearest.filter(
         (c) => !state.offered.has(c.driverId) && !state.declined.has(c.driverId),
       );
+      fresh = await this.filterBySeats(fresh, state);
       await this.applyRatingTieBreak(fresh);
 
       if (fresh.length === 0) {
@@ -491,6 +505,43 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Sig'im filtri — FAQAT mijoz ko'p yo'lovchi so'raganda.
+   *
+   * NEGA CHEGARA BOR: har zakazda filtrlash "taksi topilmadi" xavfini butun
+   * tizimga tarqatardi (SESSION-2026-08.md §2.5 — aynan shu sabab toifa
+   * tanlash rad etilgan edi). 1-4 yo'lovchi HAR QANDAY mashinaga sig'adi,
+   * demak u yerda filtrlashning ma'nosi yo'q.
+   *
+   * `passengers === null` (bot/Mini App oqimi) — filtr umuman ishlamaydi.
+   */
+  private async filterBySeats(
+    candidates: Candidate[],
+    state: DispatchState,
+  ): Promise<Candidate[]> {
+    const need = state.passengers;
+    if (!need || need <= DispatchService.SEAT_FILTER_THRESHOLD) return candidates;
+    if (candidates.length === 0) return candidates;
+
+    const vehicles = await this.vehicleRepo.find({
+      where: { driverId: In(candidates.map((c) => c.driverId)) },
+    });
+    // Bitta haydovchida bir nechta mashina bo'lishi mumkin — eng kattasini olamiz.
+    const seatsByDriver = new Map<string, number>();
+    for (const v of vehicles) {
+      seatsByDriver.set(v.driverId, Math.max(seatsByDriver.get(v.driverId) ?? 0, v.seats));
+    }
+
+    const fit = candidates.filter((c) => (seatsByDriver.get(c.driverId) ?? 0) >= need);
+    if (fit.length < candidates.length) {
+      this.log.log(
+        `Sig'im filtri (zakaz ${state.orderId}): ${need} yo'lovchi so'ralgan, ` +
+          `${candidates.length} nomzoddan ${fit.length} tasi sig'adi`,
+      );
+    }
+    return fit;
+  }
+
+  /**
    * Reyting tie-break (2.4): reytinglarni DB'dan olib, tartiblashni sof
    * `sortCandidates()` ga topshiradi (u alohida unit test bilan qoplangan).
    */
@@ -503,12 +554,18 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     sortCandidates(candidates, (id) => rating.get(id) ?? 0);
   }
 
+  /**
+   * Taklif yuborish — MUDDATSIZ. Avval `offerTimeoutMs`dan keyin avtomatik
+   * "rad etilgan" hisoblanardi; foydalanuvchi buni ATAYLAB olib tashlashni
+   * so'radi (2026-08-23): haydovchi shoshilmasdan qabul/rad qila oladi.
+   *
+   * Xavfi bor edi: haydovchi javob bermasa (aloqa uzilsa), taklif abadiy
+   * "osilib" qoladi — buni operator qo'lda ko'rib hal qiladi
+   * (`onNoDriver`dagi kutish davri buni to'liq blokламайди emas, lekin
+   * avto-kengaytirish endi FAQAT haydovchi RAD ETSA ishlaydi).
+   */
   private async offer(state: DispatchState, driverId: string, distanceM: number): Promise<void> {
-    const timeout = setTimeout(
-      () => this.decline(state, driverId, 'timeout').catch((e) => this.log.error(`decline xato: ${(e as Error).message}`)),
-      state.offerTimeoutMs,
-    );
-    state.offered.set(driverId, { timer: timeout, at: Date.now(), distanceM });
+    state.offered.set(driverId, { distanceM });
 
     this.emitOfferPayload(state, driverId, distanceM);
     await this.events.record(state.orderId, 'offered', ActorType.SYSTEM, {
@@ -531,7 +588,9 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       distanceM,
       category: state.category,
       note: state.note ?? undefined,
-      timeoutSec: Math.round(state.offerTimeoutMs / 1000),
+      // Haydovchi nechta yo'lovchi borligini OLDINDAN ko'rsin — dispatch
+      // sig'imni filtrlagan bo'lsa ham, u yukni/o'rindiqni rejalashtiradi.
+      passengers: state.passengers ?? undefined,
       customer: { phone: state.customerPhone ?? '', name: state.customerName ?? undefined },
     });
   }
@@ -547,7 +606,6 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       if (!state.active) continue;
       const o = state.offered.get(driverId);
       if (!o) continue;
-      const remainingSec = Math.max(0, Math.round((o.at + state.offerTimeoutMs - Date.now()) / 1000));
       out.push({
         orderId: state.orderId,
         pickup: { lat: state.lat, lng: state.lng },
@@ -557,7 +615,9 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         distanceM: o.distanceM,
         category: state.category,
         note: state.note ?? undefined,
-        timeoutSec: remainingSec,
+        // `offerToDriver()` bilan BIR XIL bo'lishi shart — bu ikkinchi yo'l
+        // (ilova fondan qaytganda). Asimmetriya naqshi: HANDOFF 5.1.
+        passengers: state.passengers ?? undefined,
         customer: { phone: state.customerPhone ?? '', name: state.customerName ?? undefined },
       });
     }
@@ -578,8 +638,6 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async decline(state: DispatchState, driverId: string, reason: string): Promise<void> {
-    const t = state.offered.get(driverId);
-    if (t) clearTimeout(t.timer);
     if (!state.offered.delete(driverId)) return;
     state.declined.add(driverId);
     this.realtime.emitToDriver(driverId, SOCKET_EVENTS.driver.orderOfferCancelled, {
@@ -655,8 +713,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    for (const [otherId, t] of state.offered) {
-      clearTimeout(t.timer);
+    for (const otherId of state.offered.keys()) {
       if (otherId !== driverId) {
         this.realtime.emitToDriver(otherId, SOCKET_EVENTS.driver.orderOfferCancelled, {
           orderId: state.orderId,
@@ -708,20 +765,21 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
 
   private async onNoDriver(state: DispatchState): Promise<void> {
     if (!state.active) return;
-    // Hali javob kutilayotgan takliflar bor — taklif oynasi tugagunча kutamiz
-    // (taklif vaqti no-driver timerdan uzunroq bo'lishi mumkin).
+    // Hali javob kutilayotgan takliflar bor — ular MUDDATSIZ, ya'ni haydovchi
+    // o'zi qabul/rad qilmaguncha NO_DRIVER e'lon qilmaymiz. Shu boisdan bu
+    // yerda faqat davriy qayta tekshiruv (`DISPATCH_NO_DRIVER_TIMEOUT_SEC`
+    // oralig'ida) — haydovchiga hech narsa ko'rsatilmaydi, faqat ichki holat.
     if (state.offered.size > 0) {
       if (state.noDriverTimer) clearTimeout(state.noDriverTimer);
       state.noDriverTimer = setTimeout(
         () => this.onNoDriver(state).catch((e) => this.log.error(`onNoDriver xato: ${(e as Error).message}`)),
-        state.offerTimeoutMs,
+        this.config.get<number>('DISPATCH_NO_DRIVER_TIMEOUT_SEC')! * 1000,
       );
       return;
     }
     state.active = false;
     if (state.noDriverTimer) clearTimeout(state.noDriverTimer);
-    for (const [id, t] of state.offered) {
-      clearTimeout(t.timer);
+    for (const id of state.offered.keys()) {
       this.realtime.emitToDriver(id, SOCKET_EVENTS.driver.orderOfferCancelled, {
         orderId: state.orderId,
       });

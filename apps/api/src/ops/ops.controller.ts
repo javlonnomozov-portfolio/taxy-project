@@ -12,6 +12,7 @@ import {
   CreateDriverDto,
   SettingsDto,
   TopUpDto,
+  UpdateVehicleDto,
 } from './dto/ops.dto';
 
 @ApiTags('ops')
@@ -156,6 +157,12 @@ export class OpsController {
   @Get('tariffs')
   tariffs() {
     return this.ops.listTariffs();
+  }
+
+  @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Put('drivers/:id/vehicle')
+  updateDriverVehicle(@Param('id') id: string, @Body() dto: UpdateVehicleDto) {
+    return this.ops.updateDriverVehicle(id, dto);
   }
 
   @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)

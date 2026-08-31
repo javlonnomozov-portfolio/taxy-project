@@ -41,6 +41,16 @@ export class Vehicle {
   })
   category!: VehicleCategory;
 
+  /**
+   * Yo'lovchi o'rinlari (haydovchisiz). Damas = 7, Cobalt/Nexia = 4.
+   *
+   * Sig'im TOIFAGA emas, MASHINAGA bog'langan: bitta toifa ichida turli
+   * sig'imdagi mashinalar yuradi. Dispatch buni FAQAT mijoz 5+ yo'lovchi
+   * so'raganda tekshiradi (oddiy zakazlarda filtr umuman ishlamaydi).
+   */
+  @Column({ type: 'int', default: 4 })
+  seats!: number;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

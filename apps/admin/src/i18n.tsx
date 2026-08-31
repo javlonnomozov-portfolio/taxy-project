@@ -104,6 +104,8 @@ const uz: Record<string, string> = {
   th_wait_min: 'Kutish/daq',
   th_free_wait: 'Bepul kutish',
   th_night: 'Tungi ×',
+  th_seats: 'O‘rin',
+  ph_seats: 'O‘rin (4/7)',
 
   // Haydovchilar
   drivers_title: 'Haydovchilar',
@@ -273,6 +275,8 @@ const ru: Record<string, string> = {
   th_wait_min: 'Ожидание/мин',
   th_free_wait: 'Беспл. ожидание',
   th_night: 'Ночной ×',
+  th_seats: 'Мест',
+  ph_seats: 'Мест (4/7)',
 
   drivers_title: 'Водители',
   add_driver: '+ Добавить водителя',

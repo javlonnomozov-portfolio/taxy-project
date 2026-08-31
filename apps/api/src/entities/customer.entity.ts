@@ -42,6 +42,20 @@ export class Customer {
   @Column({ type: 'int', name: 'no_show_count', default: 0 })
   noShowCount!: number;
 
+  // "Uy"/"Ish" tez tugmalari — faqat ikkita qat'iy nuqta, ro'yxat emas
+  // (CUSTOMER-APP-PLAN.md ochiq savol #1).
+  @Column({ type: 'double precision', name: 'home_lat', nullable: true })
+  homeLat!: number | null;
+
+  @Column({ type: 'double precision', name: 'home_lng', nullable: true })
+  homeLng!: number | null;
+
+  @Column({ type: 'double precision', name: 'work_lat', nullable: true })
+  workLat!: number | null;
+
+  @Column({ type: 'double precision', name: 'work_lng', nullable: true })
+  workLng!: number | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

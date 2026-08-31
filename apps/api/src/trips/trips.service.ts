@@ -379,8 +379,13 @@ export class TripsService {
     const cfg = await this.settings.getConfig();
     const withinFreeWindow =
       Date.now() - new Date(order.createdAt).getTime() < cfg.freeCancelSec * 1000;
-    // Haydovchi biriktirilgan bo'lsa yoki jarimasiz oynadan chiqqan bo'lsa — jarima.
-    const penalized = !withinFreeWindow || !PRE_ACCEPT_STATUSES.includes(order.status);
+    // `NO_DRIVER` HECH QACHON jarimalanmaydi — mijoz emas, dispatch haydovchi
+    // topa olmagan, va bu ko'pincha `freeCancelSec`dan (120s) uzoqroq davom
+    // etadi (bir necha radius/timeout siklidan keyin). Boshqa holatlarda
+    // avvalgidek: haydovchi biriktirilgan yoki jarimasiz oyna tugagan bo'lsa jarima.
+    const penalized =
+      order.status !== OrderStatus.NO_DRIVER &&
+      (!withinFreeWindow || !PRE_ACCEPT_STATUSES.includes(order.status));
 
     // Guard aynan o'qilgan holatga — `penalized` shu holatdan hisoblangani uchun,
     // orada holat o'zgargan bo'lsa yozmaymiz (aks holda flag noto'g'ri bo'lardi).

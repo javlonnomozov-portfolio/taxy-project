@@ -5,6 +5,7 @@ import {
   IsInt,
   IsLatitude,
   IsLongitude,
+  IsOptional,
   IsString,
   Max,
   MaxLength,
@@ -52,6 +53,9 @@ class CreateOrderDto extends InitDataDto {
   @ValidateNested()
   @Type(() => PickupDto)
   pickup!: PickupDto;
+
+  /** Yo'lovchilar soni — ilova bilan bir xil (kanal pariteti). */
+  @IsOptional() @IsInt() @Min(1) @Max(8) passengers?: number;
 }
 
 /**
@@ -110,6 +114,6 @@ export class MiniappController {
   /** Xaritadan tanlangan nuqta bilan buyurtma berish. */
   @Post('order')
   create(@Body() dto: CreateOrderDto): Promise<{ orderId: string }> {
-    return this.miniapp.createOrder(dto.initData, dto.category, dto.pickup);
+    return this.miniapp.createOrder(dto.initData, dto.category, dto.pickup, dto.passengers);
   }
 }

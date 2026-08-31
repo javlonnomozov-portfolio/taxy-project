@@ -5,6 +5,7 @@ import { DispatchOwnershipService } from './dispatch-ownership.service';
 import { Order } from '../entities/order.entity';
 import { Customer } from '../entities/customer.entity';
 import { Driver } from '../entities/driver.entity';
+import { Vehicle } from '../entities/vehicle.entity';
 import { Tariff } from '../entities/tariff.entity';
 import { OrdersEventsModule } from '../orders/order-events.module';
 import { GeoModule } from '../geo/geo.module';
@@ -13,7 +14,7 @@ import { RealtimeCoreModule } from '../realtime/realtime-core.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, Customer, Driver, Tariff]),
+    TypeOrmModule.forFeature([Order, Customer, Driver, Vehicle, Tariff]),
     OrdersEventsModule,
     GeoModule,
     DriversModule,

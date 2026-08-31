@@ -1,6 +1,8 @@
 import {
+  Max,
   Min,
   IsBoolean,
+  IsInt,
   IsEnum,
   IsNumber,
   IsObject,
@@ -47,6 +49,17 @@ export class NewVehicleDto {
   @IsOptional() @IsString() color?: string;
   @IsOptional() @IsString() plate?: string;
   @IsEnum(VehicleCategory) category!: VehicleCategory;
+  /** Yo'lovchi o'rinlari: Damas 7, Cobalt/Nexia 4. Berilmasa 4. */
+  @IsOptional() @IsInt() @Min(1) @Max(8) seats?: number;
+}
+
+export class UpdateVehicleDto {
+  @IsOptional() @IsString() make?: string;
+  @IsOptional() @IsString() model?: string;
+  @IsOptional() @IsString() color?: string;
+  @IsOptional() @IsString() plate?: string;
+  /** Yo'lovchi o'rinlari — 5+ yo'lovchi filtri shu qiymatga tayanadi. */
+  @IsOptional() @IsInt() @Min(1) @Max(8) seats?: number;
 }
 
 export class CreateDriverDto {

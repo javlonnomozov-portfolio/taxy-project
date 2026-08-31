@@ -14,6 +14,48 @@ interface Driver {
   ratingAvg: number;
   cancelRate: number;
   balance: number;
+  /** Mashinalar — o'rinlar soni 5+ yo'lovchi filtri uchun MUHIM. */
+  vehicles?: { id: string; model: string | null; plate: string | null; seats: number }[];
+}
+
+/**
+ * Mashina o'rinlari — joyida tahrirlanadi.
+ *
+ * Bu MAJBURIY, bezak emas: 5+ yo'lovchi filtri aynan shu qiymatga tayanadi.
+ * Operator uni sozlay olmasa, Damas haydovchilari 4 o'rinli bo'lib qolib,
+ * katta oilalar hech qachon taksi topolmasdi (CUSTOMER-APP-PLAN.md §4b.5).
+ */
+function SeatsCell({ driver, onSaved }: { driver: Driver; onSaved: () => void }) {
+  const v = driver.vehicles?.[0];
+  const [value, setValue] = useState(String(v?.seats ?? 4));
+  const [busy, setBusy] = useState(false);
+  if (!v) return <span className="lbl">—</span>;
+
+  const dirty = String(v.seats) !== value;
+  async function save() {
+    setBusy(true);
+    try {
+      await api('PUT', `/ops/drivers/${driver.id}/vehicle`, { seats: Number(value) });
+      onSaved();
+    } catch {
+      setValue(String(v?.seats ?? 4)); // qaytarib qo'yamiz — jim qolmasin
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <span className="flex" style={{ gap: 4 }}>
+      <input
+        style={{ width: 48 }}
+        value={value}
+        onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, '').slice(0, 1))}
+      />
+      {dirty && (
+        <button className="primary" disabled={busy} onClick={save}>✓</button>
+      )}
+    </span>
+  );
 }
 
 function approvalBadge(s: string) {
@@ -21,7 +63,7 @@ function approvalBadge(s: string) {
   return <span className={`badge ${cls}`}>{s}</span>;
 }
 
-const EMPTY_FORM = { phone: '', firstName: '', lastName: '', make: '', model: '', color: '', plate: '', category: 'standard' };
+const EMPTY_FORM = { phone: '', firstName: '', lastName: '', make: '', model: '', color: '', plate: '', category: 'standard', seats: '4' };
 
 export function Drivers() {
   const { t } = useI18n();
@@ -51,6 +93,7 @@ export function Drivers() {
           color: form.color || undefined,
           plate: form.plate || undefined,
           category: form.category,
+          seats: Number(form.seats) || 4,
         },
       });
       setCreated({ phone: form.phone, tempPassword: res.tempPassword });
@@ -151,6 +194,12 @@ export function Drivers() {
               <input placeholder={t('ph_model')} value={form.model} onChange={(e) => set('model', e.target.value)} />
               <input placeholder={t('ph_color')} value={form.color} onChange={(e) => set('color', e.target.value)} />
               <input placeholder={t('ph_plate')} value={form.plate} onChange={(e) => set('plate', e.target.value)} />
+              <input
+                style={{ width: 90 }}
+                placeholder={t('ph_seats')}
+                value={form.seats}
+                onChange={(e) => set('seats', e.target.value.replace(/[^0-9]/g, '').slice(0, 1))}
+              />
               <select value={form.category} onChange={(e) => set('category', e.target.value)}>
                 <option value="standard">{t('cat_standard')}</option>
                 <option value="comfort">{t('cat_comfort')}</option>
@@ -174,6 +223,7 @@ export function Drivers() {
               <th>{t('th_billing')}</th>
               <th>{t('th_rating')}</th>
               <th>{t('th_cancel_rate')}</th>
+              <th>{t('th_seats')}</th>
               <th>{t('th_balance')}</th>
               <th>{t('th_actions')}</th>
             </tr>
@@ -188,6 +238,7 @@ export function Drivers() {
                 <td><BillingLabel mode={d.billingMode} /></td>
                 <td>{Number(d.ratingAvg).toFixed(2)}</td>
                 <td>{Number(d.cancelRate).toFixed(0)}%</td>
+                <td><SeatsCell driver={d} onSaved={load} /></td>
                 <td className={Number(d.balance) < 0 ? 'num neg' : 'num'}>{money(d.balance)}</td>
                 <td><div className="cell-actions">
                   {d.approvalStatus !== 'approved' && (

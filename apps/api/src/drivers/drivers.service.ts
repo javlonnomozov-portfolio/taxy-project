@@ -58,7 +58,15 @@ export class DriversService {
     phone: string;
     firstName?: string;
     lastName?: string;
-    vehicle: { make?: string; model?: string; color?: string; plate?: string; category: VehicleCategory };
+    vehicle: {
+      make?: string;
+      model?: string;
+      color?: string;
+      plate?: string;
+      category: VehicleCategory;
+      /** Yo'lovchi o'rinlari (Damas 7, Cobalt 4). Berilmasa entity default = 4. */
+      seats?: number;
+    };
   }): Promise<{ driver: Driver; tempPassword: string }> {
     const existing = await this.drivers.findOne({ where: { phone: data.phone } });
     if (existing) throw new ForbiddenException('Bu telefon bilan haydovchi allaqachon mavjud');
@@ -111,7 +119,25 @@ export class DriversService {
   }
 
   listAll(): Promise<Driver[]> {
-    return this.drivers.find({ order: { createdAt: 'DESC' }, take: 200 });
+    // Mashina ham keladi: admin panel o'rinlar sonini (Damas 7 / Cobalt 4)
+    // ko'rsatishi va o'zgartirishi kerak — busiz sig'im filtri amalda
+    // sozlanmaydi (CUSTOMER-APP-PLAN.md §4b.5).
+    return this.drivers.find({
+      order: { createdAt: 'DESC' },
+      take: 200,
+      relations: { vehicles: true },
+    });
+  }
+
+  /** Haydovchining mashinasini tahrirlash (o'rinlar soni, rusum, raqam). */
+  async updateVehicle(
+    driverId: string,
+    patch: { make?: string; model?: string; color?: string; plate?: string; seats?: number },
+  ): Promise<Vehicle> {
+    const vehicle = await this.vehicles.findOne({ where: { driverId } });
+    if (!vehicle) throw new NotFoundException('Haydovchida mashina yo‘q');
+    Object.assign(vehicle, patch);
+    return this.vehicles.save(vehicle);
   }
 
   async setBilling(driverId: string, mode: string, config?: Record<string, unknown>): Promise<Driver> {
