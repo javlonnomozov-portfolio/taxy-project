@@ -1,21 +1,198 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
-> **Holat:** 2026-08-01 · **Branch:** `main` (toza) · **Repo:** `/home/javlon/Documents/GitHub/taxy-project`
-> **Oxirgi commit:** `990e861`
+> **Holat:** 2026-08-23 · **Branch:** `main`, lekin **48 faylda commit qilinmagan
+> o'zgarish bor** (pastga qarang) · **Repo:** `d:\toy-taxy` (Windows, VSCode
+> ichidagi Claude Code)
+> **Oxirgi COMMIT:** `e93898d` — bu commit'dan keyingi ish hali git'ga
+> tushmagan, garchi **backend'i production'da allaqachon ishlayotgan bo'lsa ham**.
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
+
+---
+
+## 0. HOZIRGI VAZIYAT — birinchi shuni o'qing
+
+**Eng muhim narsa:** bu sessiyada (2026-08-21 dan 2026-08-23 gacha, ikki kunlik
+uzun sessiya, bir necha marta kontekst siqilgan) juda katta hajmda ish
+qilindi — mijoz ilovasi deyarli qaytadan yozildi, haydovchi ilovasi qayta
+dizayn qilindi, backend'ga bir nechta muhim tuzatish kirdi. **Hech biri
+`git commit` qilinmagan.** Faqat backend qismi (`apps/api`) qo'lda
+`railway up` bilan production'ga deploy qilingan — ya'ni **production kod
+bilan git'dagi `main` HOZIR BIR-BIRIGA MOS EMAS**. Agar kimdir git'dan
+toza clone qilsa, production'da ishlayotgan xatti-harakatni OLMAYDI.
+
+**Keyingi sessiya uchun birinchi qaror:** foydalanuvchi bilan gaplashib,
+shu 48 faylni commit qilish kerakmi (deyarli aniq — HA, chunki ishlab
+turgan, sinovdan o'tgan kod) va qachon.
+
+### 0.1 Ochiq (tugallanmagan) topshiriq: mijoz ilovasi — YANGI Figma dizayn
+
+Foydalanuvchi customer-app'ni **ikkinchi marta** qayta qurishni so'radi —
+bu safar Figma linkidan:
+```
+https://www.figma.com/design/8RflGALB1D3QfFWy9id1XG/Toy-taxi?node-id=0-1&p=f&t=rQguhWaiRRjhDcsm-0
+```
+Talab: shu dizayn bo'yicha qayta qur, **dizayndagi kamchiliklarni
+to'g'irlab ket** (ya'ni ko'r-ko'rona nusxa ko'chirmang, muammoli joylarni
+top va yaxshiroq qil), keyin APK yig'ib GitHub'ga yukla.
+
+**Holat:** Figma'ga hali kirilmagan.
+- To'g'ridan-to'g'ri `WebFetch` bilan ochib bo'lmadi — 403 (shaxsiy fayl,
+  Figma tashqi so'rovni bloklaydi).
+- Figma MCP serverini ulashga harakat qilindi (`claude mcp add` orqali,
+  foydalanuvchi buyruq berdi). Server **qo'shildi, lekin hali
+  AUTENTIFIKATSIYADAN o'tmagan** (`/mcp` → "0 connected, 1 not
+  connected"). OAuth login shu (non-interactive) sessiyadan bajarib
+  bo'lmaydi — foydalanuvchi buni **interaktiv** terminalda `/mcp` →
+  `figma` tanlash → login havolasini ochish orqali o'zi yakunlashi kerak.
+- **Muqobil yo'l (agar MCP ishlamasa):** foydalanuvchidan Figma
+  ekranlarining skrinshotlarini so'rang (avvalgi customer-app/driver-app
+  qayta dizaynlarida aynan shu usul juda yaxshi ishladi — u telefondan
+  screenshot olib shu yerga tashlaydi).
+- Figma MCP ulangandan keyin: `figma-design-to-code` skill'ini albatta
+  oldin yuklang (MAJBURIY prerequisite — `get_design_context` chaqirishdan
+  oldin).
+
+**"Dizayndagi kamchiliklarni to'g'irla" talabiga qanday yondashish kerak:**
+avvalgi ikki marta (customer-app, keyin driver-app) xuddi shunday vaziyat
+bo'lgan — foydalanuvchi qog'ozdagi/rasmdagi dizaynni SO'ZMA-SO'Z emas,
+loyihaning haqiqiy imkoniyatlariga moslab qurish kerak edi. Masalan:
+oldingi customer-app mockup'ida "aniq narx tanlashda" ko'rsatilgan edi —
+bu haqiqiy taksometr arxitekturasiga (km oldindan noma'lum) to'g'ri
+kelmasdi, shuning uchun "...dan boshlab" bazaviy narxga almashtirildi
+(foydalanuvchi bilan kelishilgach). Xuddi shunday: yangi Figma dizaynda
+ham loyihada YO'Q funksiyalar (masalan geokodlash/manzil qidirish — bu
+ATAYLAB o'chirilgan, §3dagi "Hal qilingan mahsulot savollari"ga qarang)
+yoki mavjud arxitekturaga zid narsalar bo'lishi mumkin — ko'r-ko'rona
+nusxalamang, nomuvofiqlikni foydalanuvchiga ayting va qaror so'rang.
+
+### 0.2 Bu sessiyada nima qilindi (commit qilinmagan, lekin ishlaydi va sinovdan o'tgan)
+
+**Mijoz ilovasi (`apps/customer-app`) — deyarli to'liq qayta yozildi:**
+- Yangi dizayn: oq fon + yashil aksent (`#00B14F`), avval qorong'i edi.
+  Tokenlar: `src/theme.ts` (`C`, `R`, `F`, `SP`, `S`, `shadow`).
+- Pastki tab paneli qo'shildi: **Asosiy / Buyurtmalar / Kabinet**
+  (`src/TabBar.tsx`, `src/screens/HistoryScreen.tsx`,
+  `src/screens/ProfileScreen.tsx` — uchalasi ham YANGI fayl, hali
+  git'da `??` holatida).
+- Xaritadan pin sudrab "qayerdan olib ketamiz" tanlash — haqiqiy ishlaydi
+  (`src/MapView.tsx` → `PickupPicker`, Leaflet↔RN `postMessage` ko'prigi).
+- GPS: kesh (`getLastKnownPositionAsync`) darhol, aniq nuqta 8s
+  `timeout`li poyga bilan — GPS signalisiz abadiy spinner qolmasin.
+- "Uy"/"Ish" saqlangan manzillar (backend: `customers.home_lat/lng`,
+  `work_lat/lng` — migratsiya `1722600000000-CustomerSavedAddresses.ts`,
+  endpointlar `GET/PUT/DELETE /customer/addresses/:label`).
+- 5+ yo'lovchi uchun sig'im filtri: `vehicles.seats` (migratsiya
+  `1722700000000-VehicleSeatsAndPassengers.ts`), `orders.passengers`,
+  dispatch faqat `passengers > 4` bo'lganda tekshiradi (SESSION-2026-08.md
+  §2.5 sababli — oddiy zakazlarda filtr UMUMAN ishlamaydi). Admin panelda
+  o'rin sonini tahrirlash (`Drivers.tsx`, `PUT /ops/drivers/:id/vehicle`).
+- Toifa tanlashda bazaviy narx "...dan boshlab" (`GET /customer/tariffs`,
+  admin panelda sozlanadi — taksometr, yakuniy narx EMAS).
+- Draggable pastki panel (`Animated`+`PanResponder`, yangi kutubxona
+  QO'SHILMAGAN — HANDOFF 5.1f'dagi xavfdan saqlanish uchun).
+- `NO_DRIVER` holatida bekor qilish TUZATILDI (pastga qarang, §0.3).
+
+**Haydovchi ilovasi (`apps/driver-app`) — dizayn + xatti-harakat:**
+- Xuddi shu oq/yashil tema `src/theme.ts`ga ko'chirildi (bitta fayl —
+  qolgan ekranlar token orqali avtomatik yangi ko'rinishga o'tdi).
+- **Taklif muddati BUTUNLAY olib tashlandi** — foydalanuvchining aniq
+  qarori (xavfini tushuntirdim, "butunlay olib tashlash"ni tanladi).
+  Countdown, progress bar, avtomatik rad etish — hammasi yo'q. Haydovchi
+  qabul/rad qilguncha taklif turadi.
+- Zakazlar ro'yxati **masofa bo'yicha saralanadi** (eng yaqinidan).
+
+**Backend (`apps/api`) — PRODUCTION'GA DEPLOY QILINGAN:**
+1. `NO_DRIVER` holatida mijoz endi bekor qila oladi, jarimasiz
+   (`orders.constants.ts`: `CUSTOMER_CANCELLABLE_STATUSES` ga qo'shildi;
+   `trips.service.ts`: `penalized` hisobida `NO_DRIVER` maxsus holat).
+   Muammo: mijoz "taksi topilmadi" holatida abadiy "qidirilmoqda"
+   ko'rardi VA bekor ham qilolmasdi ("Bekor qilib bo'lmaydi" xatosi) —
+   bu bot/mini-app/ilova UCHALASIGA ham tegishli edi (bitta umumiy metod).
+2. **Taklif muddati (`DISPATCH_OFFER_TIMEOUT_SEC`) butunlay olib
+   tashlandi** — `dispatch.service.ts`dan `setTimeout`,
+   `offerTimeoutMs`, `timeoutSec` maydonlari butunlay chiqarildi.
+   `onNoDriver()`dagi operator-oynasi qayta tekshiruvi endi
+   `DISPATCH_NO_DRIVER_TIMEOUT_SEC` bilan ishlaydi (haydovchiga
+   ko'rinmaydi, faqat ichki). `.env.example`, `env.validation.ts`,
+   `docs/deploy-railway.md`dan ham o'chirildi.
+3. Yuqoridagi barcha yangi endpointlar (`/customer/tariffs`,
+   `/customer/addresses`, `/customer/history`, `/customer/profile`) +
+   sig'im filtri — hammasi deploy qilingan.
+
+Ikkalasi ham (`railway up --service api --ci`) muvaffaqiyatli, `/health`
+tekshirildi. Lekin **bu deploylar git commit'siz qilindi** — Railway
+git'dan emas, joriy ishchi papkadan quradi (`railway up` shunday
+ishlaydi), shuning uchun kod prod'da bor, `main`da yo'q.
+
+### 0.3 GitHub'ga yuklangan APK'lar (git branch orqali, `.gitignore`ni chetlab)
+
+APK fayllar odatiy holda `.gitignore`da (repo tarixini shishirmaslik
+uchun). Foydalanuvchi telefondan boshqarayotgani va kompyuteriga
+ulanmagani uchun (USB yo'q) APK'larni **alohida branch'larga** `git add -f`
+bilan qo'shib push qilindi — bu branch'lar hech qachon `main`ga merge
+qilinmasin, faqat vaqtinchalik yuklab-olish uchun:
+
+```
+apk/customer-preview → apps/customer-app/toy-taxy-customer-2026-08-23-nodriver-fix.apk
+apk/driver-preview   → apps/driver-app/toy-taxy-driver-2026-08-23-new-design.apk
+```
+
+GitHub'dan yuklab olish (telefon brauzerida, repo shaxsiy — login kerak):
+```
+https://github.com/javlonnomozov-portfolio/taxy-project/blob/apk/customer-preview/apps/customer-app/toy-taxy-customer-2026-08-23-nodriver-fix.apk
+https://github.com/javlonnomozov-portfolio/taxy-project/blob/apk/driver-preview/apps/driver-app/toy-taxy-driver-2026-08-23-new-design.apk
+```
+
+**Yangi APK kerak bo'lsa:** branch'ni checkout qiling, eski APK'ni
+`git rm --cached`, yangisini `git add -f`, commit, push — xuddi shu
+branch'ga (git avtomatik "rename" deb his qiladi, tarix shishmaydi).
+Keyin **albatta `git checkout main`ga qayting** — asosiy branch'da
+48 ta commit qilinmagan fayl bor, ularni yo'qotmang.
+
+**EAS build — bu mashinada MUHIM cheklovlar:**
+- `eas build --local` **Windows'da ISHLAMAYDI** ("Unsupported platform,
+  macOS or Linux is required"). Faqat **cloud build**
+  (`eas build -p android --profile preview --non-interactive --no-wait`).
+- Cloud build **faqat git bilan kuzatilgan fayllarni** yuklaydi. Bu
+  `apps/driver-app/google-services.json` (Firebase, `.gitignore`da)
+  bilan ikki marta build'ni yiqitdi (`EAS_BUILD_MISSING_GOOGLE_SERVICES_JSON_ERROR`).
+  **Yechim — faylni HECH QACHON git'ga qo'shmasdan:**
+  1. `apps/driver-app/.easignore` yaratildi (bo'sh bo'lsa ham) — bu EAS
+     yuklashni git-kuzatuvidan MUSTAQIL qiladi, `google-services.json`
+     endi to'g'ridan-to'g'ri kiradi.
+  2. Qo'shimcha xavfsizlik: fayl EAS'ning file-type environment
+     variable'i sifatida ham saqlangan (`GOOGLE_SERVICES_JSON`, preview
+     environment, `eas env:set` bilan) + `.eas/hooks/eas-build-pre-install.sh`
+     uni build boshida nusxalaydi (agar `.easignore` biror sabab bilan
+     yetarli bo'lmasa, zaxira yo'l).
+  3. Fayl LOKAL kompyuterda `apps/driver-app/google-services.json` da
+     turibdi (git'ga HECH QACHON qo'shilmagan). Yangi mashinada bu fayl
+     yo'q bo'ladi — Firebase konsolidan qayta yuklab olish kerak
+     (`toy-taxi` loyihasi → Project Settings → Your apps →
+     `uz.toytaxy.driver` → `google-services.json`). Bu MIJOZ ilovasiga
+     KERAK EMAS — faqat haydovchi ilovasida FCM push bor.
+- Build uchun EAS hisobiga kirish: `EXPO_TOKEN` env var bilan (parol
+  SO'RALMASIN — foydalanuvchi expo.dev → Account Settings → Access
+  Tokens'dan token yaratib beradi). Token vaqtinchalik, hech qayerga
+  saqlanmagan — yangi sessiyada qaytadan so'rash kerak bo'ladi.
+- `apps/customer-app/app.json`dagi `extra.apiUrl` PROD API'ga
+  qaytarilgan (`https://api-production-13444.up.railway.app`) — sessiya
+  davomida vaqtincha `localhost:3000`ga o'zgartirilgan edi, buni har doim
+  build'dan OLDIN tekshiring.
 
 ---
 
 ## 1. Loyiha nima
 
 Mahalliy taksilar uchun buyurtma platformasi (Bulung'ur, Samarqand viloyati).
-Mijoz **Telegram bot** yoki **Telegram Mini App** orqali taksi chaqiradi
-→ eng yaqin haydovchilarga (**Expo/React Native ilova**) taklif boradi
-→ birinchi "Qabul" yutadi. Operator **veb-panel**dan kuzatadi va aralashadi.
+Mijoz **Telegram bot**, **Telegram Mini App** yoki endi **mijoz ilovasi**
+orqali taksi chaqiradi → eng yaqin haydovchilarga (**Expo/React Native
+ilova**) taklif boradi → birinchi "Qabul" yutadi. Operator **veb-panel**dan
+kuzatadi va aralashadi.
 
 **Stack:** pnpm monorepo · NestJS + Socket.IO + PostgreSQL + Redis · Telegraf bot ·
-React/Vite admin · Expo driver-app · Railway deploy.
+React/Vite admin · Expo driver-app + customer-app · Railway deploy.
 
 **Paketlar:** `apps/api`, `apps/bot`, `apps/admin`, `apps/driver-app`,
 `apps/customer-app` (oxirgi ikkalasi workspace'dan **chiqarilgan** — o'z
@@ -23,11 +200,12 @@ React/Vite admin · Expo driver-app · Railway deploy.
 
 Customer-app: paket `uz.toytaxy.customer`, EAS projectId
 `c3ad9431-a59d-4076-b067-002b1b96b9de`. Mijoz Telegram bot orqali kiradi
-(deep link → bot kod beradi → ilova `poll` bilan o'zi kiradi).
+(deep link → bot **6 xonali kod** beradi → ilova `verify` bilan kiradi —
+kod MAJBURIY, avtomatik kirish hisob o'g'irlash yo'lini ochgan edi,
+2026-08-21).
 
 Driver-app: owner `jav1on`, package `uz.toytaxy.driver`,
-EAS projectId `862b155e-1193-4c77-87fb-0cb63e29ee9e`
-(eski hisob `javl9n` build limitini tugatgan — 2026-08-01 da ko'chirildi).
+EAS projectId `862b155e-1193-4c77-87fb-0cb63e29ee9e`.
 
 ---
 
@@ -35,453 +213,285 @@ EAS projectId `862b155e-1193-4c77-87fb-0cb63e29ee9e`
 
 | Servis | URL / holat |
 |---|---|
-| **api** | https://api-production-13444.up.railway.app · `/health` ok · `/trips/active` · `/miniapp/rate` · `/miniapp/cancel` · `/auth/customer/*` (2026-08-17) |
-| **admin** | https://admin-production-42e5.up.railway.app · yangi dizayn |
-| **bot** | `@toy_taxy_bot` · polling · barqaror · `CANCELLED_BY_CUSTOMER` ishlanadi (2026-08-01) |
-| Postgres + Redis | Railway plugin · **migratsiya 8** qo'llangan |
+| **api** | https://api-production-13444.up.railway.app · `/health` ok · barcha `/customer/*` endpointlar (§0.2) 2026-08-23 holatiga qadar deploy qilingan |
+| **admin** | https://admin-production-42e5.up.railway.app |
+| **bot** | `@toy_taxy_bot` · polling · barqaror |
+| Postgres + Redis | Railway plugin |
 
 **Deploy:** `railway up --service api|admin|bot --ci` (repo rootdan).
+Bu mashinada `railway` CLI **allaqachon login qilingan va `toy-taxy`
+loyihasiga ulangan** (`~/.railway/config.json` — boshqa loyihalar:
+`imdod`, `optom-chek`, `uzum-report` ham shu ro'yxatda, ehtiyot bo'ling,
+`railway status` bilan qaysi servisga ulanganingizni tekshiring).
 **GitHub'ga ulanmagan** — merge deploy qilmaydi, qo'lda ishga tushiriladi.
-Migratsiyalar konteyner startida **avtomatik** ishlaydi (`Dockerfile` CMD).
+Migratsiyalar konteyner startida **avtomatik** ishlaydi.
 
-> ⚠️ **Ilova yangi endpoint ishlatsa, API'ni DEPLOY QILING.** APK prod API'ga
-> qaraydi (`app.json` → `extra.apiUrl`). Safar tiklash APK'da tayyor turib,
-> prod'da `/trips/active` yo'qligi sababli **jimgina ishlamay turgan** edi:
-> ilova 404 oladi, `catch` ga tushadi va hech narsa ko'rsatmaydi. APK'ni
-> yig'ishdan oldin emas, **birga** deploy qiling.
+> ⚠️ **Ilova yangi endpoint ishlatsa, API'ni DEPLOY QILING — ikkalasini
+> BIRGA.** Bu qoida shu sessiyada yana ikki marta tasdiqlandi (§0.2).
 
-**Muhim env:**
-- `CORS_ORIGINS=https://admin-production-42e5.up.railway.app` — prod'da **majburiy**.
-  Kod o'z domenini avtomatik qo'shadi (`selfOrigin()`), qo'lda yozish shart emas.
-- `TELEGRAM_BOT_USERNAME=toy_taxy_bot` (api) — mijoz ilovasi deep link'i uchun
-  (`https://t.me/<username>?start=<nonce>`). Bo'lmasa `/auth/customer/start`
-  aniq xato beradi.
-- `TELEGRAM_BOT_TOKEN` (api) — Railway **servis-havolasi** bilan: `${{bot.BOT_TOKEN}}`.
-  Ixtiyoriy: bo'lmasa mini app 503 qaytaradi va bot eski tugmaga qaytadi.
-- `JWT_EXPIRES_IN=90d` (2026-08-13 da `7d` dan oshirildi — haydovchi har hafta
-  ilovadan chiqib ketardi). Ilova muddat tugashini endi to'g'ri ishlaydi
-  (login ekraniga sabab bilan qaytaradi). Bloklash baribir DARHOL ta'sir
-  qiladi (`session:revoked`), token muddatiga bog'liq emas.
-  **DIQQAT:** bu o'zgaruvchini o'zgartirgach `railway redeploy --service api`
-  qiling — Railway o'zgaruvchini saqlaydi, lekin konteynerni QAYTA ISHGA
-  TUSHIRMAYDI va eski qiymat amalda qolaveradi (hostname o'zgarganini
-  loglardan tekshiring). 90 kun ekani token `exp` maydonidan tasdiqlangan.
-- `ADMIN_PASSWORD` — **admin seed faqat admin YO'Q bo'lsa ishlaydi**
-  (`admin-seed.service.ts`: `if (existing) return`). Parolni almashtirish
-  uchun `admin_users` qatorini o'chirib, yangi parol bilan redeploy qiling.
-- `ARRIVED_GEOFENCE_M=150` · `ARRIVED_LOCATION_STALE_SEC=120` · `MAX_BILLABLE_WAIT_MIN=30`
-- `NOMINATIM_URL` / `OSRM_URL` — **bo'sh** (manzil nomlari/marshrut o'chiq, ataylab).
-
-### 🟢 Eng so'nggi APK (LOKAL build, commit `990e861`)
-
-```
-apps/driver-app/toy-taxy-driver-990e861.apk    (66 MB, .gitignore'da)
-apps/customer-app/toy-taxy-customer-7efd926.apk (65 MB, MIJOZ ilovasi)
-```
-
-⚠️ **Keystore o'zgargan** (Expo hisobi `javl9n` → `jav1on`, loyiha
-`862b155e-1193-4c77-87fb-0cb63e29ee9e`). Bu APK eski ilova ustiga
-o'rnatilMAYDI — haydovchi bir marta eskisini o'chirishi kerak. Bundan
-keyingi yangilanishlar oddiy.
-Ichida: yangi dizayn · GPS tuzatishi · status bar · bekor qilish himoyasi ·
-oflayn taklif tuzatishi · `ErrorBoundary` · **xaritani to'liq ekranga ochish**
-(amal tugmalari bilan) · **ilova o'ldirilsa faol safar tiklanadi** ·
-**token muddati tugasa login ekraniga qaytadi** ·
-**xarita WebView crash tuzatilgan** · **"Chiqish"dagi qulash tuzatilgan** ·
-**`expo-updates` olib tashlangan** (u JS xatosida ilovani jimgina qayta
-ishga tushirardi — "default holatga qaytish" alomati).
-Oldingi bulut APK (commit `7458e0a`):
-`https://expo.dev/artifacts/eas/lb71xPeZJo8dIChQuaTrQH5_J7aQqixd5X6jcfW_Re8.apk`
-
-#### Play Market uchun AAB (APK EMAS)
-
-```
-apps/driver-app/toy-taxy-driver-300286f.aab   (31 MB, .gitignore'da)
-```
-Play Market **APK qabul qilmaydi** — AAB kerak. Yig'ish:
-```bash
-cd apps/driver-app && eas build -p android --profile production --local
-```
-(`preview` profili APK, `production` profili AAB beradi — `eas.json`.)
-
-⚠️ **Play App Signing** — Google do'konda O'Z kalitini ishlatadi. Ya'ni
-do'kondan o'rnatilgan ilova hozirgi APK ustiga TUSHMAYDI: haydovchilar bir
-marta o'chirib qayta o'rnatishi kerak bo'ladi.
-
-Do'konga yuklashdan oldin (kodga aloqasi yo'q): Play Console hisobi ($25),
-**maxfiylik siyosati URL** (majburiy — ilova joylashuv yig'adi), fon
-joylashuvi uchun alohida tushuntirish va odatda **video**, do'kon sahifasi
-(ikonka, 2+ skrinshot), "shaxsiy ma'lumot yig'iladi" deklaratsiyasi.
-
-#### Lokal build (bepul, limitsiz) — Expo Free tarifi tugaganda
-
-Free tarifda oylik Android build limiti bor; tugasa bulut buildi
-`Error: build command failed` bilan darhol yiqiladi (kod aybdor emas).
-Lokal build limitga kirmaydi va EAS'dagi keystore bilan imzolaydi:
-
-```bash
-export ANDROID_HOME=$HOME/Android/Sdk ANDROID_SDK_ROOT=$HOME/Android/Sdk
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-export PATH=$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH
-cd apps/driver-app && eas build -p android --profile preview --local
-```
-
-Talab: `platforms;android-34` + `build-tools;34.0.0` + `platform-tools`
-(`~/Android/Sdk` ichida, `sdkmanager --sdk_root=$ANDROID_HOME` bilan o'rnatiladi
-— **sudo kerak emas**). JDK 21 yetarli, 17 shart emas. NDK **kerak emas**
-(bog'liqliklarning hammasi tayyor AAR). `/usr/lib/android-sdk` (apt) —
-chalg'ituvchi, ishlatilmaydi.
-
-Log'da `npx -y expo-doctor exited with non-zero code: 1` chiqishi **normal** —
-bu ogohlantirish bosqichi, keyin `Build successful` keladi.
+**Muhim env (o'zgarmagan, avvalgidan):** `CORS_ORIGINS`,
+`TELEGRAM_BOT_USERNAME=toy_taxy_bot`, `TELEGRAM_BOT_TOKEN=${{bot.BOT_TOKEN}}`,
+`JWT_EXPIRES_IN=90d`, `ARRIVED_GEOFENCE_M=150`, `NOMINATIM_URL`/`OSRM_URL`
+bo'sh. **`DISPATCH_OFFER_TIMEOUT_SEC` ENDI YO'Q** (§0.2.2) — Railway'da
+hali turgan bo'lsa ham kod uni o'qimaydi, xavfsiz.
 
 ---
 
 ## 3. Qolgan ishlar
 
-1. **Haydovchilar qo'shish.** 2026-08-13 da prod bazasi TOZALANDI —
-   haydovchi ham, mijoz ham, zakaz ham YO'Q (0 ta). Foydalanuvchi o'zi
-   qo'shadi. Zakaz ishlashi uchun **kamida bitta ONLINE haydovchi** VA uning
-   mashinasi toifasi zakaz toifasiga **mos** bo'lishi shart — aks holda
-   `NO_DRIVER`. Tariflar (3 ta) va sozlamalar saqlab qolindi.
-2. ~~FCM kaliti~~ — **HAL QILINDI (2026-08-17).** Push ishlayapti:
-   Expo ticket + receipt = `ok` VA bildirishnoma haqiqiy telefonga
-   yetib kelgani foydalanuvchi tomonidan tasdiqlangan.
+### Eng ustuvor (shu sessiyadan qolgan)
 
-   ⚠️ **Nima bo'lgan edi:** Expo hisobi `javl9n` → `jav1on` ga
-   ko'chirilganda FCM kaliti ESKI loyihada qolgan. Push jimgina ishlamay
-   turgan — Expo `InvalidCredentials` qaytarardi, lekin buni hech kim
-   ko'rmasdi, chunki `NotificationsService` xatoni faqat `log.warn` qiladi.
+1. **Figma dizayni bo'yicha customer-app'ni qayta qurish** — §0.1 ga qarang.
+2. **Figma MCP autentifikatsiyasi** — foydalanuvchi interaktiv
+   terminalda `/mcp` orqali yakunlashi kerak.
+3. **48 faylni COMMIT QILISH** — foydalanuvchi bilan kelishib. Mantiqiy
+   bo'laklarga bo'lib commit qilingani ma'qul (customer-app dizayni,
+   driver-app dizayni + taklif muddati, backend NO_DRIVER/timeout
+   tuzatishlari, migratsiyalar) — bittalab, `git log` uslubiga mos
+   (qisqa, "nega" ga urg'u beruvchi commit xabarlari, misollar §4da).
+4. **`docs/CUSTOMER-APP-PLAN.md` yangilash kerak** — u hali eski (faqat
+   1-bosqich bajarilgan deb yozilgan), aslida 3-4-5-bosqichlar ham
+   katta qismda bajarildi (Tarix, Kabinet, manzillar). O'qing va
+   moslashtiring.
 
-   **Yangi Expo loyihasi yaratilsa FCM kalitini QAYTA yuklash shart:**
-   ```bash
-   cd apps/driver-app && eas credentials -p android
-   #  → production → Google Service Account
-   #  → ...Key for Push Notifications (FCM V1) → Set up...
-   #  → ~/Downloads/toy-taxi-firebase-adminsdk-fbsvc-fb514f8e04.json
-   ```
-   Firebase loyihasi: `toy-taxi`, paket `uz.toytaxy.driver`.
-   **Rebuild kerak emas.** Push faqat ilova YOPIQ bo'lganda kerak —
-   ilova ochiq bo'lsa soket + mahalliy bildirishnoma ishlaydi.
+### Eski (hali dolzarb)
 
-   Tekshirish (haqiqiy push yuboradi):
-   ```bash
-   curl -s -X POST https://exp.host/--/api/v2/push/send \
-     -H 'content-type: application/json' \
-     -d '[{"to":"<ExponentPushToken>","title":"sinov","body":"sinov"}]'
-   ```
-3. **Xarita xizmatlari** (ixtiyoriy) — `/geo/*` tayyor, lekin hech kim
-   chaqirmaydi. Mini app'da manzil nomlari yo'q (foydalanuvchi qarori).
-4. **Railway healthcheck** — `RAILWAY_CONFIG_PATH` qo'yildi, faollashgani
-   tekshirilmagan.
-5. **In-app xarita** (react-native-maps) — driver-app TODO. Hozir WebView+Leaflet.
-6. **APK hajmi** — ABI bo'yicha ajratilsa ~25 MB ga tushadi (`eas.json`).
+5. **Haydovchilar qo'shish.** Prod bazasida haydovchi/mijoz/zakaz yo'q
+   edi (2026-08-13da tozalangan) — hozir holatini `railway run` yoki
+   admin panel orqali tekshiring, sim ishlatilgan bo'lishi mumkin.
+6. **Play Market uchun AAB** — customer-app uchun ham, driver-app uchun
+   ham hali yig'ilmagan (faqat preview/APK profili ishlatilgan).
+7. **`CustomerGateway`ga JWT** — hali ichki kalit bilan ishlaydi, ilova
+   polling qiladi (5s), jonli socket emas. `CUSTOMER-APP-PLAN.md` §3bda
+   batafsil.
+8. **Mijozni bloklash endpointi yo'q** — `is_blocked` ustuni bor,
+   operator panelidan ishlatib bo'lmaydi.
+9. **In-app xarita** (react-native-maps) — hozir WebView+Leaflet,
+   ikkala ilovada ham.
 
-### ✅ Hal qilingan mahsulot savollari
+### ✅ Hal qilingan mahsulot savollari (o'zgarmagan, qayta ochilmasin)
 
-- **4+ yo'lovchi / mashina rusumini tanlash — KERAK EMAS** (2026-08-21).
-  Mashinalar asosan **Damas**, 7 yo'lovchi sig'adi. Rusum tanlash rad
-  etildi: mashinalar soni oz, tanlov qo'shilsa dispatch mos mashina
-  topolmay "taksi topilmadi" chiqaradi.
+- **4+ yo'lovchi uchun yangi TOIFA/mashina rusumi tanlash — KERAK EMAS.**
+  Buning o'rniga sig'im MASHINAGA bog'lanadi (§0.2, `vehicles.seats`) —
+  bu ziddiyat EMAS, balki dastlabki qarorni buzmaydigan qo'shimcha yechim.
 - **Manzilni nomi bo'yicha qidirish — BEKOR QILINDI.** Faqat xaritadan
-  belgilash. Borish joyi ham shart emas — faqat olib ketish nuqtasi.
-  (`NOMINATIM_URL` bo'sh qolaveradi.)
+  belgilash (yoki saqlangan Uy/Ish). Borish joyi ham shart emas.
+- **Narx oldindan aniq ko'rsatilmaydi** — faqat "...dan boshlab" bazaviy
+  narx (taksometr arxitekturasi km oldindan bilishni talab qilmaydi).
+- **Haydovchi ilovasida taklif muddati YO'Q** (2026-08-23, §0.2/0.3).
 
-### ⚠️ Ochiq xavflar (mahsulot qarori kutilmoqda)
+### ⚠️ Ochiq xavflar
 
-- **Operator `assign`** mijozda BOSHQA faol zakaz bor-yo'qligini tekshirmaydi.
-  Mijoz "taksi topilmadi"dan keyin yangi zakaz bergan bo'lsa, eskisiga qo'lda
-  biriktirish uni ikkita safarga tushirishi mumkin. Avto-qayta-dispatch yo'lida
-  bu tekshiruv **bor**, operator yo'lida **yo'q**.
-- **Geofence 150 m** — foydalanuvchi tanlovi (men 300 m tavsiya qilgandim).
-  Halol haydovchi "yaqinman, bosolmayapman" desa → `ARRIVED_GEOFENCE_M` ni
-  Railway'dan oshiring, kod tegilmaydi.
+- **Operator `assign`** mijozda boshqa faol zakaz borligini tekshirmaydi
+  (avvalgidan o'zgarmagan).
+- **Geofence 150 m** — foydalanuvchi tanlovi.
+- **`google-services.json` bu mashinaga bog'liq** — boshqa kompyuterda
+  davom etilsa, Firebase konsolidan qayta yuklab olish kerak (§0.3).
 
 ---
 
-## 4. Nima qilingan (qisqacha) — hammasi prod'da
+## 4. Bu sessiyada nima o'zgardi — fayl bo'yicha xarita
 
-| Commit | Nima |
+Hech biri commit qilinmagani uchun commit-hash jadvali o'rniga — qaysi
+ishni qaysi fayllarda qidirish kerak:
+
+| Ish | Asosiy fayllar |
 |---|---|
-| `aec3e5f` | Socket transport tartibi: **polling BIRINCHI** ("Ulanmoqda…" tuzatildi) |
-| `40d197f` | **Geo-indeks:** `goOnline()` indeksni tiklaydi + nomzod topilmasa sabab loglanadi |
-| `7dee020` | Kech onlayn haydovchiga kutib turgan zakaz + bot NO_DRIVER'da kuzatuvni saqlaydi |
-| `162bf75` | **Mini App** "Taksi qayerda?" jonli xarita (initData imzosi bilan) |
-| `b3be366` | CORS: API o'z domenini allowlist'ga qo'shadi (Mini App 500 bergan edi) |
-| `8193311` | **"Yetib keldim" geofence** + kutish haqiga chegara |
-| `8bd3923` | Mini App'dan **xaritadan buyurtma berish** |
-| `d99b117` | Mini App kirish nuqtasi (inline/menyu tugmasi) + bot↔miniapp Redis sinxronligi |
-| `7419a9d` | **"Har zakaz uchun to'lov"** billing rejimi (migratsiya 8) |
-| `73562c2` | Driver-app: status bar + bekor qilish tuzoqlari |
-| `9a09d3e` | Baholashdan keyin menyu qaytishi + poyga tuzatildi |
-| `50f80e4` | Joylashuv ruxsati bir marta so'raladi (LocationManager/watchPosition) |
-| `7cb6af1` | Mijoz bekor qilganda **dispatch ham to'xtatiladi** |
-| `7458e0a` | Oflayn holatda taklif ko'rinmasin + `ErrorBoundary` |
-| `e700826` | Safarlar tarixi **NULLS FIRST** bug (COALESCE bilan tartiblash) |
-| `ca46c09` `a957dc6` | **Admin panel yangi dizayn** + brauzer prompt/confirm o'rniga modal |
-| `1778381` | Xaritani **to'liq ekranga ochish** + xarita har GPS nuqtasida qayta yuklanmaydi |
-| `978c0e0` | **Ilova o'ldirilsa faol safar tiklanadi** (`GET /trips/active`) + to'liq ekranda amal tugmalari |
-| `44533e7` | Yangi Expo hisobi (**keystore o'zgargan** — qayta o'rnatish kerak) |
-| `9df6411` | **Mini app: narx + baholash** (bot chati bilan sinxron) + takroriy baho himoyasi |
-| `dd8114d` | **Mini app: bekor qilish tugmasi** + bot `CANCELLED_BY_CUSTOMER` ni ishlaydi + sim gigiyenasi |
-| `448f1fe` | **Token tugaganda ilova qulflanib qolmaydi** (401 → login) + `session:revoked` tinglanadi |
-| `d17b031` | To'liq ekranda mijozgacha masofa `0.0 km` ko'rsatardi (bosib o'tilgan masofa chiqarilardi) |
-| `43ef55b` | Fonda ruxsat so'ramaslik + `AppState` tekshiruvi (crash sababi BU EMAS edi) |
-| `300286f` | **Ilova qulashi**: xarita yechib olingan WebView'ga `injectJavaScript` yozardi → JNI `obj == null` |
-| `43aac41` | **Mijoz raqami `+` siz saqlanardi** — kontakt ulashish yo'lida normalizatsiya yo'q edi |
-| `f5ab131` | **Yangi haydovchi 5.00 reyting** bilan boshlaydi (urug' ovoz, suyuladi) |
-| `dcbf156` | Mijoz ilovasi rejasi — `docs/CUSTOMER-APP-PLAN.md` |
-| `eec7c94` | **Mijoz ilovasiga Telegram orqali kirish** (nonce + kod, `customer` roli) |
+| Mijoz ilovasi dizayni + tab panel | `apps/customer-app/src/theme.ts`, `TabBar.tsx`, `App.tsx`, `screens/HomeScreen.tsx`, `screens/HistoryScreen.tsx` (yangi), `screens/ProfileScreen.tsx` (yangi) |
+| Xaritadan pin tanlash | `apps/customer-app/src/MapView.tsx` (`PickupPicker`) |
+| Uy/Ish manzillar | `apps/api/src/customers/customers.service.ts`, `customer-app.controller.ts`, migratsiya `1722600000000-*`, sim `scripts/customer-addresses-sim.mjs` |
+| Sig'im filtri (5+ yo'lovchi) | `apps/api/src/dispatch/dispatch.service.ts` (`filterBySeats`), `entities/vehicle.entity.ts`, `entities/order.entity.ts`, migratsiya `1722700000000-*`, admin `Drivers.tsx`, sim `scripts/seat-filter-sim.mjs` |
+| Tariflar ko'rsatish | `apps/api/src/customers/customer-orders.service.ts` (`tariffs()`) |
+| `NO_DRIVER` bekor qilish tuzatishi | `apps/api/src/orders/orders.constants.ts`, `trips/trips.service.ts` |
+| Taklif muddatini olib tashlash | `apps/api/src/dispatch/dispatch.service.ts` (butun fayl bo'ylab), `config/env.validation.ts`, `.env.example`, `docs/deploy-railway.md` |
+| Haydovchi ilovasi dizayni | `apps/driver-app/src/theme.ts`, `MapView.tsx`, `App.tsx`, `app.json` |
+| Haydovchi: muddatsiz + masofa saralash | `apps/driver-app/src/screens/HomeScreen.tsx` (`offers.map` atrofi) |
+| EAS/Firebase build tuzoqlari | `apps/driver-app/.easignore`, `.eas/hooks/eas-build-pre-install.sh` (ikkalasi ham yangi, git'da `??`) |
 
-**Sessiya yozuvi:** `docs/SESSION-2026-08.md` — qarorlar, ildiz sabablar,
-ochiq savollar va boshqa kompyuterda davom ettirish yo'riqnomasi.
+**Sessiya yozuvi:** `docs/SESSION-2026-08.md` — bu **eski** (2026-08-01
+gacha), shu sessiyaning qarorlari hali yozilmagan. Yangi bo'lim
+qo'shish yoki `SESSION-2026-08-23.md` deb alohida fayl ochish mantiqiy.
 
-**Dizayn hujjatlari:** `docs/DRIVER-APP-DESIGN-PROMPT.md`,
-`docs/ADMIN-DESIGN-PROMPT.md` (ikkalasi ham mavjud koddan o'qib yozilgan;
-admin promptida **qat'iy cheklovlar** bo'limi bor — Stitch mavjud bo'lmagan
-ma'lumotlarni o'ylab topishga moyil).
-
-**Dizayn tokenlari bir joyda:** driver-app → `src/theme.ts`,
-admin → `src/styles.css`. Rang/o'lcham o'zgarsa FAQAT shu fayllar.
+**Dizayn tokenlari bir joyda:** ikkala mobil ilova → `src/theme.ts`,
+admin → `src/styles.css`. Rang/o'lcham o'zgarsa FAQAT shu fayllar
+(bu qoida shu sessiyada ham to'g'ri ishladi — bitta fayl almashtirish
+bilan haydovchi ilovasi butunlay yangi ko'rinishga o'tdi).
 
 ---
 
 ## 5. Takrorlanadigan NAQSHLAR (eng qimmat saboqlar)
 
-### 5.1 Asimmetriya naqshi — **5 marta takrorlandi**
+> 5.1 – 5.3 avvalgi sessiyalardan — HANDOFF'ning oldingi versiyasida
+> to'liq matn bor edi (asimmetriya naqshi, prod logini avval o'qish, fon
+> rejimi cheklovlari, native crash/logcat, Expo versiya nomuvofiqligi,
+> jimgina yutilgan xatolar, regressiya simi avval). **Qisqartirilmadi —
+> pastda git tarixida** (`git show 990e861:docs/HANDOFF.md` bilan
+> ko'rish mumkin) **hammasi bor, faqat joy tejash uchun bu versiyada
+> qayta yozilmadi.** Muhim: ular hali ham to'g'ri, faqat bu yerda
+> takrorlanmadi.
 
-Bir xil ishni qiladigan ikki yo'l bor, biridan yon ta'sir tushib qolgan:
+### 5.4 Windows mashinada `pkill` node jarayonini o'ldirmaydi
 
-| Bor | Yo'q edi |
-|---|---|
-| `markIdle()` geo-indeksni tiklardi | `goOnline()` — yo'q |
-| Backend NO_DRIVER'ni yakuniy demaydi | bot — yakuniy derdi |
-| `ops.close()` `dispatch.abort()` chaqirardi | `cancelByCustomer()` — yo'q |
-| `markOnTrip()` indeksdan chiqarardi | `goOffline()` taklifni qaytarib olmasdi |
-| baho berish menyuni qaytarardi | "o'tkazib yuborish" — yo'q |
+`pkill -f "dist/mai[n].js"` Linux'da ishlaydi (HANDOFF 5.1'dagi
+o'z-o'zini o'ldirish tuzog'idan saqlanish uchun), lekin Git Bash orqali
+Windows'da nohup bilan boshlangan node jarayonlarini KO'RMAYDI —
+"o'chirilgan" server aslida portni ushlab qolaveradi, ikkinchi server
+`EADDRINUSE` bilan yiqiladi va eski (yangilanmagan) server javob
+berishda davom etadi — bu chalg'ituvchi, chunki `curl /health` baribir
+"ok" qaytaradi.
 
-> **Qoida:** holatni o'zgartiradigan yangi metod yozganda, o'sha holatni
-> o'zgartiradigan MAVJUD metodlarni yonma-yon qo'yib solishtiring.
-
-**`dispatch.abort()` ni chaqirishi shart bo'lgan joylar:** `ops.close()`,
-`ops.assign()`, `dispatch.offerToDriver()`, `trips.cancelByCustomer()`.
-**Taklifni qaytarib olishi shart:** `goOffline()` (gateway'da `goOfflineAndWithdraw`).
-
-### 5.1b "Ishlamayapti" shikoyatida AVVAL prod logini o'qing
-
-Ilova "Ulanmoqda…" da qotib qolgani uchun yarim soat kod o'qildi — javob
-bitta buyruqda turgan edi:
-```bash
-railway logs --service api | grep -iE "rad etildi|jwt|401"
-# → Haydovchi socket ulanishi rad etildi: jwt expired
+**Ishonchli yo'l — PowerShell orqali:**
+```powershell
+$conn = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+if ($conn) { Stop-Process -Id $conn.OwningProcess -Force }
 ```
-Server nega rad etganini ALLAQACHON yozadi. Taxmin qilishdan oldin o'qing.
+Qayta ishga tushirishdan oldin porti bo'shaganini tekshiring
+(`curl` ulanmasligi kerak).
 
-### 5.1c Fon rejimida qilib bo'lmaydigan ishlar (Android 12+)
+### 5.5 Docker Desktop Windows'da qo'lda ishga tushirilishi kerak
 
-Ilova tizim tomonidan FONDA ham ishga tushiriladi (qayta ishga tushirish,
-joylashuv, push). O'shanda quyidagilar jarayonni O'LDIRADI:
-- **foreground service ochish** (`Location.startLocationUpdatesAsync` ning
-  `foregroundService` sozlamasi) → `ForegroundServiceStartNotAllowedException`;
-- **ruxsat oynasini ochish** (`request*PermissionsAsync`) — Activity yo'q.
-
-Alomat: soket 5-60 soniyada ulanib-uzilib turadi, logda "rad etildi" YO'Q
-(auth joyida), ya'ni jarayon o'lib qayta ishga tushmoqda. `ErrorBoundary`
-buni USHLAMAYDI — bu JS xatosi emas.
-
-> **Qoida:** `useEffect(..., [])` ichida joylashuv/ruxsat/servis bilan
-> ishlaydigan kod yozsangiz, `AppState.currentState === 'active'` ni
-> tekshiring. Avtomatik yo'lda ruxsat SO'RAMANG — `get*PermissionsAsync`
-> bilan faqat o'qing.
-
-### 5.1d Native crashni ErrorBoundary USHLAMAYDI — logcat oling
-
-Ilova "o'zidan o'zi chiqib ketsa" va ekranda hech narsa ko'rinmasa, bu JS
-xatosi EMAS. Telefonni USB bilan ulab:
-```bash
-export PATH=$HOME/Android/Sdk/platform-tools:$PATH
-adb logcat -b crash -d | grep -A 20 toytaxy      # o'tgan crashlar
-adb logcat -b crash -c                            # buferni tozalash
+`docker ps` `dockerDesktopLinuxEngine` pipe xatosi bilan yiqilsa, Docker
+Desktop ishlamayapti:
+```powershell
+Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
 ```
-Bir marta shu bilan aniqlandi:
-`JNI DETECTED ERROR IN APPLICATION: obj == null ... (tid mqt_native_modu)`
-— xarita YECHIB OLINGAN WebView'ga `injectJavaScript` yozayotgan edi.
+Keyin `docker ps` javob berguncha kuting (odatda 5-10s, konteynerlar
+allaqachon mavjud bo'lsa tezroq).
 
-> **Qoida:** `ref.current?.` tekshiruvi YETARLI EMAS. Native ko'rinish yo'q
-> qilingan bo'lsa ham `ref.current` hali null bo'lmasligi mumkin. Komponent
-> ekranda ekanini ALOHIDA bayroq bilan kuzating (unmount cleanup'da o'chiring).
+### 5.6 `dispatch-sim.mjs`ning "6 ta taklif 800ms ichida" tekshiruvi — atayin FLAKY, kod xatosi EMAS
 
-Bu yerda men avval foreground service deb TAXMIN qilib, noto'g'ri tuzatish
-yozgan edim. Logcat bir daqiqada haqiqatni ko'rsatdi.
+Bu Windows/Docker Desktop muhitida bir necha marta 6 tadan kamroq
+(1–5) taklif bilan muvaffaqiyatsiz tugadi. **Buni to'g'ridan-to'g'ri
+o'zgartirilgan kod bilan bog'lamang** — men buni ATAYLAB tekshirdim:
+`filterBySeats()`ni vaqtincha o'chirib qayta ishga tushirdim, XATOLIK
+AYNAN O'SHA edi. Sabab — sim'ning 800ms kutish oynasi shu mashinada
+(cloud IDE + Docker Desktop WSL2 qatlami) 6 ta ketma-ket takliflar uchun
+juda tor. Boshqa testlar (2, 3, 4 — rad etish, qabul qilish, NO_DRIVER)
+har doim barqaror o'tdi.
 
-### 5.1e Sim SOZLANGAN yo'lni sinaydi, prod esa STANDART yo'ldan boradi
+> **Qoida:** `dispatch-sim`ning aniq-son tekshiruvi muvaffaqiyatsiz
+> bo'lsa, avval Redis+orders holatini tozalab (pastga qarang) 2-3 marta
+> qayta ishga tushiring. Barqaror muvaffaqiyatsizlik bo'lmasa, bu
+> muhitning tezligi, kod emas.
 
-`per-order-billing-sim` doim 9/9 o'tardi, prod'da esa haydovchidan pul
-yechilmasdi. Sabab: sim rejimni O'ZI o'rnatardi —
-`PUT /ops/drivers/:id/billing {mode:'per_order'}` — ya'ni standart holatni
-umuman sinamasdi. Prod'da haydovchi entity default'i bilan yaratilardi
-(`subscription`) va u safardan ATAYLAB hech narsa yechmaydi.
+Shuningdek: `seat-filter-sim.mjs`ning test-4 (sig'imga mos haydovchi
+yo'q holati) o'zining zakazini BEKOR QILMAGAN edi — bu keyingi
+dispatch-sim ishga tushishlarida `recoverOrphans()` orqali qayta
+tiklanib, keraksiz shovqin va noaniq muvaffaqiyatsizliklarga sabab
+bo'lardi. Tuzatildi (sim endi test-4 oxirida o'z zakazini bekor qiladi),
+lekin **umumiy qoida:** har bir sim yaratgan zakazini oxirida bekor
+qilishi/yopishi SHART — aks holda keyingi sim ishga tushishlarini
+zaharlaydi.
 
-Xato ham chiqmasdi: komissiya 0 bo'lsa `applyCommission` shunchaki hech
-narsa yozmaydi. `perOrderFee: 1500` sozlangan holda turgan edi.
+### 5.7 `NO_DRIVER` — bitta umumiy metodni tuzatish uch kanalni ham tuzatadi
 
-> **Qoida:** sim ob'ektni yaratgandan keyin uni SOZLASA, o'sha sozlashsiz
-> holatni ham alohida tekshiring — prod ko'pincha aynan sozlanmagan yo'ldan
-> boradi.
+`CUSTOMER_CANCELLABLE_STATUSES`ga `NO_DRIVER` qo'shilishi bot, mini app
+VA mijoz ilovasi — uchalasini ham bir vaqtda tuzatdi, chunki uchalasi
+ham `TripsService.cancelByCustomer()` orqali o'tadi (`/orders/:id/cancel`
+va `/customer/orders/:id/cancel` ikkalasi ham shu metodga keladi). Bu
+HANDOFF 5.1dagi "asimmetriya naqshi"ning aksi — bu safar mantiq
+ATAYLAB bitta joyda saqlangani uchun uch kanalni alohida-alohida
+tuzatish shart bo'lmadi.
 
-### 5.1f Yangi Expo ilovasi: bir xil package.json ≠ bir xil versiyalar
+### 5.8 Frontend'dagi "ikkinchi bosish" xatolari — server javobini kutayotganda tugmani o'chiring
 
-`customer-app` build'i Gradle'da yiqildi:
-`Plugin [id: 'expo-module-gradle-plugin'] was not found`.
-
-Sabab: `@expo/vector-icons` `expo-font` ni erkin diapazon bilan so'raydi.
-`driver-app` da lock fayli uni 12.0.10 da ushlab turadi, yangi ilovada esa
-npm 57.0.1 ni oldi (SDK 54 davri) — u yangi Gradle plaginini talab qiladi.
-
-> **Qoida:** yangi Expo ilovasi qo'shganda o'rnatilgan versiyalarni mavjud
-> ishlaydigan ilova bilan SOLISHTIRING, `package.json` ga ishonmang:
-> ```bash
-> node -e "const v=(a,m)=>require('./apps/'+a+'/node_modules/'+m+'/package.json').version;
-> for (const m of ['expo','expo-font','expo-modules-core','react-native'])
->   console.log(m, v('customer-app',m), v('driver-app',m))"
-> ```
-
-### 5.2 Jimgina yutilgan xatolar eng ko'p vaqt oladi
-
-`connect_error` handleri yo'qligi · CORS 500 sababi ko'rinmasligi ·
-ack tekshirilmasligi · ilova "keeps stopping" — hammasi shu sabab.
-**Xatoni ekranga chiqaring**, keyin tuzating.
-
-### 5.3 Regressiya simini AVVAL yozing
-
-Har tuzatish uchun: sim tuzatishsiz **yiqilishi** isbotlanmasa, tuzatish
-"ishlayotganga o'xshaydi" xolos. Bu sessiyada har safar shunday qilindi.
+Mijoz "Bekor qilish"ni ikki marta bossa (birinchi so'rov hali javob
+bermagan bo'lsa-yu, `Alert.alert` tasdiqlash oynasi yopilgach tugma
+darhol qayta bosiladigan bo'lsa), ikkinchi so'rov serverda "allaqachon
+bekor qilingan" xatosiga uchraydi — foydalanuvchiga chalkash ko'rinadi
+("Bekor qilindi" sarlavhasi TURIB, "Bekor qilib bo'lmaydi" xatosi
+chiqadi). Tuzatish: so'rov davomida `busy`/`cancelling` holat bilan
+tugmani `disabled` qiling, poll yangilanishini kutmang.
 
 ---
 
-## 6. Lokal ishga tushirish va TUZOQLAR
+## 6. Lokal ishga tushirish (Windows, `d:\toy-taxy`)
 
 ```bash
+# 1) Docker Desktop ishga tushganini tekshiring (5.5)
+docker ps
+
+# 2) Konteynerlar yo'q bo'lsa
 pnpm db:up                                   # postgres:5434 + redis:6379
+
+# 3) Env
 set -a; . ./.env; set +a
-export ADMIN_LOGIN=admin ADMIN_PASSWORD=admin123 LOGIN_RATE_LIMIT=1000
+export ADMIN_LOGIN=admin ADMIN_PASSWORD=admin123 LOGIN_RATE_LIMIT=1000 \
+  TELEGRAM_BOT_TOKEN=123:TEST TELEGRAM_BOT_USERNAME=toy_taxy_bot
+
+# 4) Migratsiya + build + ishga tushirish
 pnpm --filter @tty/api migration:run
 pnpm --filter @tty/shared build && pnpm --filter @tty/api build
-node apps/api/dist/main.js
+nohup node apps/api/dist/main.js > apps/api/api.log 2>&1 & disown
 ```
 
-**Tuzoqlar (har biri qimmatga tushgan):**
+**Windows'ga xos qo'shimcha tuzoqlar (Linux uchun yozilgan eski
+qo'llanmadan tashqari — ular hali ham to'g'ri):**
+- Server o'chirish/qayta ishga tushirish — `pkill` EMAS, §5.4 (PowerShell).
+- `eas build --local` ishlamaydi — §0.3.
+- `apps/customer-app`, `apps/driver-app` — `npm install` (pnpm emas),
+  alohida papkalarda. Root'dan `pnpm install` faqat `apps/api`,
+  `apps/admin`, `apps/bot`, `packages/shared` ni qamraydi.
+- Bash tool POSIX (`/d/toy-taxy`), PowerShell tool alohida (`d:\toy-taxy`)
+  — ikkalasi ham bor, kerakli joyda ishlatilsin (git/node — Bash,
+  process/Docker boshqaruvi — ko'pincha PowerShell ishonchliroq).
 
-- `ConfigModule` `.env` ni **O'QIMAYDI** — env'ni qo'lda export qilish shart.
-- Lokal DB useri **`tty`**, port **5434**:
-  `docker exec tty_postgres psql -U tty -d tty -c "…"` (`-U postgres` ishlamaydi).
-- `pkill -f "dist/main.js"` **o'zini o'ldiradi** → `pkill -f "dist/mai[n].js"`.
-- **Simlar orasida API'ni QAYTA ISHGA TUSHIRING** — dispatch holati xotirada
-  (taymerlar bilan); DB'ni TRUNCATE qilsangiz taymer o'chirilgan zakazga
-  murojaat qilib FK xatosi beradi.
-- **Socket handler qiymat qaytarmasa ack KELMAYDI** (`driver:offer_response`,
-  `driver:location`). `await emit(...)` bilan kutsangiz sim abadiy osiladi.
-- `sim:miniapp` uchun API `TELEGRAM_BOT_TOKEN=123:TEST` bilan ishga tushirilsin.
-- **Prod CORS xatolarini lokalda ko'rmaysiz** — `CORS_ORIGINS` bo'sh bo'lsa
-  hammaga ochiq. Brauzerdan API'ga so'rov qo'shsangiz shunday sinang:
-  `CORS_ORIGINS=https://admin.example RAILWAY_PUBLIC_DOMAIN=http://localhost:3000`
-- **Botni `getUpdates` bilan TEKSHIRMANG** — polling slotini o'g'irlab yiqitadi.
-- **Bot deploy'da bitta 409 NORMAL** — `launchWithRetry` uni o'tkazadi.
-- `TypeORM`: `manager.query()` UPDATE uchun `[rows, affected]`, SELECT uchun `rows`.
-- **Nullable ustun bo'yicha `DESC` tartiblashda Postgres NULL'ni BIRINCHI qo'yadi.**
-  `COALESCE` yoki `NULLS LAST` ishlating (safarlar tarixi shundan buzilgan edi).
-- `miniapp.page.ts` — sahifa **shablon satri** ichida: izohlarda ham teskari
-  qo'shtirnoq ishlatmang, build yiqiladi.
-- **driver-app'ga bog'liqlik qo'shsangiz** `npm install --package-lock-only`
-  ni ham ishga tushiring — EAS `npm ci` ishlatadi, lock mos kelmasa yiqiladi.
-- **APK ichini tekshirishda** `strings -a -n 4` faqat ASCII uchun ishonchli.
-  **Hermes ASCII bo'lmagan satrlarni UTF-16LE da saqlaydi** va `strings -e l`
-  ham kirillchani TOPMAYDI (tekshirildi: `Скрыть карту` bundle ichida bor, lekin
-  `strings -e l` nol natija beradi). Bayt darajasida qidiring:
-  ```bash
-  unzip -o app.apk assets/index.android.bundle
-  python3 -c "d=open('assets/index.android.bundle','rb').read()
-  print(any(d.count('MATN'.encode(e)) for e in ('utf-8','utf-16-le')))"
-  ```
-  **Nazorat namunasi ishlating:** o'zgarishdan OLDIN ham mavjud bo'lgan satrni
-  qidiring — u topilmasa, muammo APK'da emas, qidiruv usulida.
-- `SafeAreaView` **`react-native`dan Android'da hech narsa qilmaydi** (faqat iOS).
-  `paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0`.
-- **Telegram `web_app` tugmasi REPLY klaviaturada `initData` BERMAYDI** —
-  faqat inline tugma / menyu tugmasi / to'g'ridan havola.
-
-**Simlar:**
-```
-sim:dispatch sim:trip sim:sprint3 sim:bot sim:race sim:security sim:cluster
-sim:online-geo sim:late-driver sim:miniapp sim:arrived-guard sim:miniapp-sync
-sim:per-order sim:customer-cancel sim:offline-withdraw sim:trip-history
-sim:trip-resume sim:miniapp-rating sim:customer-auth
-```
-
-**Ikkitasi alohida sozlama talab qiladi:**
-- `sim:sprint3` — API `DISPATCH_WINDOW_SIZE=1` bilan ishga tushirilsin
-  (`dispatch` simi esa ODATIY oyna bilan ishlaydi — ikkalasi bitta API'da
-  bir vaqtda o'tmaydi).
-- `sim:cluster` — ikkinchi API instansiyasi kerak (`API_B`, port 3001).
-  Busiz sim osilib qoladi.
-
-**Simlar orasida lokal muhitni tozalang** — geo-indeksda qolgan haydovchilar
-yangi simning zakazini o'zlashtirib, sim sababsiz yiqiladi:
+**Simlar orasida tozalash (avvalgidan KENGAYTIRILGAN — §5.6):**
 ```bash
-docker exec tty_redis redis-cli --scan --pattern 'geo:drivers:*' \
-  | xargs -r -n1 docker exec tty_redis redis-cli DEL
-docker exec tty_postgres psql -U tty -d tty \
-  -c "UPDATE drivers SET status='OFFLINE' WHERE status<>'OFFLINE';"
+docker exec tty_redis redis-cli FLUSHALL
+docker exec tty_postgres psql -U tty -d tty -c \
+  "UPDATE orders SET status='CLOSED_BY_OPERATOR' WHERE status IN ('CREATED','DISPATCHING','NO_DRIVER');"
 ```
-Telefon raqamlari `helpers.mjs` dagi `simPhone()`/`simPlate()` bilan olinadi —
-qat'iy raqam yozmang, ikkinchi ishga tushirishda 403 beradi.
-Oxirgi 8 tasi shu sessiyada yozilgan regressiya simlari — har biri o'z
-tuzatishisiz **yiqilishi isbotlangan**.
+(Eski `--scan --pattern 'geo:drivers:*'` usuli ham ishlaydi, lekin
+`FLUSHALL` + orders tozalash ancha ishonchliroq — `recoverOrphans()`
+eskirgan zakazlarni ham qayta tiklashi mumkinligini unutmang.)
 
-Unit: api 80 · bot 25 · admin 17.
+**Yangi simlar (shu sessiyada yozilgan):**
+```
+sim:customer-addresses   # scripts/customer-addresses-sim.mjs — 14 tekshiruv
+sim:seat-filter          # scripts/seat-filter-sim.mjs — 11 tekshiruv
+```
+Ikkalasi ham `TELEGRAM_BOT_USERNAME` sozlangan API talab qiladi
+(customer-auth oqimidan foydalanadi).
+
+Unit: api **80** (o'zgarmagan — bu sessiyaning o'zgarishlari asosan
+integratsiya darajasida, sim bilan qoplangan).
 
 ---
 
 ## 7. Arxitektura qarorlari (nega aynan shunday)
 
-- **Dispatch egaligi, BullMQ emas** — dispatch mahsulotning yuragi va sim'lar
-  bilan qoplangan; egalik modeli (`dispatch:owner:<orderId>`, `SET NX` + TTL)
-  o'sha mantiqni o'zgartirmasdan ko'p instansiya to'g'riligini beradi.
-- **Dispatch faqat Redis geo-indeksidan qidiradi** (`geo:drivers:<toifa>`), DB
-  `status` ustunidan EMAS. "Onlayn" ≠ "dispatch ko'radi".
-- **WS uchun interceptor, filter emas** — Nest `filter.func()` natijasini
-  ishlatmaydi, ya'ni exception filter orqali Socket.IO ack qaytarib bo'lmaydi.
-- **CORS adapter darajasida** — `@WebSocketGateway({cors})` env o'qiy olmaydi.
-- **Prod ENV qattiq talablari** — xavfsizlik sozlamasi unutilganda servis
-  jimgina zaif holatda ishlamasin.
-- **`handleConnection` da `driverId` I/O'DAN OLDIN o'rnatiladi** — Socket.IO
-  `connect` ni transport ulanishi bilanoq beradi.
-- **Mini App — yagona guard'siz controller.** Himoya butunlay Telegram
-  `initData` imzosida: HMAC-SHA256 + `auth_date` + telegram id ↔ mijoz.
-- **Bot↔API Redis pub/sub orqali** (`bot:track`) — mini app botga o'zi xabar
-  bera olmaydi (`sendData()` faqat reply klaviaturada, u yerda initData yo'q).
-- **Balans manfiyga o'tadi — ataylab.** Qarzdor haydovchi ham safarni
-  yakunlaydi; aks holda mijoz ham osilib qolardi.
-- **Kutish chegarasi narx hisobida**, `start()` da emas — `orders.waiting_minutes`
-  da haqiqiy qiymat qoladi.
-- **`makeT` har til uchun bitta funksiya keshlaydi** — aks holda cheksiz render.
+Avvalgi qarorlar (dispatch egaligi, Redis geo-indeks, WS interceptor,
+CORS adapter darajasida, Mini App guard'siz, bot↔API pub/sub, balans
+manfiyga o'tishi, kutish chegarasi narx hisobida, `makeT` keshlash) —
+**o'zgarmagan**, git tarixida to'liq matn bor.
+
+**Yangi qarorlar (shu sessiyada):**
+- **Sig'im mashinaga bog'lanadi, toifaga emas.** Chunki bitta toifa
+  ichida turli sig'imdagi mashinalar yuradi (Standartda Damas HAM,
+  Cobalt/Nexia HAM bor).
+- **Taklif muddati — mahsulot qarori bilan olib tashlandi**, texnik
+  majburiyat emas. Xavfi ochiq aytilgan (aloqa uzilgan haydovchida
+  zakaz operatorgacha "osilib" qolishi mumkin) — foydalanuvchi buni
+  bilib tanlagan.
+- **APK'lar git branch orqali tarqatiladi** (asosiy branch'ni
+  shishirmasdan) — chunki foydalanuvchi USB orqali ulanolmaydi
+  (telefondan boshqaradi), boshqa yetkazish kanali yo'q.
 
 ---
 
 ## 8. Sinov tartibi
 
-1. APK o'rnating → **"Ishni boshlash"** → yashil **"Onlayn"**
-2. Telegram `@toy_taxy_bot` → `/start` → menyuda **"🗺 Xaritadan chaqirish"**
-   (mini app) yoki eski **"🚕 Taksi chaqirish"** (bot oqimi)
-3. Ilovada taklif → "Qabul"
-4. Safar: yetib keldim (geofence 150 m!) → boshladim → yakunladim
+O'zgarmagan (APK o'rnatish → Onlayn → bot/mini-app/ilovadan buyurtma →
+taklif → qabul → safar bosqichlari), faqat endi:
+- Haydovchi ilovasida taklif muddati YO'Q — cheksiz kutishi mumkin.
+- Mijoz ilovasida "Taksi topilmadi" holatida ENDI bekor qilish tugmasi
+  chiqadi va ishlaydi.
+- Mijoz ilovasida pastki tab panel bor — Buyurtmalar (tarix) va
+  Kabinet (profil, til, chiqish) ni ham sinang.
 
-**⚠️ Toifa mos kelishi shart** — geo-indeks toifalarga bo'lingan.
-
-**Muammo bo'lsa — diagnostika loglarda:**
+**Muammo bo'lsa — diagnostika loglarda (o'zgarmagan):**
 ```bash
-railway logs --service api | grep "Nomzod topilmadi"     # nega taklif ketmadi
-railway logs --service api | grep "bekor qildi"          # kim, qaysi bosqichda
+railway logs --service api | grep "Nomzod topilmadi"
+railway logs --service api | grep "bekor qildi"
 ```
-Ilova qulasa — endi `ErrorBoundary` xato matnini **ekranda** ko'rsatadi,
-skrinshot yetarli.
