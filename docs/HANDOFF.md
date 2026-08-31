@@ -1,10 +1,7 @@
 # Toy TaxY (TTY) — yangi chat uchun davom ettirish hujjati
 
-> **Holat:** 2026-08-23 · **Branch:** `main`, lekin **48 faylda commit qilinmagan
-> o'zgarish bor** (pastga qarang) · **Repo:** `d:\toy-taxy` (Windows, VSCode
-> ichidagi Claude Code)
-> **Oxirgi COMMIT:** `e93898d` — bu commit'dan keyingi ish hali git'ga
-> tushmagan, garchi **backend'i production'da allaqachon ishlayotgan bo'lsa ham**.
+> **Holat:** 2026-08-31 · **Branch:** `main` (toza, `origin/main` bilan bir xil)
+> **Oxirgi commit:** `7cc0dca` (merge) · **Repo:** `d:\toy-taxy` (Windows, VSCode)
 >
 > Bu faylni yangi chatga tashlang va "davom et" deng.
 
@@ -12,174 +9,88 @@
 
 ## 0. HOZIRGI VAZIYAT — birinchi shuni o'qing
 
-**Eng muhim narsa:** bu sessiyada (2026-08-21 dan 2026-08-23 gacha, ikki kunlik
-uzun sessiya, bir necha marta kontekst siqilgan) juda katta hajmda ish
-qilindi — mijoz ilovasi deyarli qaytadan yozildi, haydovchi ilovasi qayta
-dizayn qilindi, backend'ga bir nechta muhim tuzatish kirdi. **Hech biri
-`git commit` qilinmagan.** Faqat backend qismi (`apps/api`) qo'lda
-`railway up` bilan production'ga deploy qilingan — ya'ni **production kod
-bilan git'dagi `main` HOZIR BIR-BIRIGA MOS EMAS**. Agar kimdir git'dan
-toza clone qilsa, production'da ishlayotgan xatti-harakatni OLMAYDI.
+### 0.1 IKKI MASHINA TARMOQLANIB KETGAN EDI — birlashtirildi
 
-**Keyingi sessiya uchun birinchi qaror:** foydalanuvchi bilan gaplashib,
-shu 48 faylni commit qilish kerakmi (deyarli aniq — HA, chunki ishlab
-turgan, sinovdan o'tgan kod) va qachon.
+Bu sessiyaning eng muhim topilmasi. **Ayni bir vazifa ikki mashinada
+mustaqil bajarilgan edi:**
 
-### 0.1 Ochiq (tugallanmagan) topshiriq: mijoz ilovasi — YANGI Figma dizayn
+- **Linux mashinasi** (`/home/javlon/Documents/GitHub/taxy-project`)
+  `e93898d` dan tarmoqlanib mijoz ilovasini Figma maketi bo'yicha qayta
+  qurgan (`ed8a56d`) va `origin/main` ga push qilgan.
+- **Windows mashinasi** (`d:\toy-taxy`) da esa 2026-08-23 sessiyasining
+  **48 ta commit qilinmagan fayli** turgan edi — u ham mijoz ilovasini
+  qayta qurgan, ustiga backend ishi ham bor edi.
 
-Foydalanuvchi customer-app'ni **ikkinchi marta** qayta qurishni so'radi —
-bu safar Figma linkidan:
-```
-https://www.figma.com/design/8RflGALB1D3QfFWy9id1XG/Toy-taxi?node-id=0-1&p=f&t=rQguhWaiRRjhDcsm-0
-```
-Talab: shu dizayn bo'yicha qayta qur, **dizayndagi kamchiliklarni
-to'g'irlab ket** (ya'ni ko'r-ko'rona nusxa ko'chirmang, muammoli joylarni
-top va yaxshiroq qil), keyin APK yig'ib GitHub'ga yukla.
+`git push` `non-fast-forward` bilan rad etilganda bu aniqlandi.
 
-**Holat:** Figma'ga hali kirilmagan.
-- To'g'ridan-to'g'ri `WebFetch` bilan ochib bo'lmadi — 403 (shaxsiy fayl,
-  Figma tashqi so'rovni bloklaydi).
-- Figma MCP serverini ulashga harakat qilindi (`claude mcp add` orqali,
-  foydalanuvchi buyruq berdi). Server **qo'shildi, lekin hali
-  AUTENTIFIKATSIYADAN o'tmagan** (`/mcp` → "0 connected, 1 not
-  connected"). OAuth login shu (non-interactive) sessiyadan bajarib
-  bo'lmaydi — foydalanuvchi buni **interaktiv** terminalda `/mcp` →
-  `figma` tanlash → login havolasini ochish orqali o'zi yakunlashi kerak.
-- **Muqobil yo'l (agar MCP ishlamasa):** foydalanuvchidan Figma
-  ekranlarining skrinshotlarini so'rang (avvalgi customer-app/driver-app
-  qayta dizaynlarida aynan shu usul juda yaxshi ishladi — u telefondan
-  screenshot olib shu yerga tashlaydi).
-- Figma MCP ulangandan keyin: `figma-design-to-code` skill'ini albatta
-  oldin yuklang (MAJBURIY prerequisite — `get_design_context` chaqirishdan
-  oldin).
+**Qaysi backend prod'da turgani PROD SO'ROVI bilan hal qilindi** (taxmin
+bilan emas — bu qoida keyingi safar ham ishlaydi):
 
-**"Dizayndagi kamchiliklarni to'g'irla" talabiga qanday yondashish kerak:**
-avvalgi ikki marta (customer-app, keyin driver-app) xuddi shunday vaziyat
-bo'lgan — foydalanuvchi qog'ozdagi/rasmdagi dizaynni SO'ZMA-SO'Z emas,
-loyihaning haqiqiy imkoniyatlariga moslab qurish kerak edi. Masalan:
-oldingi customer-app mockup'ida "aniq narx tanlashda" ko'rsatilgan edi —
-bu haqiqiy taksometr arxitekturasiga (km oldindan noma'lum) to'g'ri
-kelmasdi, shuning uchun "...dan boshlab" bazaviy narxga almashtirildi
-(foydalanuvchi bilan kelishilgach). Xuddi shunday: yangi Figma dizaynda
-ham loyihada YO'Q funksiyalar (masalan geokodlash/manzil qidirish — bu
-ATAYLAB o'chirilgan, §3dagi "Hal qilingan mahsulot savollari"ga qarang)
-yoki mavjud arxitekturaga zid narsalar bo'lishi mumkin — ko'r-ko'rona
-nusxalamang, nomuvofiqlikni foydalanuvchiga ayting va qaror so'rang.
-
-### 0.2 Bu sessiyada nima qilindi (commit qilinmagan, lekin ishlaydi va sinovdan o'tgan)
-
-**Mijoz ilovasi (`apps/customer-app`) — deyarli to'liq qayta yozildi:**
-- Yangi dizayn: oq fon + yashil aksent (`#00B14F`), avval qorong'i edi.
-  Tokenlar: `src/theme.ts` (`C`, `R`, `F`, `SP`, `S`, `shadow`).
-- Pastki tab paneli qo'shildi: **Asosiy / Buyurtmalar / Kabinet**
-  (`src/TabBar.tsx`, `src/screens/HistoryScreen.tsx`,
-  `src/screens/ProfileScreen.tsx` — uchalasi ham YANGI fayl, hali
-  git'da `??` holatida).
-- Xaritadan pin sudrab "qayerdan olib ketamiz" tanlash — haqiqiy ishlaydi
-  (`src/MapView.tsx` → `PickupPicker`, Leaflet↔RN `postMessage` ko'prigi).
-- GPS: kesh (`getLastKnownPositionAsync`) darhol, aniq nuqta 8s
-  `timeout`li poyga bilan — GPS signalisiz abadiy spinner qolmasin.
-- "Uy"/"Ish" saqlangan manzillar (backend: `customers.home_lat/lng`,
-  `work_lat/lng` — migratsiya `1722600000000-CustomerSavedAddresses.ts`,
-  endpointlar `GET/PUT/DELETE /customer/addresses/:label`).
-- 5+ yo'lovchi uchun sig'im filtri: `vehicles.seats` (migratsiya
-  `1722700000000-VehicleSeatsAndPassengers.ts`), `orders.passengers`,
-  dispatch faqat `passengers > 4` bo'lganda tekshiradi (SESSION-2026-08.md
-  §2.5 sababli — oddiy zakazlarda filtr UMUMAN ishlamaydi). Admin panelda
-  o'rin sonini tahrirlash (`Drivers.tsx`, `PUT /ops/drivers/:id/vehicle`).
-- Toifa tanlashda bazaviy narx "...dan boshlab" (`GET /customer/tariffs`,
-  admin panelda sozlanadi — taksometr, yakuniy narx EMAS).
-- Draggable pastki panel (`Animated`+`PanResponder`, yangi kutubxona
-  QO'SHILMAGAN — HANDOFF 5.1f'dagi xavfdan saqlanish uchun).
-- `NO_DRIVER` holatida bekor qilish TUZATILDI (pastga qarang, §0.3).
-
-**Haydovchi ilovasi (`apps/driver-app`) — dizayn + xatti-harakat:**
-- Xuddi shu oq/yashil tema `src/theme.ts`ga ko'chirildi (bitta fayl —
-  qolgan ekranlar token orqali avtomatik yangi ko'rinishga o'tdi).
-- **Taklif muddati BUTUNLAY olib tashlandi** — foydalanuvchining aniq
-  qarori (xavfini tushuntirdim, "butunlay olib tashlash"ni tanladi).
-  Countdown, progress bar, avtomatik rad etish — hammasi yo'q. Haydovchi
-  qabul/rad qilguncha taklif turadi.
-- Zakazlar ro'yxati **masofa bo'yicha saralanadi** (eng yaqinidan).
-
-**Backend (`apps/api`) — PRODUCTION'GA DEPLOY QILINGAN:**
-1. `NO_DRIVER` holatida mijoz endi bekor qila oladi, jarimasiz
-   (`orders.constants.ts`: `CUSTOMER_CANCELLABLE_STATUSES` ga qo'shildi;
-   `trips.service.ts`: `penalized` hisobida `NO_DRIVER` maxsus holat).
-   Muammo: mijoz "taksi topilmadi" holatida abadiy "qidirilmoqda"
-   ko'rardi VA bekor ham qilolmasdi ("Bekor qilib bo'lmaydi" xatosi) —
-   bu bot/mini-app/ilova UCHALASIGA ham tegishli edi (bitta umumiy metod).
-2. **Taklif muddati (`DISPATCH_OFFER_TIMEOUT_SEC`) butunlay olib
-   tashlandi** — `dispatch.service.ts`dan `setTimeout`,
-   `offerTimeoutMs`, `timeoutSec` maydonlari butunlay chiqarildi.
-   `onNoDriver()`dagi operator-oynasi qayta tekshiruvi endi
-   `DISPATCH_NO_DRIVER_TIMEOUT_SEC` bilan ishlaydi (haydovchiga
-   ko'rinmaydi, faqat ichki). `.env.example`, `env.validation.ts`,
-   `docs/deploy-railway.md`dan ham o'chirildi.
-3. Yuqoridagi barcha yangi endpointlar (`/customer/tariffs`,
-   `/customer/addresses`, `/customer/history`, `/customer/profile`) +
-   sig'im filtri — hammasi deploy qilingan.
-
-Ikkalasi ham (`railway up --service api --ci`) muvaffaqiyatli, `/health`
-tekshirildi. Lekin **bu deploylar git commit'siz qilindi** — Railway
-git'dan emas, joriy ishchi papkadan quradi (`railway up` shunday
-ishlaydi), shuning uchun kod prod'da bor, `main`da yo'q.
-
-### 0.3 GitHub'ga yuklangan APK'lar (git branch orqali, `.gitignore`ni chetlab)
-
-APK fayllar odatiy holda `.gitignore`da (repo tarixini shishirmaslik
-uchun). Foydalanuvchi telefondan boshqarayotgani va kompyuteriga
-ulanmagani uchun (USB yo'q) APK'larni **alohida branch'larga** `git add -f`
-bilan qo'shib push qilindi — bu branch'lar hech qachon `main`ga merge
-qilinmasin, faqat vaqtinchalik yuklab-olish uchun:
-
-```
-apk/customer-preview → apps/customer-app/toy-taxy-customer-2026-08-23-nodriver-fix.apk
-apk/driver-preview   → apps/driver-app/toy-taxy-driver-2026-08-23-new-design.apk
+```bash
+for p in /health /customer/tariffs /customer/addresses /customer/history; do
+  echo "$(curl -s -o /dev/null -w '%{http_code}' "$API$p")  $p"
+done
 ```
 
-GitHub'dan yuklab olish (telefon brauzerida, repo shaxsiy — login kerak):
-```
-https://github.com/javlonnomozov-portfolio/taxy-project/blob/apk/customer-preview/apps/customer-app/toy-taxy-customer-2026-08-23-nodriver-fix.apk
-https://github.com/javlonnomozov-portfolio/taxy-project/blob/apk/driver-preview/apps/driver-app/toy-taxy-driver-2026-08-23-new-design.apk
-```
+404 = endpoint yo'q, 401 = bor (avtorizatsiya so'ryapti). O'sha paytda
+`/customer/tariffs` 401, qolganlari 404 edi → prod'da **uzoqdagi** backend
+turgan, lokal HANDOFF'dagi "deploy qilingan" degani **eskirgan**.
 
-**Yangi APK kerak bo'lsa:** branch'ni checkout qiling, eski APK'ni
-`git rm --cached`, yangisini `git add -f`, commit, push — xuddi shu
-branch'ga (git avtomatik "rename" deb his qiladi, tarix shishmaydi).
-Keyin **albatta `git checkout main`ga qayting** — asosiy branch'da
-48 ta commit qilinmagan fayl bor, ularni yo'qotmang.
+**Birlashtirish natijasi** (`7cc0dca`, foydalanuvchi tasdiqlagan):
 
-**EAS build — bu mashinada MUHIM cheklovlar:**
-- `eas build --local` **Windows'da ISHLAMAYDI** ("Unsupported platform,
-  macOS or Linux is required"). Faqat **cloud build**
-  (`eas build -p android --profile preview --non-interactive --no-wait`).
-- Cloud build **faqat git bilan kuzatilgan fayllarni** yuklaydi. Bu
-  `apps/driver-app/google-services.json` (Firebase, `.gitignore`da)
-  bilan ikki marta build'ni yiqitdi (`EAS_BUILD_MISSING_GOOGLE_SERVICES_JSON_ERROR`).
-  **Yechim — faylni HECH QACHON git'ga qo'shmasdan:**
-  1. `apps/driver-app/.easignore` yaratildi (bo'sh bo'lsa ham) — bu EAS
-     yuklashni git-kuzatuvidan MUSTAQIL qiladi, `google-services.json`
-     endi to'g'ridan-to'g'ri kiradi.
-  2. Qo'shimcha xavfsizlik: fayl EAS'ning file-type environment
-     variable'i sifatida ham saqlangan (`GOOGLE_SERVICES_JSON`, preview
-     environment, `eas env:set` bilan) + `.eas/hooks/eas-build-pre-install.sh`
-     uni build boshida nusxalaydi (agar `.easignore` biror sabab bilan
-     yetarli bo'lmasa, zaxira yo'l).
-  3. Fayl LOKAL kompyuterda `apps/driver-app/google-services.json` da
-     turibdi (git'ga HECH QACHON qo'shilmagan). Yangi mashinada bu fayl
-     yo'q bo'ladi — Firebase konsolidan qayta yuklab olish kerak
-     (`toy-taxi` loyihasi → Project Settings → Your apps →
-     `uz.toytaxy.driver` → `google-services.json`). Bu MIJOZ ilovasiga
-     KERAK EMAS — faqat haydovchi ilovasida FCM push bor.
-- Build uchun EAS hisobiga kirish: `EXPO_TOKEN` env var bilan (parol
-  SO'RALMASIN — foydalanuvchi expo.dev → Account Settings → Access
-  Tokens'dan token yaratib beradi). Token vaqtinchalik, hech qayerga
-  saqlanmagan — yangi sessiyada qaytadan so'rash kerak bo'ladi.
-- `apps/customer-app/app.json`dagi `extra.apiUrl` PROD API'ga
-  qaytarilgan (`https://api-production-13444.up.railway.app`) — sessiya
-  davomida vaqtincha `localhost:3000`ga o'zgartirilgan edi, buni har doim
-  build'dan OLDIN tekshiring.
+| Qayerdan | Nima olindi |
+|---|---|
+| `origin/main` | Maketning ANIQ ranglari, Figma'dan eksport qilingan mashina rasmlari, `CategoryCard`, `.env` yo'lini aniq ko'rsatish (`app.module`/`data-source`), haydovchi ilovasining kattaroq `MapView`'i |
+| Windows | Buyurtmalar/Profil ekranlari, Uy/Ish manzillar, panel ostida qolmaydigan pin, sig'im filtri, `NO_DRIVER` bekor qilish, taklif muddatini olib tashlash |
+
+### 0.2 Mijoz ilovasi — Figma maketi bo'yicha (TUGALLANDI)
+
+Maket: `figma.com/design/8RflGALB1D3QfFWy9id1XG` → **"rider app"** bo'limi
+(9 ta ekran). O'lchamlar 1080 px kenglikda chizilgan → **uchga bo'linadi**
+(360 dp) va `src/theme.ts` dagi `L` blokida turadi.
+
+**Tuzilma:** endi BITTA xarita ekrani, pastki panel esa zakaz holatiga
+qarab o'zgaradi (tanlash → qidirish → haydovchi → yakun). Avval haydovchi
+topilgach alohida scroll sahifaga o'tilardi va xarita kichkina oynachaga
+siqilardi.
+
+**Maketning kamchiliklari ATAYLAB tuzatildi** (ko'r-ko'rona ko'chirilmadi):
+
+1. Maketda xaritadan Buyurtmalar/Profil'ga o'tish yo'li YO'Q edi (tab
+   paneli ham chizilmagan) → asosiy tugma yonidagi kvadrat tugma shu
+   vazifani oldi.
+2. Maketda "Chiqish" tugmasi yo'q → hisobdan chiqishning boshqa yo'li
+   bo'lmagani uchun Profil ekranida qoldirildi.
+3. "5+" o'zi yetarli emas: 7 kishilik guruh 5 o'rinli mashinaga tushib
+   qolardi → "5+" tanlanganda aniq son (5..8) so'raladi.
+4. "1ta - 4ta" da yo'lovchilar soni serverga **umuman yuborilmaydi**
+   (bot oqimi bilan bir xil) — aks holda haydovchi noto'g'ri son ko'rardi.
+5. Kartada 3 000, tugmada 4000 deb yozilgan edi → ikkalasi bitta manbadan
+   (`GET /customer/tariffs`, narx bo'yicha saralangan).
+6. Maketda saqlangan Uy/Ish yo'q edi; ishlab turgan funksiya panelga emas,
+   **xarita ustiga** chiqarildi — panel maketdagidek qoldi.
+
+**Xaritadagi haqiqiy nuqson tuzatildi:** pin ekran MARKAZIDA turardi, ya'ni
+ochiq panel ORTIDA qolardi — mijoz tanlayotgan nuqtasini ko'rmasdi. Endi
+panel balandligi `onLayout` bilan o'lchanadi, `PickupPicker.bottomInset`
+orqali WebView'ga uzatiladi, pin ko'rinadigan maydon markazida turadi va
+tanlangan nuqta `map.getCenter()` emas, `containerPointToLatLng` bilan
+olinadi.
+
+### 0.3 ⚠️ Figma MCP kvotasi TUGAGAN
+
+Figma **Starter** planida MCP uchun **oyiga 20 ta chaqiruv** (seat turidan
+qat'i nazar). Shu sessiyada tugadi: `get_metadata` ishladi, `get_screenshot`
+va `get_design_context` esa "tool call limit" xatosi berdi.
+
+**Shu sababli:** ranglar va mashina rasmlari Figma'dan OLINMADI — ular
+`origin/main` dagi `ed8a56d` (Linux mashinasi, kvota hali bor ekan)
+versiyasidan olindi. Kelgusida maketga qaytish kerak bo'lsa: kvota oyning
+boshida tiklanadi, yoki planni ko'tarish kerak.
+
+**Foydali:** `get_metadata` bitta chaqiruvda BUTUN sahifaning tuzilmasini
+beradi — barcha matnlar, o'lchamlar, joylashuvlar. Kvota tor bo'lsa avval
+shuni chaqiring, `get_screenshot` ni har ekran uchun alohida emas.
 
 ---
 
@@ -213,7 +124,7 @@ EAS projectId `862b155e-1193-4c77-87fb-0cb63e29ee9e`.
 
 | Servis | URL / holat |
 |---|---|
-| **api** | https://api-production-13444.up.railway.app · `/health` ok · barcha `/customer/*` endpointlar (§0.2) 2026-08-23 holatiga qadar deploy qilingan |
+| **api** | https://api-production-13444.up.railway.app · `/health` ok · **2026-08-31 da `7cc0dca` dan deploy qilingan** · barcha `/customer/*` endpointlar bor (`/tariffs`, `/addresses`, `/history`, `/profile` GET+PUT, `/active`, `/orders/*`) · migratsiya 11 |
 | **admin** | https://admin-production-42e5.up.railway.app |
 | **bot** | `@toy_taxy_bot` · polling · barqaror |
 | Postgres + Redis | Railway plugin |
@@ -239,20 +150,16 @@ hali turgan bo'lsa ham kod uni o'qimaydi, xavfsiz.
 
 ## 3. Qolgan ishlar
 
-### Eng ustuvor (shu sessiyadan qolgan)
+### Eng ustuvor
 
-1. **Figma dizayni bo'yicha customer-app'ni qayta qurish** — §0.1 ga qarang.
-2. **Figma MCP autentifikatsiyasi** — foydalanuvchi interaktiv
-   terminalda `/mcp` orqali yakunlashi kerak.
-3. **48 faylni COMMIT QILISH** — foydalanuvchi bilan kelishib. Mantiqiy
-   bo'laklarga bo'lib commit qilingani ma'qul (customer-app dizayni,
-   driver-app dizayni + taklif muddati, backend NO_DRIVER/timeout
-   tuzatishlari, migratsiyalar) — bittalab, `git log` uslubiga mos
-   (qisqa, "nega" ga urg'u beruvchi commit xabarlari, misollar §4da).
-4. **`docs/CUSTOMER-APP-PLAN.md` yangilash kerak** — u hali eski (faqat
-   1-bosqich bajarilgan deb yozilgan), aslida 3-4-5-bosqichlar ham
-   katta qismda bajarildi (Tarix, Kabinet, manzillar). O'qing va
-   moslashtiring.
+1. **APK'ni qurilmada sinash** — birlashtirilgandan keyingi birinchi build.
+   Alohida diqqat: (a) pin ochiq panel ustida turibdimi, (b) "5+" tanlanganda
+   aniq son chiqadimi, (c) Kabinet → Profil'da ism/familiya/telefon/til
+   saqlanyaptimi (`PUT /customer/profile`), (d) Uy/Ish tugmalari ishlayaptimi.
+2. **`docs/CUSTOMER-APP-PLAN.md` eskirgan** — u hali "faqat 1-bosqich
+   bajarilgan" deb yozilgan, aslida Tarix, Kabinet, manzillar ham tayyor.
+3. **Boshqa mashinada davom etilsa — AVVAL `git pull`.** §5.9 ga qarang:
+   bu sessiyada aynan shu qilinmagani uchun bir xil ish ikki marta bajarildi.
 
 ### Eski (hali dolzarb)
 
@@ -290,34 +197,24 @@ hali turgan bo'lsa ham kod uni o'qimaydi, xavfsiz.
 
 ---
 
-## 4. Bu sessiyada nima o'zgardi — fayl bo'yicha xarita
-
-Hech biri commit qilinmagani uchun commit-hash jadvali o'rniga — qaysi
-ishni qaysi fayllarda qidirish kerak:
+## 4. Mijoz ilovasi — fayl bo'yicha xarita
 
 | Ish | Asosiy fayllar |
 |---|---|
-| Mijoz ilovasi dizayni + tab panel | `apps/customer-app/src/theme.ts`, `TabBar.tsx`, `App.tsx`, `screens/HomeScreen.tsx`, `screens/HistoryScreen.tsx` (yangi), `screens/ProfileScreen.tsx` (yangi) |
-| Xaritadan pin tanlash | `apps/customer-app/src/MapView.tsx` (`PickupPicker`) |
-| Uy/Ish manzillar | `apps/api/src/customers/customers.service.ts`, `customer-app.controller.ts`, migratsiya `1722600000000-*`, sim `scripts/customer-addresses-sim.mjs` |
-| Sig'im filtri (5+ yo'lovchi) | `apps/api/src/dispatch/dispatch.service.ts` (`filterBySeats`), `entities/vehicle.entity.ts`, `entities/order.entity.ts`, migratsiya `1722700000000-*`, admin `Drivers.tsx`, sim `scripts/seat-filter-sim.mjs` |
-| Tariflar ko'rsatish | `apps/api/src/customers/customer-orders.service.ts` (`tariffs()`) |
-| `NO_DRIVER` bekor qilish tuzatishi | `apps/api/src/orders/orders.constants.ts`, `trips/trips.service.ts` |
-| Taklif muddatini olib tashlash | `apps/api/src/dispatch/dispatch.service.ts` (butun fayl bo'ylab), `config/env.validation.ts`, `.env.example`, `docs/deploy-railway.md` |
-| Haydovchi ilovasi dizayni | `apps/driver-app/src/theme.ts`, `MapView.tsx`, `App.tsx`, `app.json` |
-| Haydovchi: muddatsiz + masofa saralash | `apps/driver-app/src/screens/HomeScreen.tsx` (`offers.map` atrofi) |
-| EAS/Firebase build tuzoqlari | `apps/driver-app/.easignore`, `.eas/hooks/eas-build-pre-install.sh` (ikkalasi ham yangi, git'da `??`) |
+| Dizayn tokenlari (rang, shrift, maket o'lchamlari `L`) | `apps/customer-app/src/theme.ts` — **rang/o'lcham o'zgarsa FAQAT shu fayl** |
+| Xarita ekrani + holatga qarab o'zgaruvchi panel | `src/screens/HomeScreen.tsx` (`Sheet`, `Cta`, `SquareBtn`, `Segment`, `FloatBtn`) |
+| Panel ustida turadigan pin | `src/MapView.tsx` → `PickupPicker` (`bottomInset`, `__setInset`, `containerPointToLatLng`) |
+| Kuzatuv xaritasi (to'liq ekran, markerlar) | `src/MapView.tsx` → `LiveMap` |
+| Toifa kartasi (maketdagi mashina rasmlari) | `src/CategoryCard.tsx`, `assets/cars/*.png` |
+| Kabinet (Buyurtmalar + Profil) | `src/screens/AccountScreen.tsx`, `HistoryScreen.tsx`, `ProfileScreen.tsx` |
+| Profilni tahrirlash | `apps/api/src/customers/customer-app.controller.ts` (`PUT /customer/profile`), `customers.service.ts` (`updateProfile`) |
+| Saqlangan Uy/Ish | `customers.service.ts`, migratsiya `1722700000000-CustomerSavedAddresses` |
+| Sig'im filtri | `dispatch.service.ts` (`filterBySeats`), migratsiya `1722800000000-VehicleSeats`, admin `Drivers.tsx` |
 
-**Sessiya yozuvi:** `docs/SESSION-2026-08.md` — bu **eski** (2026-08-01
-gacha), shu sessiyaning qarorlari hali yozilmagan. Yangi bo'lim
-qo'shish yoki `SESSION-2026-08-23.md` deb alohida fayl ochish mantiqiy.
-
-**Dizayn tokenlari bir joyda:** ikkala mobil ilova → `src/theme.ts`,
-admin → `src/styles.css`. Rang/o'lcham o'zgarsa FAQAT shu fayllar
-(bu qoida shu sessiyada ham to'g'ri ishladi — bitta fayl almashtirish
-bilan haydovchi ilovasi butunlay yangi ko'rinishga o'tdi).
-
----
+**Navigatsiya:** `App.tsx` da 4 ta ekran — `loading / login / home / account`.
+Pastki tab paneli **YO'Q** (maketda ham yo'q, `TabBar.tsx` o'chirildi):
+xaritadan Kabinetga asosiy tugma yonidagi kvadrat tugma orqali o'tiladi,
+Kabinetdan xaritaga — sarlavhadagi uy tugmasi orqali.
 
 ## 5. Takrorlanadigan NAQSHLAR (eng qimmat saboqlar)
 
@@ -402,6 +299,54 @@ bekor qilingan" xatosiga uchraydi — foydalanuvchiga chalkash ko'rinadi
 ("Bekor qilindi" sarlavhasi TURIB, "Bekor qilib bo'lmaydi" xatosi
 chiqadi). Tuzatish: so'rov davomida `busy`/`cancelling` holat bilan
 tugmani `disabled` qiling, poll yangilanishini kutmang.
+
+---
+
+### 5.9 Ish boshlashdan OLDIN `git fetch` — bu sessiyada bir ish ikki marta qilindi
+
+Windows mashinasida 48 ta commit qilinmagan fayl turgani sababli
+`origin/main` bilan solishtirish qilinmagan edi. Linux mashinasi shu orada
+AYNI vazifani (mijoz ilovasini Figma bo'yicha qayta qurish) bajarib push
+qilgan. Buni faqat `git push` rad etganda bildik — ya'ni butun ish
+tugagandan **keyin**.
+
+**Qoida:** har sessiya boshida, hatto ishchi papka iflos bo'lsa ham:
+```bash
+git fetch origin && git log --oneline -5 origin/main && git status --short
+```
+Lokal HANDOFF "oxirgi commit X" desa, `origin/main` dagi bilan solishtiring.
+
+**Ikkinchi qoida — HANDOFF'ga ishonmang, PROD'DAN so'rang.** Lokal HANDOFF
+"backend deploy qilingan" der edi, aslida uning ustidan boshqa mashina
+deploy qilgan. Endpoint bor-yo'qligini bir qatorda tekshirish mumkin
+(404 = yo'q, 401 = bor) — §0.1 dagi skript.
+
+**Uchinchi:** ikki tarmoq bir vaqtda migratsiya qo'shsa, **timestamp
+to'qnashadi** (ikkalasi ham `1722600000000` olgan edi). Birlashtirganda:
+prod'da ALLAQACHON qo'llanganini tegmang (uning nomi `migrations` jadvalida
+yozilgan), qo'llanmaganini surib qo'ying. Va bitta ustunga ikki migratsiya
+egalik qilmasin — `down()` da biri ikkinchisining ustunini o'chirib
+yuboradi.
+
+### 5.10 Figma MCP: kvota tor, `get_metadata` eng arzon chaqiruv
+
+Starter planida MCP uchun **oyiga 20 ta o'qish chaqiruvi** (§0.3).
+`get_screenshot` ni har ekran uchun alohida chaqirish kvotani darhol
+tugatadi.
+
+`get_metadata` bitta chaqiruvda butun sahifaning XML tuzilmasini beradi:
+har frame, matn, koordinata va o'lcham. Undan **matnlar, joylashuv va
+o'lchamlarni** to'liq olish mumkin — ya'ni maketning 80% i. Bermaydigani:
+**ranglar va rasmlar**. Shuning uchun tartib: avval bitta `get_metadata`
+(butun sahifa), keyin kvota qolsa faqat ranglar uchun bitta
+`get_screenshot`.
+
+### 5.11 Template literal ichidagi izohda backtick — satrni erta yopadi
+
+`MapView.tsx` da WebView HTML'i template literal ichida yozilgan. Ichkaridagi
+JS izohiga backtick qo'yilsa (`` // `inset` (panel balandligi) ``) u
+template literal'ni TUGATADI va TypeScript tushunarsiz joyda
+`TS1005: ';' expected` beradi. Izohlarda oddiy tirnoq ishlating.
 
 ---
 
