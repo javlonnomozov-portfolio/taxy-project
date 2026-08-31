@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -26,7 +27,16 @@ import { MiniappModule } from './miniapp/miniapp.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    // `.env` monorepo ILDIZIDA turadi, dotenv esa sukut bo'yicha cwd dan qidiradi.
+    // `pnpm --filter @tty/api …` cwd ni apps/api ga o'zgartiradi, shuning uchun
+    // yo'lni aniq ko'rsatamiz. __dirname: src/ (dev) yoki dist/ (build) —
+    // ikkalasidan ham 3 daraja yuqori ildizga chiqadi.
+    // Railway'da fayl yo'q, env platformadan keladi — dotenv uni jimgina o'tkazib yuboradi.
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+      envFilePath: join(__dirname, '../../../.env'),
+    }),
     LoggerModule.forRoot({
       pinoHttp: {
         // Har so'rovga id — zakaz oqimini (HTTP → dispatch → socket) loglardan yig'ish uchun.

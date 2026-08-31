@@ -13,6 +13,7 @@ import * as Location from 'expo-location';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { api } from '../api';
 import { LiveMap, MapMarker, PickupPicker } from '../MapView';
+import { CategoryCard } from '../CategoryCard';
 import { C, F, L, S, SP, shadow } from '../theme';
 import { Lang, makeT } from '../i18n';
 
@@ -56,10 +57,16 @@ const FALLBACK = { lat: 39.7683, lng: 67.2792 }; // xizmat hududi markazi
 const GPS_TIMEOUT_MS = 8000;
 const som = (v: number) => Math.round(v).toLocaleString('ru-RU');
 const CATEGORIES: Category[] = ['standard', 'comfort', 'cargo'];
-const CATEGORY_ICON: Record<Category, keyof typeof MaterialIcons.glyphMap> = {
-  standard: 'directions-car',
-  comfort: 'airline-seat-recline-extra',
-  cargo: 'local-shipping',
+/**
+ * Toifa rasmlari — maketdan eksport qilingan (ikonka EMAS).
+ *
+ * Bular Figma'dagi aynan o'sha rasmlar: mijoz mashina turini bir qarashda
+ * tanishi kerak, umumiy "avtomobil" ikonkasi buni bermaydi.
+ */
+const CAR_IMAGE: Record<Category, number> = {
+  standard: require('../../assets/cars/standart.png'),
+  comfort: require('../../assets/cars/komfort.png'),
+  cargo: require('../../assets/cars/yuk.png'),
 };
 
 /** Ikki nuqta orasidagi masofa (km) — haydovchi qancha uzoqligini ko'rsatish uchun. */
@@ -146,7 +153,7 @@ function Cta({
         <ActivityIndicator color="#FFFFFF" />
       ) : (
         <>
-          <Text style={{ color: '#FFFFFF', fontSize: F.h2, fontWeight: '800' }}>{title}</Text>
+          <Text style={{ color: '#FFFFFF', fontSize: F.cta, fontWeight: '800' }}>{title}</Text>
           {sub ? (
             <Text style={{ color: '#FFFFFF', fontSize: F.tiny, opacity: 0.9, marginTop: 2 }}>
               {sub}
@@ -174,7 +181,7 @@ function Segment({
         flexDirection: 'row',
         height: L.segment.height,
         borderRadius: L.segment.radius,
-        backgroundColor: C.panel2,
+        backgroundColor: C.pax,
         padding: L.segment.pad,
       }}
     >
@@ -189,12 +196,12 @@ function Segment({
               borderRadius: L.segment.radius,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: active ? C.accent : 'transparent',
+              backgroundColor: active ? C.bg : 'transparent',
             }}
           >
             <Text
               style={{
-                color: active ? '#FFFFFF' : C.muted,
+                color: active ? C.pax : C.onPax,
                 fontSize: F.body,
                 fontWeight: '700',
               }}
@@ -760,46 +767,18 @@ export function HomeScreen({
             </View>
           ) : null}
 
-          <View style={{ flexDirection: 'row', gap: SP.sm, marginTop: SP.lg }}>
+          <View style={{ flexDirection: 'row', gap: SP.sm, marginTop: SP.lg, alignItems: 'stretch' }}>
             {CATEGORIES.map((c) => {
               const tariff = tariffs.find((x) => x.category === c);
-              const active = category === c;
               return (
-                <TouchableOpacity
+                <CategoryCard
                   key={c}
+                  image={CAR_IMAGE[c]}
+                  title={t('cat_' + c)}
+                  price={tariff ? fmt('price_from', som(tariff.baseFare)) : ''}
+                  selected={category === c}
                   onPress={() => setCategory(c)}
-                  style={{
-                    flex: 1,
-                    height: L.card.height,
-                    borderRadius: L.card.radius,
-                    borderWidth: 1,
-                    borderColor: active ? C.accent : C.border,
-                    backgroundColor: active ? C.accentSoft : C.panel,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingHorizontal: 4,
-                  }}
-                >
-                  <MaterialIcons
-                    name={CATEGORY_ICON[c]}
-                    size={26}
-                    color={active ? C.accent : C.muted}
-                  />
-                  <Text
-                    numberOfLines={1}
-                    style={{
-                      color: C.text,
-                      fontSize: F.label,
-                      fontWeight: '700',
-                      marginTop: 4,
-                    }}
-                  >
-                    {t('cat_' + c)}
-                  </Text>
-                  <Text style={{ color: C.muted, fontSize: F.tiny, marginTop: 1 }}>
-                    {tariff ? fmt('price_from', som(tariff.baseFare)) : ' '}
-                  </Text>
-                </TouchableOpacity>
+                />
               );
             })}
           </View>

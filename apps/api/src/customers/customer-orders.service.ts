@@ -74,7 +74,11 @@ export class CustomerOrdersService {
    */
   async tariffs(): Promise<{ category: VehicleCategory; baseFare: number; perKm: number }[]> {
     const rows = await this.settings.listTariffs();
-    return rows.map((t) => ({ category: t.category, baseFare: t.baseFare, perKm: t.perKm }));
+    // NARX BO'YICHA saralanadi — maketda kartalar arzondan qimmatga qarab
+    // turadi va bu tartib admin tarifni o'zgartirgach ham buzilmasligi kerak.
+    return rows
+      .map((t) => ({ category: t.category, baseFare: t.baseFare, perKm: t.perKm }))
+      .sort((a, b) => a.baseFare - b.baseFare);
   }
 
   /**

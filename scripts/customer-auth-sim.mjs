@@ -176,8 +176,27 @@ async function main() {
   ds.emit('driver:location', pickup);
   await sleep(700);
 
-  const made = await j('POST', '/customer/orders', { category: 'standard', pickup }, APP);
+  // Tariflar — narxlar ILOVADA qattiq yozilmasin (maketda shunday edi va
+  // admin tarifni o'zgartirsa ilova eski narxni ko'rsatardi).
+  const tar = await j('GET', '/customer/tariffs', undefined, APP);
+  check('Tariflar keldi', Array.isArray(tar) && tar.length > 0, JSON.stringify(tar));
+  check(
+    'Har toifada boshlang\'ich narx bor',
+    tar.every((x) => typeof x.baseFare === 'number' && x.category),
+    JSON.stringify(tar),
+  );
+
+  const made = await j('POST', '/customer/orders', { category: 'standard', pickup, passengers: 5 }, APP);
   check('ILOVADAN zakaz berildi', typeof made.orderId === 'string', JSON.stringify(made));
+
+  // Yo'lovchilar soni HAYDOVCHIGA yetib borishi kerak — aks holda tanlagich
+  // bezak bo'lib qolardi va 5 kishi 4 o'rinli mashinaga chiqolmasdi.
+  const offer = await new Promise((res) => {
+    const t = setTimeout(() => res(null), 4000);
+    ds.on('order:offer', (o) => { if (o.orderId === made.orderId) { clearTimeout(t); res(o); } });
+  });
+  check('Haydovchi taklifida yo\'lovchilar soni bor', offer && offer.passengers === 5,
+    JSON.stringify(offer && offer.passengers));
 
   const act = await j('GET', '/customer/active', undefined, APP);
   check('Faol zakaz ilovada ko\'rinadi', act.orderId === made.orderId);

@@ -31,6 +31,12 @@ export const C = {
 
   /** Xarita (WebView) foni — plitalar yuklanguncha ko'rinadi. */
   mapBg: '#EAEEF3',
+
+  /**
+   * Xarita USTIDAGI tugma/panel foni. `MapView.tsx` faqat shu token orqali
+   * temaga bog'lanadi — shuning uchun ikkala ilovada fayl bir xil qolaveradi.
+   */
+  chrome: 'rgba(255, 255, 255, 0.94)',
 };
 
 /** Burchak radiuslari. */
