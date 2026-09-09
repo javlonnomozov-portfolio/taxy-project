@@ -175,6 +175,38 @@ hali turgan bo'lsa ham kod uni o'qimaydi, xavfsiz.
    operator panelidan ishlatib bo'lmaydi.
 9. **In-app xarita** (react-native-maps) — hozir WebView+Leaflet,
    ikkala ilovada ham.
+10. **Mini app dizayni mijoz ilovasiga moslanmagan.** Struktura allaqachon
+    bir xil — `miniapp.page.ts` da xarita, markaziy pin (`#centerPin`),
+    toifa kartalari va kuzatuv paneli bor. Faqat ko'rinish farq qiladi:
+
+    | | Mini app hozir | Mijoz ilovasi |
+    |---|---|---|
+    | Fon | `#0A0F1E` (to'q) | `#FFFFFF` |
+    | Asosiy rang | `#5B8DEF` (ko'k) | `#0CAF50` (yashil) |
+    | Xarita | 62% balandlik | to'liq ekran, karta suzadi |
+    | Yo'lovchilar tanlagichi | yo'q | bor |
+    | Toifa | matnli tugmacha | rasmli karta |
+
+    Ya'ni bu **qayta qurish emas, palitra + joylashuv** ishi, bitta faylda.
+    Foydalanuvchi APK dizaynini tasdiqlagach boshlanadi (2026-09-09 kelishuvi).
+
+### 🗑 Eskirgan remote tarmoqlar — MERGE QILMANG
+
+`git branch -r` da 4 ta ortiqcha tarmoq bor. 2026-09-09da tekshirildi:
+
+- **`fix/bot-address-flow`** (`941b1b9`) — **o'lik.** Nominatim orqali manzil
+  qidirish oqimini tuzatadi, lekin o'sha oqim `main`dan ataylab olib
+  tashlangan (pastdagi "BEKOR QILINDI" bandi). Botda `nominatim`/`geocode`
+  bitta ham uchramaydi; mini app pin bilan ishlaydi. Merge qilinsa
+  geokodlash qaytib keladi. Saqlashga narsa yo'q — undagi CI qadami ham
+  faqat o'sha simni ishga tushiradi.
+- **`chore/reliability-and-observability`** — allaqachon `main`da, PR #1
+  (`b0fd7c9`) sifatida squash qilingan. `race-sim.mjs`, `security-sim.mjs`
+  joyida turibdi.
+- **`apk/customer-preview`, `apk/driver-preview`** — faqat 65 MB'lik APK
+  fayllari, manba kodi yo'q. Tarqatish endi GitHub Release orqali.
+
+O'chirsa bo'ladi; SHA'lar shu yerda qolgani uchun keyin ham tiklanadi.
 
 ### ✅ Hal qilingan mahsulot savollari (o'zgarmagan, qayta ochilmasin)
 
