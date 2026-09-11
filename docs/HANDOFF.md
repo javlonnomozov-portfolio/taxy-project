@@ -404,6 +404,71 @@ integratsiya darajasida, sim bilan qoplangan).
 
 ---
 
+### 6.1 APK'ni Windows'da LOKAL yig'ish (EAS'siz) — ishlaydi
+
+`eas build --local` Windows'da ishlamaydi ("macOS or Linux is required"),
+lekin **EAS umuman kerak emas**: `expo prebuild` + Gradle to'liq ishlaydi.
+Bu 2026-08-31 da sinab ko'rildi va APK shu yo'l bilan yig'ildi (EAS hisobi
+`jav1on` ga kirish yo'q edi — §6.2).
+
+**Bu mashinadagi tuzoqlar (ikkalasi ham build'ni yiqitadi):**
+
+1. **`JAVA_HOME` NOTO'G'RI:** `C:\Program Files\Java\jdk-17` — bunday
+   katalog YO'Q. `java -version` esa ishlaydi, chunki PATH'dagi java
+   boshqa joyda. Haqiqiy JDK:
+   `C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot`
+2. **`ANDROID_HOME` o'rnatilmagan.** SDK bor:
+   `%LOCALAPPDATA%\Android\Sdk` (build-tools 34.0.0 + platform android-34
+   — Expo SDK 51 uchun aynan keraklisi).
+
+**Retsept (PowerShell):**
+```powershell
+cd D:\toy-taxy\apps\customer-app
+npx expo prebuild --platform android --no-install   # android/ yaratadi
+
+$env:ANDROID_HOME     = "$env:LOCALAPPDATA\Android\Sdk"
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+$env:JAVA_HOME        = "C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot"
+
+# android/local.properties KERAK (prebuild uni yaratmaydi):
+#   sdk.dir=C\:\Users\Javlon\AppData\Local\Android\Sdk
+
+cd android
+.\gradlew.bat assembleRelease --no-daemon --console=plain
+# natija: android/app/build/outputs/apk/release/app-release.apk
+```
+
+`android/` papkasi `.gitignore` da (ikkala ilova uchun ham) — repo
+shishmasin. Uni O'CHIRMANG: qayta build ancha tez bo'ladi.
+
+### 6.2 ⚠️ Lokal APK IMZOSI EAS'nikidan BOSHQA
+
+Expo shabloni release'ni ham `android/app/debug.keystore` bilan imzolaydi
+(build.gradle: `release { signingConfig signingConfigs.debug }`).
+
+**Oqibatlari:**
+- EAS bilan qurilgan eski ilova ustiga **o'rnatilmaydi** — foydalanuvchi
+  avval eskisini o'chirishi kerak (bir marta).
+- Lokal build'lar O'ZARO mos: `debug.keystore` shablonda qat'iy fayl,
+  har prebuild'da bir xil — ya'ni keyingi lokal APK'lar ustiga tushadi.
+- **Play Market uchun YARAMAYDI** — u debug kalit bilan imzolangan APK'ni
+  qabul qilmaydi. Reliz uchun alohida keystore kerak (yoki EAS).
+
+### 6.3 EAS hisobi: `jav1on`, `javl9n` EMAS
+
+`app.json` → `owner: jav1on`, projectId `c3ad9431-a59d-4076-b067-002b1b96b9de`
+(haydovchi: `862b155e-1193-4c77-87fb-0cb63e29ee9e`).
+
+`javl9n` — ESKI hisob, build limiti tugagan (2026-08-01 da ko'chirilgan).
+Uning tokeni bilan `eas project:info` shunday xato beradi:
+```
+Entity not authorized: AppEntity[c3ad9431-…] (action = READ)
+```
+Token so'raganda **`jav1on` bilan kirilganini** tekshiring —
+`eas whoami` ro'yxatida `jav1on` ko'rinishi shart.
+
+---
+
 ## 7. Arxitektura qarorlari (nega aynan shunday)
 
 Avvalgi qarorlar (dispatch egaligi, Redis geo-indeks, WS interceptor,

@@ -26,6 +26,7 @@ npm-debug.log*
 
 # native / RN
 apps/driver-app/android/
+apps/customer-app/android/
 apps/driver-app/ios/
 apps/driver-app/.expo/
 apps/customer-app/.expo/
