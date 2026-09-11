@@ -77,22 +77,47 @@ orqali WebView'ga uzatiladi, pin ko'rinadigan maydon markazida turadi va
 tanlangan nuqta `map.getCenter()` emas, `containerPointToLatLng` bilan
 olinadi.
 
-### 0.3 ⚠️ Figma MCP kvotasi TUGAGAN
+### 0.3 Figma MCP kvotasi — oyiga 20 ta, HAR OY TIKLANADI
 
-Figma **Starter** planida MCP uchun **oyiga 20 ta chaqiruv** (seat turidan
-qat'i nazar). Shu sessiyada tugadi: `get_metadata` ishladi, `get_screenshot`
-va `get_design_context` esa "tool call limit" xatosi berdi.
+Figma **Starter** planida MCP uchun **oyiga 20 ta o'qish chaqiruvi** (seat
+turidan qat'i nazar). 2026-08-31 da tugagan edi, 2026-09-11 da tiklangan —
+ya'ni bu qattiq to'siq emas, oy boshini kutish kifoya.
 
-**Shu sababli:** ranglar va mashina rasmlari Figma'dan OLINMADI — ular
-`origin/main` dagi `ed8a56d` (Linux mashinasi, kvota hali bor ekan)
-versiyasidan olindi. Kelgusida maketga qaytish kerak bo'lsa: kvota oyning
-boshida tiklanadi, yoki planni ko'tarish kerak.
+**Kvotani tejash tartibi** (shu sessiyada 5 ta chaqiruvda hammasi olindi):
 
-**Foydali:** `get_metadata` bitta chaqiruvda BUTUN sahifaning tuzilmasini
-beradi — barcha matnlar, o'lchamlar, joylashuvlar. Kvota tor bo'lsa avval
-shuni chaqiring, `get_screenshot` ni har ekran uchun alohida emas.
+1. `get_screenshot` BUTUN bo'lim ustida (`111:378`, `maxDimension: 2600`) —
+   bitta chaqiruvda 9 ta ekran ko'rinadi. Har ekranga alohida chaqirmang.
+2. `get_design_context` faqat NOYOB ekranlarga. Maketda 6 ta bir xil
+   "Client - standart" bor — ulardan BITTASI yetadi.
+3. SVG/PNG manzillari javobning o'zida qaytadi — ularni `curl` bilan
+   yuklab oling, `download_assets` ga alohida chaqiruv SARFLAMANG.
 
----
+**Ekranlarning node ID'lari** (fayl `8RflGALB1D3QfFWy9id1XG`):
+
+| Ekran | node-id |
+|---|---|
+| Butun "rider app" bo'limi | `111:378` |
+| Buyurtma berish (xarita + panel) | `111:379` |
+| Taksi qidirilmoqda | `111:717` |
+| Buyurtmalar (tarix) | `111:733` |
+| Profil | `111:673` |
+
+**Maketdan olingan HAMMA qiymat `apps/customer-app/src/theme.ts` da** —
+`C` (ranglar), `F` (shriftlar), `L` (o'lchamlar). Har biri yonida maketdagi
+asl piksel qiymati izohda turibdi (maket 1080 px, telefon 360 dp — hamma
+son UCHGA BO'LINGAN). Qayta Figma'ga kirish SHART EMAS: rang yoki o'lcham
+kerak bo'lsa shu fayldan oling.
+
+**Maketning ataylab tuzatilgan kamchiliklari** (qayta "tuzatmang"):
+
+- Toifa narxi maketda 8 dp — telefonda o'qib bo'lmaydi, 10 ga oshirildi.
+- Bekor qilingan buyurtmada "0 so'm" maketda OQ rangda, ya'ni ko'rinmaydi.
+  Narx endi faqat yakunlangan safarda chiqadi.
+- Panel radiusi maketda assimetrik (chapda 70, o'ngda 87) — 26 dp o'rtacha.
+- "Chiqish" tugmasi maketda yo'q — hisobdan chiqishning boshqa yo'li
+  bo'lmagani uchun Profil ekranida qoldirildi.
+- "5+" tanlanganda aniq son (5..8) so'raladi — usiz 7 kishilik guruh
+  5 o'rinli mashinaga tushib qolardi.
 
 ## 1. Loyiha nima
 
