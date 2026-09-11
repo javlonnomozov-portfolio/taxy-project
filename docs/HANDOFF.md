@@ -478,6 +478,25 @@ Bu 2026-08-31 da sinab ko'rildi va APK shu yo'l bilan yig'ildi (EAS hisobi
    `%LOCALAPPDATA%\Android\Sdk` (build-tools 34.0.0 + platform android-34
    — Expo SDK 51 uchun aynan keraklisi).
 
+3. **NDK versiyasi mos kelmaydi.** RN 0.74/Expo 51 shabloni
+   `ndkVersion = "26.1.10909125"` so'raydi, bu mashinada esa `27.1.12297006`
+   o'rnatilgan. Undan ham yomoni: 2026-08-31 dagi uzilib qolgan build
+   `ndk/26.1.10909125/` papkasini BO'SH holda qoldirgan (ichida faqat
+   `.installer/`), shuning uchun AGP uni "bor" deb topadi-yu, keyin
+   yiqiladi:
+   ```
+   [CXX1101] NDK at <SDK>/ndk/26.1.10909125 did not have a source.properties file
+   ```
+   Yechim — bo'sh papkani chetga surib, `android/build.gradle` dagi
+   `ndkVersion` ni o'rnatilganiga o'zgartirish. Muqobil yo'l: AGP'ga
+   26.1 ni qayta yuklatish (~700 MB, cmdline-tools o'rnatilmagani uchun
+   `sdkmanager` YO'Q).
+
+   ⚠️ `android/` `.gitignore` da, ya'ni **har `expo prebuild` dan keyin bu
+   tuzatish yo'qoladi va qaytadan qo'llanadi.** Doimiy yechim —
+   `expo-build-properties` plaginini qo'shib `ndkVersion` ni `app.json` ga
+   ko'chirish (yangi bog'liqlik, hali qilinmagan).
+
 **Retsept (PowerShell):**
 ```powershell
 cd D:\toy-taxy\apps\customer-app
