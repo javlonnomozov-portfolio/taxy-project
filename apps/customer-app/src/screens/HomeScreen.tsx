@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { api } from '../api';
 import { LiveMap, MapMarker, PickupPicker } from '../MapView';
 import { CategoryCard } from '../CategoryCard';
@@ -85,16 +86,20 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
 /**
  * Asosiy tugma yonidagi kvadrat tugma (maketda 65x60 dp).
  *
- * Maketda xarita ekranidan Buyurtmalar/Profil'ga o'tishning BOSHQA yo'li
- * yo'q edi — pastki tab paneli ham chizilmagan. Shu kvadrat tugma yagona
- * o'tish nuqtasi, shuning uchun u "kabinet" tugmasi.
+ * Maketda bu YAGONA o'tish nuqtasi: xarita ekranida uy ikonkasi turadi va
+ * Kabinetga olib boradi, Kabinet sarlavhasida esa xuddi shu tugma xarita
+ * ikonkasi bilan qaytaradi (Figma'da ikkalasi ham "Group 12"). Pastki tab
+ * paneli maketda umuman chizilmagan.
+ *
+ * Ikonka maketda Material Symbols "family_home" — `home-account` glifi ayni
+ * o'sha (uy ichida odam), shuning uchun shrift ikonkasi ishlatildi.
  */
 function SquareBtn({
   icon,
   onPress,
   label,
 }: {
-  icon: keyof typeof MaterialIcons.glyphMap;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   onPress: () => void;
   label: string;
 }) {
@@ -104,22 +109,28 @@ function SquareBtn({
       accessibilityRole="button"
       accessibilityLabel={label}
       style={{
-        width: L.square,
+        width: L.square.w,
         height: L.cta.height,
-        borderRadius: L.cta.radius,
-        backgroundColor: C.panel2,
+        borderRadius: L.square.radius,
+        backgroundColor: C.cardBg,
         borderColor: C.border,
         borderWidth: 1,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <MaterialIcons name={icon} size={26} color={C.text} />
+      <MaterialCommunityIcons name={icon} size={30} color={C.text} />
     </TouchableOpacity>
   );
 }
 
-/** Panel pastidagi keng tugma: sarlavha + ixtiyoriy kichik izoh. */
+/**
+ * Panel pastidagi keng tugma: sarlavha + ixtiyoriy kichik izoh.
+ *
+ * `danger` maketda TO'LDIRILGAN qizil EMAS — oq fon, qizil chegara, qizil
+ * matn va ancha yumaloq burchak. Ya'ni "Bekor qilish!" asosiy amaldan
+ * ataylab farq qiladi va tasodifan bosilmaydi.
+ */
 function Cta({
   title,
   sub,
@@ -135,6 +146,7 @@ function Cta({
   danger?: boolean;
   disabled?: boolean;
 }) {
+  const fg = danger ? C.danger : C.onPrimary;
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -142,20 +154,31 @@ function Cta({
       style={{
         flex: 1,
         height: L.cta.height,
-        borderRadius: L.cta.radius,
-        backgroundColor: danger ? C.dangerSolid : C.ok,
+        borderRadius: danger ? L.cancelRadius : L.cta.radius,
+        backgroundColor: danger ? C.bg : C.primary,
+        borderWidth: danger ? 2 : 0,
+        borderColor: danger ? C.danger : 'transparent',
         alignItems: 'center',
         justifyContent: 'center',
+        paddingHorizontal: SP.md,
         opacity: busy || disabled ? 0.55 : 1,
       }}
     >
       {busy ? (
-        <ActivityIndicator color="#FFFFFF" />
+        <ActivityIndicator color={fg} />
       ) : (
         <>
-          <Text style={{ color: '#FFFFFF', fontSize: F.cta, fontWeight: '800' }}>{title}</Text>
+          {/* Telefon raqami sarlavha o'rnida kelganda sig'masligi mumkin —
+              shuning uchun bitta qatorga siqiladi. */}
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={{ color: fg, fontSize: danger ? F.title : F.cta, fontWeight: '800' }}
+          >
+            {title}
+          </Text>
           {sub ? (
-            <Text style={{ color: '#FFFFFF', fontSize: F.tiny, opacity: 0.9, marginTop: 2 }}>
+            <Text numberOfLines={1} style={{ color: fg, fontSize: F.small, marginTop: 1 }}>
               {sub}
             </Text>
           ) : null}
@@ -202,7 +225,7 @@ function Segment({
             <Text
               style={{
                 color: active ? C.pax : C.onPax,
-                fontSize: F.body,
+                fontSize: F.h3,
                 fontWeight: '700',
               }}
             >
@@ -285,7 +308,7 @@ function Sheet({
         borderTopLeftRadius: L.sheetRadius,
         borderTopRightRadius: L.sheetRadius,
         paddingHorizontal: L.sheetPad,
-        paddingTop: SP.lg,
+        paddingTop: SP.md,
         paddingBottom: SP.xl,
         borderTopColor: C.border,
         borderTopWidth: 1,
@@ -642,7 +665,9 @@ export function HomeScreen({
   // Xarita panel ostiga kirib ketmasin: pastki chekka + panel balandligi.
   const floatBottom = sheetH + SP.md;
 
-  const accountBtn = <SquareBtn icon="person" onPress={onOpenAccount} label={t('account')} />;
+  const accountBtn = (
+    <SquareBtn icon="home-account" onPress={onOpenAccount} label={t('account')} />
+  );
 
   // ---------- BUYURTMA REJIMI ----------
   if (!orderId) {
@@ -714,7 +739,7 @@ export function HomeScreen({
               gap: SP.sm,
             }}
           >
-            <Text style={{ color: C.text, fontSize: F.body, fontWeight: '600' }}>
+            <Text style={{ color: C.pax, fontSize: F.h3, fontWeight: '800' }}>
               {t('pax_label')}
             </Text>
             <Segment
@@ -749,14 +774,14 @@ export function HomeScreen({
                     borderRadius: 17,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: paxCount === n ? C.accentSoft : C.panel2,
+                    backgroundColor: paxCount === n ? C.warnSoft : C.cardBg,
                     borderWidth: 1,
-                    borderColor: paxCount === n ? C.accent : 'transparent',
+                    borderColor: paxCount === n ? C.pax : C.border,
                   }}
                 >
                   <Text
                     style={{
-                      color: paxCount === n ? C.accent : C.muted,
+                      color: paxCount === n ? C.pax : C.muted,
                       fontWeight: '700',
                     }}
                   >
@@ -767,7 +792,7 @@ export function HomeScreen({
             </View>
           ) : null}
 
-          <View style={{ flexDirection: 'row', gap: SP.sm, marginTop: SP.lg, alignItems: 'stretch' }}>
+          <View style={{ flexDirection: 'row', gap: SP.sm, marginTop: SP.md, alignItems: 'stretch' }}>
             {CATEGORIES.map((c) => {
               const tariff = tariffs.find((x) => x.category === c);
               return (
@@ -785,13 +810,13 @@ export function HomeScreen({
 
           {err ? <Text style={[S.err, { marginTop: SP.md }]}>{err}</Text> : null}
 
-          <View style={{ flexDirection: 'row', gap: SP.sm, marginTop: SP.lg }}>
+          <View style={{ flexDirection: 'row', gap: SP.sm, marginTop: SP.md }}>
             {accountBtn}
             <Cta
               title={t('order_btn')}
               sub={
                 activeTariff
-                  ? `${t('cat_' + category)} · ${fmt('price_from', som(activeTariff.baseFare))}`
+                  ? `${t('cat_' + category)} - ${fmt('price_from', som(activeTariff.baseFare))}`
                   : undefined
               }
               onPress={order}
@@ -812,7 +837,7 @@ export function HomeScreen({
       <LiveMap markers={markers} bottomInset={sheetH} />
 
       <Sheet onHeight={setSheetH}>
-        <Text style={{ color: C.text, fontSize: F.title, fontWeight: '800' }}>
+        <Text style={{ color: C.text, fontSize: F.title, fontWeight: '400' }}>
           {view
             ? view.finished
               ? t(view.completed ? 'finished' : 'cancelled')

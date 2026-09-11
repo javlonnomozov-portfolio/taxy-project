@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Platform, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { HistoryScreen } from './HistoryScreen';
 import { ProfileScreen } from './ProfileScreen';
 import { C, F, L, SP } from '../theme';
@@ -12,12 +12,14 @@ export type AccountTab = 'history' | 'profile';
 const STATUS_PAD = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 44;
 
 /**
- * Kabinet — maketdagi "Buyurtmalar / Profil" ekranlari.
+ * Kabinet — maketdagi "Buyurtmalar" va "Profil" ekranlari.
  *
- * Ikkalasi ham BITTA sarlavha ostida turadi (maketda ham shunday chizilgan):
- * chapda xaritaga qaytish tugmasi, o'ngda ikki bo'lakli ajratkich. Shu sabab
- * pastki tab paneli olib tashlandi — maketda u umuman yo'q va xarita ekranida
- * u faqat joy egallardi.
+ * Ikkalasi ham BITTA sarlavha ostida turadi (maketda ham shunday): chapda
+ * xaritaga qaytaruvchi tugma, o'ngda ikki bo'lakli tanlagich. Shu sabab
+ * pastki tab paneli olib tashlandi — maketda u umuman yo'q.
+ *
+ * Tanlangan bo'lak maketda MATN KENGLIGIDA (teng emas), shuning uchun
+ * `flex: 1` emas, `space-between` ishlatiladi.
  */
 export function AccountScreen({
   lang,
@@ -43,12 +45,12 @@ export function AccountScreen({
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: STATUS_PAD }}>
+    <View style={{ flex: 1, backgroundColor: C.screen, paddingTop: STATUS_PAD }}>
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          gap: SP.sm,
+          gap: 9,
           paddingHorizontal: SP.lg,
           paddingTop: SP.md,
           paddingBottom: SP.md,
@@ -59,27 +61,31 @@ export function AccountScreen({
           accessibilityRole="button"
           accessibilityLabel={t('to_map')}
           style={{
-            width: L.square,
-            height: L.square,
-            borderRadius: L.cta.radius,
-            backgroundColor: C.panel,
-            borderColor: C.border,
+            width: L.navBtn.size,
+            height: L.navBtn.size,
+            borderRadius: L.navBtn.radius,
+            backgroundColor: C.cardBg,
+            borderColor: C.text,
             borderWidth: 1,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <MaterialIcons name="home" size={28} color={C.text} />
+          <MaterialCommunityIcons name="map-marker" size={30} color={C.text} />
         </TouchableOpacity>
 
         <View
           style={{
             flex: 1,
             flexDirection: 'row',
-            height: L.square,
-            borderRadius: L.cta.radius,
-            backgroundColor: C.panel2,
-            padding: 5,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            height: L.headerPill.height,
+            borderRadius: L.headerPill.radius,
+            backgroundColor: C.bg,
+            borderColor: C.hairline,
+            borderWidth: 1,
+            padding: 4,
           }}
         >
           {tabs.map((tb) => {
@@ -88,19 +94,21 @@ export function AccountScreen({
               <TouchableOpacity
                 key={tb.key}
                 onPress={() => setTab(tb.key)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
                 style={{
-                  flex: 1,
-                  borderRadius: L.cta.radius - 5,
+                  height: '100%',
+                  paddingHorizontal: SP.lg,
+                  borderRadius: L.headerPill.radius,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: active ? C.panel : 'transparent',
+                  backgroundColor: active ? C.primary : 'transparent',
                 }}
               >
                 <Text
                   style={{
-                    color: active ? C.text : C.muted,
-                    fontSize: F.h3,
-                    fontWeight: active ? '800' : '600',
+                    color: active ? C.onPrimary : C.text,
+                    fontSize: F.tab,
                   }}
                 >
                   {tb.label}

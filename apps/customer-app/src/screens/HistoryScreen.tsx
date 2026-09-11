@@ -36,7 +36,13 @@ function fmtDate(iso: string): string {
   });
 }
 
-/** Buyurtmalar tarixi — sarlavha `AccountScreen` da (maketda ham umumiy). */
+/**
+ * Buyurtmalar tarixi — sarlavha `AccountScreen` da (maketda ham umumiy).
+ *
+ * Narx FAQAT yakunlangan safarda ko'rsatiladi: maketda bekor qilingan
+ * buyurtmaning "0 so'm" yozuvi OQ rangda, ya'ni ataylab ko'rinmaydi.
+ * Uni kulrang qilib chiqarish mijozni "0 so'm to'ladim" deb chalg'itardi.
+ */
 export function HistoryScreen({ lang, token }: { lang: Lang; token: string }) {
   const t = makeT(lang);
   const [items, setItems] = useState<HistoryItem[] | null>(null);
@@ -64,7 +70,7 @@ export function HistoryScreen({ lang, token }: { lang: Lang; token: string }) {
   if (items === null) {
     return (
       <View style={[S.center, { alignItems: 'center' }]}>
-        <ActivityIndicator color={C.accent} />
+        <ActivityIndicator color={C.primary} />
       </View>
     );
   }
@@ -73,9 +79,9 @@ export function HistoryScreen({ lang, token }: { lang: Lang; token: string }) {
     <FlatList
       data={items}
       keyExtractor={(i) => i.orderId}
-      contentContainerStyle={{ padding: SP.lg, paddingTop: SP.sm, flexGrow: 1 }}
+      contentContainerStyle={{ paddingHorizontal: SP.lg, paddingBottom: SP.xl, flexGrow: 1 }}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />
       }
       ListEmptyComponent={
         <View style={[S.center, { alignItems: 'center' }]}>
@@ -83,41 +89,46 @@ export function HistoryScreen({ lang, token }: { lang: Lang; token: string }) {
           <Text style={{ color: C.muted, marginTop: SP.md }}>{t('hist_empty')}</Text>
         </View>
       }
-      ItemSeparatorComponent={() => <View style={{ height: SP.md }} />}
-      renderItem={({ item }) => (
-        <View
-          style={{
-            height: L.histCard.height,
-            borderRadius: L.histCard.radius,
-            backgroundColor: C.panel,
-            borderColor: C.border,
-            borderWidth: 1,
-            paddingHorizontal: SP.lg,
-            justifyContent: 'center',
-          }}
-        >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ color: C.text, fontWeight: '700', fontSize: F.h3 }}>
-              {t('cat_' + item.category)}
-            </Text>
-            <Text style={{ color: C.muted, fontSize: F.label }}>{fmtDate(item.at)}</Text>
+      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+      renderItem={({ item }) => {
+        const done = item.status === 'COMPLETED';
+        return (
+          <View
+            style={{
+              height: L.histCard.height,
+              borderRadius: L.histCard.radius,
+              backgroundColor: C.bg,
+              borderColor: C.hairline,
+              borderWidth: 1,
+              paddingHorizontal: SP.lg,
+              justifyContent: 'center',
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: '#000000', fontWeight: '600', fontSize: F.h3 }}>
+                {t('cat_' + item.category)}
+              </Text>
+              <Text style={{ color: C.dateMuted, fontSize: F.small }}>{fmtDate(item.at)}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+              <Text
+                style={{
+                  color: done ? C.primary : C.statusMuted,
+                  fontWeight: '500',
+                  fontSize: F.small,
+                }}
+              >
+                {t(STATUS_KEY[item.status] ?? 'hist_closed')}
+              </Text>
+              {done && item.finalPrice != null ? (
+                <Text style={{ color: C.text, fontWeight: '700', fontSize: F.small }}>
+                  {som(item.finalPrice)} {t('som')}
+                </Text>
+              ) : null}
+            </View>
           </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-            <Text
-              style={{
-                color: item.status === 'COMPLETED' ? C.ok : C.muted,
-                fontWeight: '600',
-                fontSize: F.label,
-              }}
-            >
-              {t(STATUS_KEY[item.status] ?? 'hist_closed')}
-            </Text>
-            <Text style={{ color: C.text, fontWeight: '700', fontSize: F.label }}>
-              {som(item.finalPrice ?? 0)} {t('som')}
-            </Text>
-          </View>
-        </View>
-      )}
+        );
+      }}
     />
   );
 }

@@ -105,7 +105,7 @@ export function ProfileScreen({
   if (profile === null) {
     return (
       <View style={[S.center, { alignItems: 'center' }]}>
-        <ActivityIndicator color={C.accent} />
+        <ActivityIndicator color={C.primary} />
       </View>
     );
   }
@@ -116,34 +116,45 @@ export function ProfileScreen({
     { key: 'phone', label: t('profile_phone'), value: profile.phone, numeric: true },
   ];
 
+  /** Maketdagi maydon qutisi — fon ekran foni bilan BIR XIL, faqat chegara ajratadi. */
+  const box = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    height: L.field.height,
+    borderRadius: L.field.radius,
+    backgroundColor: C.screen,
+    borderWidth: 1,
+    paddingLeft: 11,
+    paddingRight: SP.md,
+  };
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={{ padding: SP.lg, paddingBottom: SP.xxl }}
+        contentContainerStyle={{ paddingHorizontal: SP.lg, paddingBottom: SP.xxl }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ alignItems: 'center', marginBottom: SP.xl }}>
+        {/* Avatar: och yashil doira + to'q sariq halqa (maket: Group 19). */}
+        <View style={{ alignItems: 'center', marginTop: SP.sm, marginBottom: SP.xl }}>
           <View
             style={{
               width: L.avatar,
               height: L.avatar,
               borderRadius: L.avatar / 2,
               borderWidth: 3,
-              borderColor: C.accent,
-              backgroundColor: C.accentSoft,
+              borderColor: C.avatarRing,
+              backgroundColor: C.avatarFill,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <MaterialIcons name="person" size={L.avatar * 0.55} color={C.accent} />
+            <MaterialIcons name="person" size={Math.round(L.avatar * 0.55)} color="#FEFEFE" />
           </View>
           {profile.ratingAvg > 0 ? (
-            <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: SP.sm }}
-            >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: SP.sm }}>
               <MaterialIcons name="star" size={16} color={C.gold} />
               <Text style={{ color: C.muted }}>{profile.ratingAvg.toFixed(2)}</Text>
             </View>
@@ -153,26 +164,12 @@ export function ProfileScreen({
         {fields.map((f) => {
           const isEditing = editing === f.key;
           return (
-            <View key={f.key} style={{ marginBottom: SP.lg }}>
-              <Text style={{ color: C.text, fontSize: F.body, fontWeight: '600', marginBottom: 6 }}>
-                {f.label}:
-              </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  height: L.field.height,
-                  borderRadius: L.field.radius,
-                  backgroundColor: C.panel,
-                  borderColor: isEditing ? C.accent : C.border,
-                  borderWidth: 1,
-                  paddingLeft: SP.md,
-                  paddingRight: 6,
-                }}
-              >
+            <View key={f.key} style={{ marginBottom: SP.md }}>
+              <Text style={{ color: C.text, fontSize: F.field, marginBottom: 6 }}>{f.label}:</Text>
+              <View style={[box, { borderColor: isEditing ? C.primary : C.border }]}>
                 {isEditing ? (
                   <TextInput
-                    style={{ flex: 1, color: C.text, fontSize: F.h3, padding: 0 }}
+                    style={{ flex: 1, color: C.text, fontSize: F.field, padding: 0 }}
                     value={draft}
                     onChangeText={setDraft}
                     autoFocus
@@ -185,37 +182,27 @@ export function ProfileScreen({
                 ) : (
                   <Text
                     numberOfLines={1}
-                    style={{
-                      flex: 1,
-                      color: f.value ? C.text : C.muted,
-                      fontSize: F.h3,
-                      fontWeight: f.value ? '600' : '400',
-                    }}
+                    style={{ flex: 1, color: f.value ? C.text : C.muted, fontSize: F.field }}
                   >
                     {f.value || t('not_set')}
                   </Text>
                 )}
 
                 <TouchableOpacity
-                  onPress={() => (isEditing ? void save({ [f.key]: draft }) : beginEdit(f.key, f.value))}
+                  onPress={() =>
+                    isEditing ? void save({ [f.key]: draft }) : beginEdit(f.key, f.value)
+                  }
                   disabled={saving}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   accessibilityLabel={isEditing ? t('save') : f.label}
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 19,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
                 >
                   {saving && isEditing ? (
-                    <ActivityIndicator color={C.accent} size="small" />
+                    <ActivityIndicator color={C.primary} size="small" />
                   ) : (
                     <MaterialIcons
                       name={isEditing ? 'check' : 'edit'}
-                      size={22}
-                      color={isEditing ? C.accent : C.muted}
+                      size={20}
+                      color={isEditing ? C.primary : C.text}
                     />
                   )}
                 </TouchableOpacity>
@@ -224,31 +211,19 @@ export function ProfileScreen({
           );
         })}
 
-        <View style={{ marginBottom: SP.lg }}>
-          <Text style={{ color: C.text, fontSize: F.body, fontWeight: '600', marginBottom: 6 }}>
+        <View style={{ marginBottom: SP.md }}>
+          <Text style={{ color: C.text, fontSize: F.field, marginBottom: 6 }}>
             {t('profile_lang')}:
           </Text>
-          <TouchableOpacity
-            onPress={toggleLang}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              height: L.field.height,
-              borderRadius: L.field.radius,
-              backgroundColor: C.panel,
-              borderColor: C.border,
-              borderWidth: 1,
-              paddingLeft: SP.md,
-              paddingRight: SP.md,
-            }}
-          >
-            <Text style={{ flex: 1, color: C.text, fontSize: F.h3, fontWeight: '600' }}>
+          <TouchableOpacity onPress={toggleLang} style={[box, { borderColor: C.border }]}>
+            <Text style={{ flex: 1, color: C.text, fontSize: F.field }}>
               {t(lang === 'uz' ? 'lang_uz' : 'lang_ru')}
             </Text>
-            <MaterialIcons name="swap-horiz" size={22} color={C.accent} />
+            <MaterialIcons name="edit" size={20} color={C.text} />
           </TouchableOpacity>
         </View>
 
+        {/* Maketda yo'q — lekin hisobdan chiqishning boshqa yo'li yo'q. */}
         <TouchableOpacity
           onPress={confirmLogout}
           style={{
@@ -260,11 +235,13 @@ export function ProfileScreen({
             borderRadius: L.field.radius,
             borderColor: C.danger,
             borderWidth: 1,
-            marginTop: SP.md,
+            marginTop: SP.lg,
           }}
         >
           <MaterialIcons name="logout" size={20} color={C.danger} />
-          <Text style={{ color: C.danger, fontSize: F.body, fontWeight: '700' }}>{t('logout')}</Text>
+          <Text style={{ color: C.danger, fontSize: F.label, fontWeight: '700' }}>
+            {t('logout')}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

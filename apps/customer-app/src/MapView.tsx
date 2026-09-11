@@ -67,27 +67,20 @@ function buildPickerHtml() {
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
   html,body,#m{margin:0;padding:0;height:100%;width:100%;background:${C.mapBg}}
-  .pin{position:absolute;left:50%;top:50%;width:30px;height:38px;margin-left:-15px;margin-top:-38px;pointer-events:none;z-index:1000}
-  .dot{position:absolute;left:50%;top:50%;width:8px;height:8px;margin-left:-4px;margin-top:-4px;border-radius:4px;background:rgba(16,24,40,.35);pointer-events:none;z-index:999}
+  .pin{position:absolute;left:50%;top:50%;width:28px;height:35px;margin-left:-14px;margin-top:-35px;pointer-events:none;z-index:1000}
 </style>
 </head><body><div id="m"></div>
-<svg class="pin" viewBox="0 0 24 24" fill="${C.accent}"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8zm0 11a3 3 0 110-6 3 3 0 010 6z"/></svg>
-<div class="dot"></div>
+<svg class="pin" viewBox="0 0 74 92.5" fill="${C.pin}"><path d="M43.5328 43.5328C45.3443 41.7214 46.25 39.5438 46.25 37C46.25 34.4562 45.3443 32.2786 43.5328 30.4672C41.7214 28.6557 39.5438 27.75 37 27.75C34.4562 27.75 32.2786 28.6557 30.4672 30.4672C28.6557 32.2786 27.75 34.4562 27.75 37C27.75 39.5438 28.6557 41.7214 30.4672 43.5328C32.2786 45.3443 34.4562 46.25 37 46.25C39.5438 46.25 41.7214 45.3443 43.5328 43.5328ZM37 80.2438C46.4042 71.6104 53.3802 63.7672 57.9281 56.7141C62.476 49.6609 64.75 43.3979 64.75 37.925C64.75 29.5229 62.0714 22.6432 56.7141 17.2859C51.3568 11.9286 44.7854 9.25 37 9.25C29.2146 9.25 22.6432 11.9286 17.2859 17.2859C11.9286 22.6432 9.25 29.5229 9.25 37.925C9.25 43.3979 11.524 49.6609 16.0719 56.7141C20.6198 63.7672 27.5958 71.6104 37 80.2438ZM37 92.5C24.5896 81.9396 15.3203 72.1307 9.19219 63.0734C3.06406 54.0161 0 45.6333 0 37.925C0 26.3625 3.71927 17.151 11.1578 10.2906C18.5964 3.43021 27.2104 0 37 0C46.7896 0 55.4036 3.43021 62.8422 10.2906C70.2807 17.151 74 26.3625 74 37.925C74 45.6333 70.9359 54.0161 64.8078 63.0734C58.6797 72.1307 49.4104 81.9396 37 92.5Z"/></svg>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   var map = L.map('m',{zoomControl:false,attributionControl:false}).setView([39.7683,67.2792],16);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
   var pinEl = document.querySelector('.pin');
-  var dotEl = document.querySelector('.dot');
   var inset = 0; // panel egallagan balandlik (px)
 
   function pinY(){ return Math.max(60, (map.getSize().y - inset) / 2); }
-  function place(){
-    var y = pinY() + 'px';
-    pinEl.style.top = y;
-    dotEl.style.top = y;
-  }
+  function place(){ pinEl.style.top = pinY() + 'px'; }
   function send(){
     var c = map.containerPointToLatLng([map.getSize().x/2, pinY()]);
     window.ReactNativeWebView.postMessage(JSON.stringify({lat:c.lat,lng:c.lng}));
@@ -116,15 +109,15 @@ function buildPickerHtml() {
   map.on('moveend', send);
   map.on('resize', place);
 
-  // Foydalanuvchining HAQIQIY joylashuvi — ko'k doira. Pin "tanlangan nuqta",
-  // bu esa "men shu yerdaman": xaritani surgandan keyin ham o'z joyini
-  // yo'qotib qo'ymaslik uchun.
+  // Foydalanuvchining HAQIQIY joylashuvi — maketdagi to'q sariq nuqta
+  // (oq halqa ichida). Pin "tanlangan nuqta", bu esa "men shu yerdaman":
+  // xaritani surgandan keyin ham o'z joyini yo'qotib qo'ymaslik uchun.
   var me = null;
   window.__setMe = function(lat,lng){
     if (me) { me.setLatLng([lat,lng]); return; }
     me = L.circleMarker([lat,lng], {
-      radius: 7, color: '#FFFFFF', weight: 3,
-      fillColor: '#3B82F6', fillOpacity: 1,
+      radius: 8, color: '#FFFFFF', weight: 4,
+      fillColor: '${C.pax}', fillOpacity: 1,
     }).addTo(map);
   };
 

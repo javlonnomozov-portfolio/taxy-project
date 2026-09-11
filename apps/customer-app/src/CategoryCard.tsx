@@ -1,7 +1,12 @@
 import { Image, ImageSourcePropType, Text, TouchableOpacity, View } from 'react-native';
-import { C, F, R, SP } from './theme';
+import { C, F, L, SP } from './theme';
 
-/** Toifa kartasi — rasm + nom + boshlang'ich narx (maket: Group 3/9/11). */
+/**
+ * Toifa kartasi — rasm + nom + boshlang'ich narx (maket: Group 3/9/11).
+ *
+ * Tanlangan holat maketda IKKI belgi bilan ko'rsatiladi: och yashil fon va
+ * yashil chegara. Faqat chegara qoldirilsa quyoshda ko'rinmay qolardi.
+ */
 export function CategoryCard({
   image,
   title,
@@ -22,23 +27,35 @@ export function CategoryCard({
       accessibilityState={{ selected }}
       style={{
         flex: 1,
-        borderRadius: R.card,
-        borderWidth: selected ? 2 : 1,
+        height: L.card.height,
+        borderRadius: L.card.radius,
+        borderWidth: 1,
         borderColor: selected ? C.primary : C.border,
         backgroundColor: selected ? C.primarySoft : C.bg,
-        paddingVertical: SP.sm,
+        paddingTop: 6,
         paddingHorizontal: 4,
         alignItems: 'center',
       }}
     >
       {/* Rasm QAT'IY o'lchamda: `auto` bo'lsa u o'z tabiiy o'lchamiga yoyilib
-          kartani buzadi. */}
-      <View style={{ height: 46, width: '100%', alignItems: 'center', justifyContent: 'center' }}>
-        <Image source={image} style={{ height: 46, width: 78 }} resizeMode="contain" />
+          kartani buzadi (maketda 218x126 px = 73x42 dp). */}
+      <View
+        style={{
+          height: L.card.image.h,
+          width: '100%',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Image
+          source={image}
+          style={{ height: L.card.image.h, width: L.card.image.w }}
+          resizeMode="contain"
+        />
       </View>
       <Text
         numberOfLines={1}
-        style={{ color: C.text, fontSize: F.label, fontWeight: '800', marginTop: 2 }}
+        style={{ color: C.text, fontSize: F.body, fontWeight: '700', marginTop: SP.xs / 2 }}
       >
         {title}
       </Text>
