@@ -545,6 +545,45 @@ Token so'raganda **`jav1on` bilan kirilganini** tekshiring —
 
 ---
 
+### 6.4 APK tarqatish — GitHub Release (`gh` SHART EMAS)
+
+Repo **OCHIQ (public)** — 2026-09-11 da API orqali tekshirildi
+(`private: false`). Release'dagi APK'ni istalgan kishi login'siz yuklab
+oladi; mijoz ilovasida maxfiy kalit yo'q, shuning uchun bu xavfsiz.
+
+**Konvensiya:**
+
+| Teg | Nima | Holat |
+|---|---|---|
+| `v1.0.0` | EAS imzoli, ikkala ilova (`toy-taxy-haydovchi.apk`, `toy-taxy-mijoz.apk`) | **latest** |
+| `mijoz-2026-09-11` | lokal build, debug kaliti, Figma dizayni | prerelease |
+
+Lokal (debug imzoli) build'larni **prerelease** qiling. Aks holda u
+"latest" bo'lib qoladi va `releases/latest/download/toy-taxy-haydovchi.apk`
+havolasi 404 beradi — yangi release'da haydovchi APK'si yo'q.
+
+**`gh` o'rnatilmagan** (winget ham yo'q), lekin kerak ham emas: Git
+Credential Manager'da `javlonnomozov-portfolio` uchun `repo` scope'li token
+saqlangan. Uni CHOP ETMASDAN olish:
+
+```bash
+TOKEN=$(printf 'protocol=https\nhost=github.com\n\n' \
+  | GCM_INTERACTIVE=never GIT_TERMINAL_PROMPT=0 git credential fill \
+  | sed -n 's/^password=//p')
+```
+
+Keyin ikki so'rov:
+1. `POST https://api.github.com/repos/javlonnomozov-portfolio/taxy-project/releases`
+   — `tag_name`, `target_commitish` (to'liq SHA), `prerelease: true`,
+   `make_latest: "false"` → javobdan `id`.
+2. `POST https://uploads.github.com/repos/javlonnomozov-portfolio/taxy-project/releases/<id>/assets?name=<fayl>.apk`
+   — `Content-Type: application/vnd.android.package-archive`,
+   `--data-binary @<apk>`. 66 MB ~10 s da yuklanadi.
+
+Teg API tomonidan yaratiladi — keyin `git fetch origin --tags`.
+
+---
+
 ## 7. Arxitektura qarorlari (nega aynan shunday)
 
 Avvalgi qarorlar (dispatch egaligi, Redis geo-indeks, WS interceptor,
