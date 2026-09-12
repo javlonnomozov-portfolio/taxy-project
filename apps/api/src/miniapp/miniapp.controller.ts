@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Header, HttpCode, Post } from '@nestjs/common';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Post,
+  StreamableFile,
+} from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import {
   IsEnum,
@@ -82,6 +94,39 @@ export class MiniappController {
     return miniappPage();
   }
 
+  /**
+   * Toifa rasmlari — mijoz ilovasidagi AYNI fayllar.
+   *
+   * Nega alohida marshrut: Mini App bitta HTML satri sifatida beriladi va
+   * statik papkasi yo'q. Rasmlarni base64 qilib sahifaga tiqish ~400 KB
+   * qo'shardi; shu marshrut esa ularni bir marta yuklab, brauzer keshiga
+   * qoldiradi.
+   *
+   * Nom RO'YXATDAN tekshiriladi — `:name` ga yo'l qo'shib yuborish
+   * (`../../secret`) imkoniyati qolmasin.
+   */
+  @Get('cars/:name')
+  @Header('content-type', 'image/png')
+  @Header('cache-control', 'public, max-age=31536000, immutable')
+  car(@Param('name') name: string): StreamableFile {
+    return new StreamableFile(MiniappController.carImage(name));
+  }
+
+  private static readonly CARS = ['standart', 'komfort', 'yuk'];
+  private static readonly cache = new Map<string, Buffer>();
+
+  private static carImage(name: string): Buffer {
+    const key = name.replace(/\.png$/, '');
+    if (!MiniappController.CARS.includes(key)) throw new NotFoundException();
+    let buf = MiniappController.cache.get(key);
+    if (!buf) {
+      // `nest-cli.json` → `assets` ularni `dist/miniapp/assets/` ga ko'chiradi.
+      buf = readFileSync(join(__dirname, 'assets', key + '.png'));
+      MiniappController.cache.set(key, buf);
+    }
+    return buf;
+  }
+
   // POST — chunki `initData` body'da ketadi (URL'da qolib ketmasin), lekin bu
   // O'QISH amali: 201 emas, 200.
   @Post('track')
@@ -93,7 +138,7 @@ export class MiniappController {
   /** Sahifa ochilganda: kuzatuv rejimimi yoki yangi buyurtma rejimi? */
   @Post('state')
   @HttpCode(200)
-  state(@Body() dto: InitDataDto): Promise<{ orderId: string | null }> {
+  state(@Body() dto: InitDataDto) {
     return this.miniapp.activeOrderId(dto.initData);
   }
 

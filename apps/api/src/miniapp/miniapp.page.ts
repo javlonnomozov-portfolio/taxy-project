@@ -40,7 +40,11 @@ const T = {
     order_hint: 'Xaritani suring — nuqta shu yerda qoladi',
     cat_standard: 'Standart',
     cat_comfort: 'Komfort',
-    cat_cargo: 'Yuk',
+    cat_cargo: 'Yuk tashish',
+    pax_label: 'Yo‘lovchilar soni:',
+    pax_few: '1ta - 4ta',
+    pax_many: '5+',
+    from_price: '{v} so‘mdan',
     order_btn: 'Taksi chaqirish',
     ordering: 'Yuborilmoqda…',
     my_loc: 'Mening joylashuvim',
@@ -78,7 +82,11 @@ const T = {
     order_hint: 'Двигайте карту — точка останется здесь',
     cat_standard: 'Стандарт',
     cat_comfort: 'Комфорт',
-    cat_cargo: 'Грузовой',
+    cat_cargo: 'Грузоперевозка',
+    pax_label: 'Пассажиров:',
+    pax_few: '1 - 4',
+    pax_many: '5+',
+    from_price: 'от {v} сум',
     order_btn: 'Вызвать такси',
     ordering: 'Отправляем…',
     my_loc: 'Моё местоположение',
@@ -106,93 +114,129 @@ export function miniappPage(): string {
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
+  /* Palitra mijoz ilovasi bilan BIR XIL (apps/customer-app/src/theme.ts).
+     Mini app avval to'q ko'k temada edi — endi bitta brend ko'rinishi. */
   :root {
-    --bg: #0A0F1E; --panel: #131B2E; --border: #24304A;
-    --text: #E8EDF7; --muted: #8B98B4; --accent: #5B8DEF; --ok: #3DDC84;
+    --bg: #FFFFFF; --screen: #F4F7FB; --card: #FBFBFB; --map: #EDEDED;
+    --ink: #171E2A; --muted: rgba(23,30,42,0.52);
+    --line: rgba(23,30,42,0.16); --hair: rgba(23,30,42,0.10);
+    --green: #0CAF50; --green-soft: #E4F6EB; --amber: #F68F0A; --red: #BC0000;
+    --r-card: 16px; --r-sheet: 28px;
+    --sh-card: 0 1px 3px rgba(23,30,42,0.07);
+    --sh-raised: 0 6px 16px -8px rgba(12,175,80,0.55);
+    --sh-sheet: 0 -18px 40px -24px rgba(23,30,42,0.35);
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text);
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  #map { position: absolute; inset: 0 0 auto 0; height: 62%; background: var(--bg); }
-  #sheet { position: absolute; left: 0; right: 0; bottom: 0; height: 38%;
-    background: var(--panel); border-top: 1px solid var(--border);
-    border-radius: 18px 18px 0 0; padding: 18px 20px; overflow-y: auto; }
+
+  /* Xarita TO'LIQ ekran, varaq uning ustida suzadi (maketdagi tartib).
+     Avval xarita 62% balandlikda edi va safar davomida kichkina qolardi. */
+  #map { position: absolute; inset: 0; background: var(--map); }
+  .leaflet-container { background: var(--map); }
+
+  .sheet-base { position: absolute; left: 0; right: 0; bottom: 0; z-index: 600;
+    background: var(--bg); border-top: 1px solid var(--hair);
+    border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+    box-shadow: var(--sh-sheet); padding: 14px 12px 20px; }
+  #sheet { max-height: 72%; overflow-y: auto; }
+
   .status { display: flex; align-items: center; gap: 10px; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); flex: none; }
-  .dot.wait { background: #FFB020; }
-  h1 { font-size: 20px; font-weight: 800; margin: 0; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); flex: none; }
+  .dot.wait { background: var(--amber); }
+  h1 { font-size: 21px; font-weight: 500; margin: 0; }
   .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
-  .card { margin-top: 16px; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-    border-radius: 14px; padding: 14px; }
-  .car { font-size: 17px; font-weight: 700; }
-  .plate { display: inline-block; margin-top: 6px; background: #1B2438; border: 1px solid var(--border);
+
+  .card { margin-top: 14px; background: var(--screen); border: 1px solid var(--hair);
+    border-radius: var(--r-card); padding: 12px; }
+  .car { font-size: 16px; font-weight: 700; }
+  .plate { display: inline-block; margin-top: 6px; background: var(--bg); border: 1px solid var(--line);
     border-radius: 8px; padding: 4px 10px; font-weight: 700; letter-spacing: 1px; }
   .call { display: block; margin-top: 14px; text-align: center; text-decoration: none;
-    background: var(--accent); color: #fff; font-weight: 700; font-size: 16px;
-    border-radius: 14px; padding: 15px; }
-  #recenter { position: absolute; right: 14px; top: calc(62% - 56px); z-index: 500;
-    background: var(--panel); border: 1px solid var(--border); color: var(--text);
-    border-radius: 50%; width: 42px; height: 42px; font-size: 18px; line-height: 1; }
+    background: var(--green); color: #fff; font-weight: 800; font-size: 17px;
+    border-radius: var(--r-card); padding: 16px; box-shadow: var(--sh-raised); }
+
+  #recenter { position: absolute; right: 12px; z-index: 700;
+    background: var(--bg); border: 1px solid var(--hair); color: var(--green);
+    border-radius: 50%; width: 46px; height: 46px; font-size: 20px; line-height: 1;
+    box-shadow: var(--sh-card); }
   .msg { padding: 28px 20px; text-align: center; color: var(--muted); }
-  .leaflet-container { background: #0A0F1E; }
 
   /* --- Buyurtma rejimi --- */
   /* Nuqta xarita MARKAZIDA qotib turadi, foydalanuvchi xaritani suradi. Bu
-     markerni barmoq bilan sudrashdan ancha aniqroq (barmoq nuqtani yopmaydi). */
-  #centerPin { position: absolute; left: 50%; z-index: 600; pointer-events: none;
-    transform: translate(-50%, -100%); font-size: 34px; line-height: 1;
-    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6)); }
-  #orderSheet { position: absolute; left: 0; right: 0; bottom: 0;
-    background: var(--panel); border-top: 1px solid var(--border);
-    border-radius: 18px 18px 0 0; padding: 18px 20px 22px; }
-  .cats { display: flex; gap: 8px; margin-top: 14px; }
-  .cat { flex: 1; text-align: center; padding: 12px 6px; border-radius: 12px;
-    border: 1px solid var(--border); background: #1B2438; color: var(--muted);
-    font-size: 14px; font-weight: 600; }
-  .cat.on { border-color: var(--accent); background: rgba(91,141,239,0.16); color: var(--text); }
-  #orderBtn { width: 100%; margin-top: 16px; padding: 17px; border: 0;
-    border-radius: 14px; background: var(--accent); color: #fff;
-    font-size: 17px; font-weight: 800; }
-  #orderBtn:disabled { opacity: 0.55; }
-  #orderErr { color: #FF7B72; font-size: 13px; margin-top: 10px; min-height: 16px; }
+     markerni barmoq bilan sudrashdan ancha aniqroq (barmoq nuqtani yopmaydi).
+     Pin varaq USTIDAGI ko'rinadigan maydon markazida turadi — aks holda u
+     varaq ortida qolardi. */
+  #centerPin { position: absolute; left: 50%; z-index: 650; pointer-events: none;
+    width: 28px; height: 35px; margin-left: -14px; transform: translateY(-100%);
+    filter: drop-shadow(0 4px 8px rgba(23,30,42,0.35)); }
+  #centerPin svg { display: block; width: 100%; height: 100%; }
+
+  .paxrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .paxlabel { color: var(--amber); font-size: 17px; font-weight: 800; }
+  .seg { display: flex; height: 42px; padding: 4px; border-radius: 999px;
+    background: var(--amber); box-shadow: var(--sh-card); }
+  .seg button { border: 0; background: none; color: #fff; font-size: 17px; font-weight: 700;
+    padding: 0 16px; border-radius: 999px; font-family: inherit; }
+  .seg button.on { background: var(--bg); color: var(--amber); box-shadow: var(--sh-card); }
+
+  .cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .cat { height: 84px; border-radius: var(--r-card); border: 1px solid var(--line);
+    background: var(--bg); box-shadow: var(--sh-card); padding: 5px 4px 0;
+    display: flex; flex-direction: column; align-items: center; }
+  .cat img { width: 76px; height: 44px; object-fit: contain; }
+  .cat b { font-size: 15px; line-height: 18px; font-weight: 700; color: var(--ink); margin-top: 1px; }
+  .cat span { font-size: 11px; line-height: 13px; color: var(--muted); }
+  .cat.on { border-color: var(--green); background: var(--green-soft);
+    box-shadow: var(--sh-raised); transform: translateY(-1px); }
+
+  #orderBtn { width: 100%; margin-top: 12px; height: 60px; border: 0;
+    border-radius: var(--r-card); background: var(--green); color: #fff;
+    box-shadow: var(--sh-raised); font-family: inherit; }
+  #orderBtn .big { display: block; font-size: 25px; font-weight: 800; line-height: 1.05; }
+  #orderBtn .small { display: block; font-size: 13px; font-weight: 500; opacity: 0.94; }
+  #orderBtn:disabled { opacity: 0.55; box-shadow: none; }
+  #orderErr { color: var(--red); font-size: 13px; margin-top: 8px; min-height: 16px; }
   .hidden { display: none !important; }
 
   /* --- Yakuniy narx va baholash (bot chatidagi bilan bir xil) --- */
-  .price { margin-top: 16px; text-align: center; }
+  .price { margin-top: 14px; text-align: center; }
   .price .lbl { color: var(--muted); font-size: 13px; }
-  .price .val { color: var(--ok); font-size: 32px; font-weight: 800; margin-top: 2px; }
-  .price .val small { font-size: 16px; font-weight: 700; }
-  .rate-q { color: var(--muted); font-size: 13px; margin-top: 18px; text-align: center; }
+  .price .val { color: var(--green); font-size: 34px; font-weight: 800; margin-top: 2px; }
+  .price .val small { font-size: 17px; font-weight: 700; }
+  .rate-q { color: var(--muted); font-size: 13px; margin-top: 16px; text-align: center; }
   .stars { display: flex; gap: 8px; margin-top: 10px; }
-  .star { flex: 1; padding: 12px 0; border-radius: 12px; border: 1px solid var(--border);
-    background: #1B2438; color: var(--text); font-size: 15px; font-weight: 700; }
+  .star { flex: 1; padding: 12px 0; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); font-size: 15px; font-weight: 700; }
   .star:disabled { opacity: 0.5; }
   .skip { display: block; width: 100%; margin-top: 10px; padding: 13px; border: 0;
     background: none; color: var(--muted); font-size: 14px; }
-  .thanks { margin-top: 18px; text-align: center; color: var(--ok);
+  .thanks { margin-top: 16px; text-align: center; color: var(--green);
     font-size: 16px; font-weight: 700; }
   /* Bekor qilish — asosiy amal EMAS: to'ldirilgan tugma emas, ramkali va
      tasdiq so'raydi (tasodifan bosilib safar bekor bo'lmasin). */
-  .cancel { display: block; width: 100%; margin-top: 12px; padding: 14px;
-    border: 1px solid #FF7B72; border-radius: 14px; background: none;
-    color: #FF7B72; font-size: 15px; font-weight: 700; }
+  .cancel { display: block; width: 100%; margin-top: 12px; padding: 16px;
+    border: 2px solid var(--red); border-radius: 26px; background: var(--bg);
+    color: var(--red); font-size: 17px; font-weight: 800; }
   .cancel:disabled { opacity: 0.5; }
 </style>
 </head>
 <body>
 <div id="map"></div>
-<div id="centerPin" class="hidden">📍</div>
+<div id="centerPin" class="hidden"><svg viewBox="0 0 74 92.5" fill="#BC0000"><path d="M43.5328 43.5328C45.3443 41.7214 46.25 39.5438 46.25 37C46.25 34.4562 45.3443 32.2786 43.5328 30.4672C41.7214 28.6557 39.5438 27.75 37 27.75C34.4562 27.75 32.2786 28.6557 30.4672 30.4672C28.6557 32.2786 27.75 34.4562 27.75 37C27.75 39.5438 28.6557 41.7214 30.4672 43.5328C32.2786 45.3443 34.4562 46.25 37 46.25C39.5438 46.25 41.7214 45.3443 43.5328 43.5328ZM37 80.2438C46.4042 71.6104 53.3802 63.7672 57.9281 56.7141C62.476 49.6609 64.75 43.3979 64.75 37.925C64.75 29.5229 62.0714 22.6432 56.7141 17.2859C51.3568 11.9286 44.7854 9.25 37 9.25C29.2146 9.25 22.6432 11.9286 17.2859 17.2859C11.9286 22.6432 9.25 29.5229 9.25 37.925C9.25 43.3979 11.524 49.6609 16.0719 56.7141C20.6198 63.7672 27.5958 71.6104 37 80.2438ZM37 92.5C24.5896 81.9396 15.3203 72.1307 9.19219 63.0734C3.06406 54.0161 0 45.6333 0 37.925C0 26.3625 3.71927 17.151 11.1578 10.2906C18.5964 3.43021 27.2104 0 37 0C46.7896 0 55.4036 3.43021 62.8422 10.2906C70.2807 17.151 74 26.3625 74 37.925C74 45.6333 70.9359 54.0161 64.8078 63.0734C58.6797 72.1307 49.4104 81.9396 37 92.5Z"/></svg></div>
 <button id="recenter" class="hidden" title="center">◎</button>
 
-<div id="orderSheet" class="hidden">
-  <h1 id="orderTitle">…</h1>
-  <div class="sub" id="orderHint"></div>
+<div id="orderSheet" class="sheet-base hidden">
+  <div class="paxrow">
+    <span class="paxlabel" id="paxLabel"></span>
+    <div class="seg" id="seg"></div>
+  </div>
   <div class="cats" id="cats"></div>
   <div id="orderErr"></div>
   <button id="orderBtn">…</button>
 </div>
 
-<div id="sheet" class="hidden">
+<div id="sheet" class="sheet-base hidden">
   <div class="status"><span class="dot wait" id="dot"></span><h1 id="title">…</h1></div>
   <div class="sub" id="sub"></div>
   <div id="info"></div>
@@ -241,7 +285,7 @@ export function miniappPage(): string {
       iconSize: [26, 26],
       iconAnchor: [13, 13],
       html: '<div style="width:26px;height:26px;border-radius:50%;background:' + color +
-            ';border:3px solid #0A0F1E;box-shadow:0 0 0 2px ' + color +
+            ';border:3px solid #FFFFFF;box-shadow:0 0 0 2px ' + color +
             '55;display:flex;align-items:center;justify-content:center;font-size:13px">' + label + '</div>',
     });
   }
@@ -281,7 +325,7 @@ export function miniappPage(): string {
   function updateMeMarker() {
     if (!myLoc) return;
     if (!meMarker) {
-      meMarker = L.marker([myLoc.lat, myLoc.lng], { icon: pin('#5B8DEF', '🧍'), zIndexOffset: -100 })
+      meMarker = L.marker([myLoc.lat, myLoc.lng], { icon: pin('#F68F0A', ''), zIndexOffset: -100 })
         .addTo(map)
         .bindTooltip(t.you);
     } else {
@@ -632,19 +676,33 @@ export function miniappPage(): string {
   var elSheet = document.getElementById('sheet');
   var elRecenter = document.getElementById('recenter');
   var category = 'standard';
+  var paxBig = false;
+  var tariffs = {};
+  var CAR = { standard: 'standart', comfort: 'komfort', cargo: 'yuk' };
 
-  /** Markazdagi nuqta xarita maydonining o'rtasida tursin. */
-  function placeCenterPin() {
-    var h = document.getElementById('map').clientHeight;
-    elCenterPin.style.top = h / 2 + 'px';
+  function som(v) {
+    return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   }
 
-  function setMapHeight(pct) {
-    document.getElementById('map').style.height = pct;
-    elRecenter.style.top = 'calc(' + pct + ' - 56px)';
+  /**
+   * Pin va "joylashuvim" tugmasi VARAQ USTIDA tursin.
+   *
+   * Xarita to'liq ekran bo'lgani uchun uning geometrik markazi varaq ortiga
+   * tushadi — mijoz tanlayotgan nuqtasini ko'rmasdi. Shuning uchun
+   * ko'rinadigan maydon (ekran minus varaq) markazi hisoblanadi.
+   */
+  function layout() {
+    var sheet = !elOrderSheet.classList.contains('hidden')
+      ? elOrderSheet
+      : (!elSheet.classList.contains('hidden') ? elSheet : null);
+    var inset = sheet ? sheet.offsetHeight : 0;
+    var visible = Math.max(120, window.innerHeight - inset);
+    elCenterPin.style.top = Math.round(visible / 2) + 'px';
+    elRecenter.style.top = Math.round(visible - 58) + 'px';
     map.invalidateSize();
-    placeCenterPin();
   }
+
+  window.addEventListener('resize', layout);
 
   function startOrdering() {
     elSheet.classList.add('hidden');
@@ -654,27 +712,46 @@ export function miniappPage(): string {
     // surgandan keyin o'z joyiga qaytadigan yo'l yo'q edi.
     elRecenter.classList.remove('hidden');
     elRecenter.title = t.my_loc;
-    document.getElementById('orderTitle').textContent = t.order_title;
-    document.getElementById('orderHint').textContent = t.order_hint;
-    elOrderBtn.textContent = t.order_btn;
+    document.getElementById('paxLabel').textContent = t.pax_label;
+
+    // Yo'lovchilar tanlagichi: "5+" da serverga 5 yuboriladi va bu YETARLI —
+    // parkda 4 yoki 7 o'rinli mashinalar bor, oraliq yo'q.
+    var seg = document.getElementById('seg');
+    seg.innerHTML = '';
+    [[false, t.pax_few], [true, t.pax_many]].forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = o[0] === paxBig ? 'on' : '';
+      b.textContent = o[1];
+      b.onclick = function () {
+        paxBig = o[0];
+        Array.prototype.forEach.call(seg.children, function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+      };
+      seg.appendChild(b);
+    });
 
     var cats = [['standard', t.cat_standard], ['comfort', t.cat_comfort], ['cargo', t.cat_cargo]];
     var box = document.getElementById('cats');
     box.innerHTML = '';
     cats.forEach(function (c) {
-      var b = document.createElement('div');
+      var b = document.createElement('button');
+      b.type = 'button';
       b.className = 'cat' + (c[0] === category ? ' on' : '');
-      b.textContent = c[1];
+      var price = tariffs[c[0]] != null ? t.from_price.replace('{v}', som(tariffs[c[0]])) : '';
+      b.innerHTML = '<img src="/miniapp/cars/' + CAR[c[0]] + '" alt=""><b>' + esc(c[1])
+        + '</b><span>' + esc(price) + '</span>';
       b.onclick = function () {
         category = c[0];
         Array.prototype.forEach.call(box.children, function (x) { x.classList.remove('on'); });
         b.classList.add('on');
+        paintOrderBtn();
       };
       box.appendChild(b);
     });
 
-    // Buyurtma varag'i balandligi o'zgaruvchan — xaritani unga moslaymiz.
-    setMapHeight(100 - Math.round((elOrderSheet.offsetHeight / window.innerHeight) * 100) + '%');
+    paintOrderBtn();
+    layout();
 
     // Boshlang'ich markaz — mijozning GPS'i (ruxsat bermasa FALLBACK qoladi).
     // Ruxsat FAQAT shu yerda bir marta so'raladi; keyingi tugma bosishlari
@@ -684,10 +761,20 @@ export function miniappPage(): string {
     elOrderBtn.onclick = submitOrder;
   }
 
+  /** Tugmada tanlangan toifa va uning boshlang'ich narxi turadi (maketdagidek). */
+  function paintOrderBtn() {
+    var fare = tariffs[category];
+    var name = t['cat_' + (category === 'standard' ? 'standard' : category === 'comfort' ? 'comfort' : 'cargo')];
+    elOrderBtn.innerHTML = '<span class="big">' + esc(t.order_btn) + '</span>'
+      + (fare != null
+        ? '<span class="small">' + esc(name) + ' - ' + esc(t.from_price.replace('{v}', som(fare))) + '</span>'
+        : '');
+  }
+
   function submitOrder() {
     var c = map.getCenter();
     elOrderBtn.disabled = true;
-    elOrderBtn.textContent = t.ordering;
+    elOrderBtn.innerHTML = '<span class="big">' + esc(t.ordering) + '</span>';
     elOrderErr.textContent = '';
     fetch('/miniapp/order', {
       method: 'POST',
@@ -696,6 +783,7 @@ export function miniappPage(): string {
         initData: tg.initData,
         category: category,
         pickup: { lat: c.lat, lng: c.lng },
+        passengers: paxBig ? 5 : undefined,
       }),
     })
       .then(function (r) {
@@ -707,7 +795,7 @@ export function miniappPage(): string {
           // buyurtma bor") — umumiy "xatolik" hech narsa tushuntirmaydi.
           elOrderErr.textContent = (res.body && res.body.message) || ('HTTP ' + res.status);
           elOrderBtn.disabled = false;
-          elOrderBtn.textContent = t.order_btn;
+          paintOrderBtn();
           return;
         }
         if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
@@ -716,7 +804,7 @@ export function miniappPage(): string {
       .catch(function (e) {
         elOrderErr.textContent = t.err + ' [' + (e && e.message ? e.message : 'network') + ']';
         elOrderBtn.disabled = false;
-        elOrderBtn.textContent = t.order_btn;
+        paintOrderBtn();
       });
   }
 
@@ -737,7 +825,7 @@ export function miniappPage(): string {
       map.removeLayer(meMarker);
       meMarker = null;
     }
-    setMapHeight('62%');
+    layout();
     poll();
   }
 
@@ -758,6 +846,9 @@ export function miniappPage(): string {
         return r.json();
       })
       .then(function (d) {
+        if (d.tariffs) {
+          d.tariffs.forEach(function (x) { tariffs[x.category] = x.baseFare; });
+        }
         if (d.orderId) startTracking(d.orderId);
         else startOrdering();
       })

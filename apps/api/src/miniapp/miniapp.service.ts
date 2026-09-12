@@ -58,9 +58,25 @@ export class MiniappService {
    * ikki marta xato keltirgan (baholash va bekor qilish bir oynada bor,
    * ikkinchisida yo'q edi).
    */
-  async activeOrderId(initData: string): Promise<{ orderId: string | null }> {
+  /**
+   * Sahifa ochilganda kerak bo'ladigan HAMMASI bitta so'rovda: faol buyurtma
+   * bormi va toifalarning boshlang'ich narxi qancha.
+   *
+   * Narx maketda toifa kartasida turadi ("3 000 so'mdan"). Uni alohida
+   * so'rov bilan olish sahifa ochilishini ikki marta kutishga majburlardi.
+   */
+  async activeOrderId(
+    initData: string,
+  ): Promise<{ orderId: string | null; tariffs: { category: string; baseFare: number }[] }> {
     const customer = await this.requireCustomer(initData);
-    return this.shared.activeOrderId(customer.id);
+    const [active, tariffs] = await Promise.all([
+      this.shared.activeOrderId(customer.id),
+      this.shared.tariffs(),
+    ]);
+    return {
+      ...active,
+      tariffs: tariffs.map((t) => ({ category: t.category, baseFare: t.baseFare })),
+    };
   }
 
   async createOrder(
