@@ -584,6 +584,38 @@ Teg API tomonidan yaratiladi — keyin `git fetch origin --tags`.
 
 ---
 
+### 6.5 APK yetkazish — O'ZGARMAS havola (`mijoz-latest`)
+
+Foydalanuvchi har build'da yangi havola olishni istamaydi. Shu sabab
+**qo'zg'aluvchi teg** ishlatiladi: `mijoz-latest` har safar yangi commit'ga
+ko'chadi, fayl nomi esa doim bir xil. Havola hech qachon o'zgarmaydi:
+
+```
+https://github.com/javlonnomozov-portfolio/taxy-project/releases/download/mijoz-latest/toy-taxy-mijoz.apk
+```
+
+**Bitta buyruq** (skript §6.4 dagi qo'lda `curl` qadamlarini almashtiradi):
+
+```bash
+node scripts/publish-apk.mjs apps/customer-app/<yangi>.apk
+# yoki: pnpm release:apk apps/customer-app/<yangi>.apk
+```
+
+Skript o'zi: tegni HEAD ga ko'chiradi, reliz matnini yangilaydi, eski
+faylni o'chirib yangisini yuklaydi va havolani chop etadi. Token Git
+Credential Manager'dan olinadi (`gh` KERAK EMAS, u o'rnatilmagan ham).
+
+⚠️ **`prerelease: true` va `make_latest: "false"` MAJBURIY.** Aks holda bu
+reliz "latest" bo'lib qoladi va
+`releases/latest/download/toy-taxy-haydovchi.apk` havolasi 404 beradi —
+haydovchi APK'si `v1.0.0` relizida, bunisida esa yo'q. 2026-09-12 da
+tekshirildi: mijoz havolasi 200, haydovchi havolasi ham 200.
+
+Sanali relizlar (`mijoz-2026-09-11`, `mijoz-2026-09-12`) arxiv sifatida
+qoladi — eski versiyaga qaytish kerak bo'lsa.
+
+---
+
 ## 7. Arxitektura qarorlari (nega aynan shunday)
 
 Avvalgi qarorlar (dispatch egaligi, Redis geo-indeks, WS interceptor,
