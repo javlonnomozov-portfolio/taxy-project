@@ -233,6 +233,41 @@ hali turgan bo'lsa ham kod uni o'qimaydi, xavfsiz.
 
 O'chirsa bo'ladi; SHA'lar shu yerda qolgani uchun keyin ham tiklanadi.
 
+### ❌ 2026-09-12 maketidan RAD ETILGAN elementlar (qayta qo'shilmasin)
+
+Foydalanuvchi yangi maket yubordi va "ortiqcha qismlarini tashlab ket" dedi.
+To'rt yangi elementdan FAQAT "Profil" tugmasi tasdiqlandi. Qolgan uchtasi
+ataylab qilinmadi — ular quyidagi qarorlarga zid:
+
+- **Kartada sig'im belgisi ("1-4")** — sig'im TOIFAGA emas, MASHINAGA
+  bog'langan (§7). Standartda Damas (7) ham, Nexia (4) ham yuradi, ya'ni
+  toifaga yozilgan son yolg'on bo'lardi. Ustiga `/customer/tariffs` javobida
+  `seats` yo'q.
+- **"Address location" qidiruv qatori** — manzilni nomi bo'yicha qidirish
+  bekor qilingan, `NOMINATIM_URL` ataylab bo'sh.
+- **"Yurish/Nogiron" uchinchi bo'lak** — serverda bunday tushuncha yo'q:
+  yangi ustun, migratsiya va dispatch mantig'i kerak. Bu dizayn emas,
+  YANGI FUNKSIYA.
+
+### ✅ Bekor qilingan buyurtma — darhol asosiy ekranga (2026-09-12)
+
+Avval bekor qilingan safar boshi berk ko'chaga olib borardi: ilovada
+"Yangi buyurtma" tugmasi, mini appda esa ekran QOTIB qolardi (qaytish yo'li
+umuman yo'q edi). Endi ikkala kanalda ham sabab aytilib, darhol buyurtma
+ekraniga qaytadi. Sabab MAJBURIY: haydovchi bekor qilganda jimgina
+qaytarish chalkash bo'lardi. "Yangi buyurtma" faqat YAKUNLANGAN safarda
+qoladi — u yerda narx va baho bor.
+
+### ✅ Mini appda profil bor, tarix YO'Q (2026-09-12)
+
+`POST /miniapp/profile` va `POST /miniapp/profile/save` — ism, familiya,
+telefon, til. `/customer/profile` JWT talab qiladi, mini app esa `initData`
+bilan ishlaydi, shuning uchun alohida marshrut. MANTIQ TAKRORLANMAYDI:
+ikkalasi ham `CustomersService.updateProfile` ga tushadi.
+
+Buyurtmalar tarixi mini appga ATAYLAB qo'shilmadi (foydalanuvchi qarori) —
+u faqat ilovada.
+
 ### ✅ Hal qilingan mahsulot savollari (o'zgarmagan, qayta ochilmasin)
 
 - **4+ yo'lovchi uchun yangi TOIFA/mashina rusumi tanlash — KERAK EMAS.**
