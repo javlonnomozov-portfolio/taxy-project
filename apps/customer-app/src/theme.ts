@@ -119,8 +119,12 @@ export const L = {
   /** Pastki panel. Maketda radius chapda 70, o'ngda 87 edi — qiyshiq; tenglandi. */
   sheetRadius: R.xl,
   sheetPad: 12,
-  /** Toifa kartasi — 109x77 dp (327x231). */
-  card: { height: 77, radius: R.card, image: { w: 73, h: 42 } },
+  /**
+   * Toifa kartasi. Maketda 77 dp edi (327x231), lekin unga rasm + nom + narx
+   * SIG'MAYDI: 6+42+18+13 = 85 dp, ya'ni narx kartadan tashqarida qolardi
+   * (qurilmada aynan shunday ko'rindi). 84 dp — mazmunning haqiqiy bo'yi.
+   */
+  card: { height: 84, radius: R.card, image: { w: 76, h: 44 } },
   /** Yo'lovchilar tanlagichi — 208x42 dp (625x126). */
   segment: { height: 42, pad: 4, radius: R.pill },
   /** Asosiy tugma — 268x60 dp (805x181). */

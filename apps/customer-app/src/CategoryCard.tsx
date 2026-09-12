@@ -1,5 +1,5 @@
 import { Image, ImageSourcePropType, Text, TouchableOpacity, View } from 'react-native';
-import { C, F, L, SP, elev } from './theme';
+import { C, F, L, elev } from './theme';
 
 /**
  * Toifa kartasi — rasm + nom + boshlang'ich narx (maket: Group 3/9/11).
@@ -35,7 +35,7 @@ export function CategoryCard({
           borderWidth: 1,
           borderColor: selected ? C.primary : C.border,
           backgroundColor: selected ? C.primarySoft : C.bg,
-          paddingTop: 6,
+          paddingTop: 5,
           paddingHorizontal: 4,
           alignItems: 'center',
           // Tanlangan karta bir oz ko'tariladi — soya bilan birga u
@@ -60,13 +60,24 @@ export function CategoryCard({
           resizeMode="contain"
         />
       </View>
+      {/* `lineHeight` ATAYLAB aniq berilgan: usiz qator balandligi qurilmadan
+          qurilmaga o'zgarib, mazmun karta chegarasidan chiqib ketardi. */}
       <Text
         numberOfLines={1}
-        style={{ color: C.text, fontSize: F.body, fontWeight: '700', marginTop: SP.xs / 2 }}
+        style={{
+          color: C.text,
+          fontSize: F.label,
+          lineHeight: 18,
+          fontWeight: '700',
+          marginTop: 1,
+        }}
       >
         {title}
       </Text>
-      <Text numberOfLines={1} style={{ color: C.muted, fontSize: F.tiny, marginTop: 1 }}>
+      <Text
+        numberOfLines={1}
+        style={{ color: C.muted, fontSize: F.tiny, lineHeight: 13 }}
+      >
         {price}
       </Text>
     </TouchableOpacity>

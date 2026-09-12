@@ -699,7 +699,10 @@ export function HomeScreen({
             left: SP.md,
             bottom: floatBottom,
             gap: SP.sm,
-            alignItems: 'flex-start',
+            // `stretch` — ikkala chip kengroq matnga qarab TENG bo'ladi.
+            // `flex-start` da "Uy" va "Ish" har xil enda chiqib, chap chekka
+            // tishli ko'rinardi.
+            alignItems: 'stretch',
           }}
         >
           {(['home', 'work'] as AddressLabel[]).map((label) => {
