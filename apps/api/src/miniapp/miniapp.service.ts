@@ -9,18 +9,9 @@ import { Repository } from 'typeorm';
 import { VehicleCategory } from '@tty/shared';
 import { Customer } from '../entities/customer.entity';
 import { CustomerOrdersService, TrackView } from '../customers/customer-orders.service';
-import { CustomersService } from '../customers/customers.service';
 import { verifyInitData } from './telegram-init-data';
 
 export type { TrackView } from '../customers/customer-orders.service';
-
-/** Mini appdagi "Profil" ekrani ko'rsatadigan maydonlar. */
-export interface ProfileView {
-  firstName: string | null;
-  lastName: string | null;
-  phone: string | null;
-  language: string;
-}
 
 /** Bot shu kanalni tinglaydi (mavjud importlar buzilmasin uchun qoldirilgan). */
 export const BOT_TRACK_CHANNEL = CustomerOrdersService.BOT_TRACK_CHANNEL;
@@ -31,39 +22,7 @@ export class MiniappService {
     @InjectRepository(Customer) private readonly customers: Repository<Customer>,
     private readonly config: ConfigService,
     private readonly shared: CustomerOrdersService,
-    private readonly people: CustomersService,
   ) {}
-
-  /**
-   * Mini appdagi "Profil" ekrani.
-   *
-   * `/customer/profile` JWT talab qiladi, mini app esa `initData` bilan
-   * ishlaydi — shuning uchun o'sha mantiq shu yerda ochiladi. Yozish
-   * `CustomersService.updateProfile` ga tushadi (telefonni u normallashtiradi),
-   * ya'ni qoidalar ikkala kanalda BIR XIL.
-   */
-  async profile(initData: string): Promise<ProfileView> {
-    return MiniappService.profileView(await this.requireCustomer(initData));
-  }
-
-  async saveProfile(
-    initData: string,
-    patch: { firstName?: string; lastName?: string; phone?: string; language?: string },
-  ): Promise<ProfileView> {
-    const customer = await this.requireCustomer(initData);
-    await this.people.updateProfile(customer.id, patch);
-    const fresh = await this.people.findById(customer.id);
-    return MiniappService.profileView(fresh ?? customer);
-  }
-
-  private static profileView(c: Customer): ProfileView {
-    return {
-      firstName: c.firstName ?? null,
-      lastName: c.lastName ?? null,
-      phone: c.phone ?? null,
-      language: c.language ?? 'uz',
-    };
-  }
 
   get enabled(): boolean {
     return !!this.config.get<string>('TELEGRAM_BOT_TOKEN');

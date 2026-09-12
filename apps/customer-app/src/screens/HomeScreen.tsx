@@ -93,50 +93,6 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
 // --- Maketdagi qayta ishlatiladigan bo'laklar ------------------------------
 
 /**
- * Asosiy tugma yonidagi kvadrat tugma (maketda 65x60 dp).
- *
- * Maketda bu YAGONA o'tish nuqtasi: xarita ekranida uy ikonkasi turadi va
- * Kabinetga olib boradi, Kabinet sarlavhasida esa xuddi shu tugma xarita
- * ikonkasi bilan qaytaradi (Figma'da ikkalasi ham "Group 12"). Pastki tab
- * paneli maketda umuman chizilmagan.
- *
- * Ikonka maketda Material Symbols "family_home" — `home-account` glifi ayni
- * o'sha (uy ichida odam), shuning uchun shrift ikonkasi ishlatildi.
- */
-function SquareBtn({
-  icon,
-  onPress,
-  label,
-}: {
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  onPress: () => void;
-  label: string;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={[
-        elev.card,
-        {
-          width: L.square.w,
-          height: L.cta.height,
-          borderRadius: L.square.radius,
-          backgroundColor: C.cardBg,
-          borderColor: C.border,
-          borderWidth: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-      ]}
-    >
-      <MaterialCommunityIcons name={icon} size={30} color={C.text} />
-    </TouchableOpacity>
-  );
-}
-
-/**
  * Panel pastidagi keng tugma: sarlavha + ixtiyoriy kichik izoh.
  *
  * `danger` maketda TO'LDIRILGAN qizil EMAS — oq fon, qizil chegara, qizil
@@ -676,6 +632,63 @@ export function HomeScreen({
     setErr(null);
   }
 
+  /**
+   * Kabinetga YAGONA yo'l — pastdagi kvadrat tugma olib tashlandi
+   * (foydalanuvchi qarori: maketda ikkalasi ham bor edi, bu ortiqcha).
+   * Shuning uchun u buyurtma rejimida ham, kuzatuvda ham ko'rinadi.
+   */
+  /**
+   * Kabinetga YAGONA yo'l: pastdagi kvadrat tugma olib tashlandi
+   * (foydalanuvchi qarori — maketda ikkalasi ham chizilgan edi, bu ortiqcha).
+   * Shuning uchun "Profil" buyurtma rejimida ham, kuzatuvda ham ko'rinadi.
+   *
+   * Matn xarita ustida turgani uchun oq soya bilan beriladi — to'q plitalar
+   * ustida ham o'qiladi.
+   */
+  const profileBtn = (
+    <View
+      style={{
+        position: 'absolute',
+        right: SP.md,
+        top: STATUS_PAD + SP.md,
+        alignItems: 'center',
+        gap: 3,
+      }}
+    >
+      <TouchableOpacity
+        onPress={onOpenAccount}
+        accessibilityRole="button"
+        accessibilityLabel={t('tab_profile')}
+        style={[
+          elev.card,
+          {
+            width: 52,
+            height: 52,
+            borderRadius: 26,
+            backgroundColor: C.panel,
+            alignItems: 'center',
+            justifyContent: 'center',
+            // Android'da WebView ustidagi element elevation'siz bosilmaydi.
+            elevation: 4,
+          },
+        ]}
+      >
+        <MaterialCommunityIcons name="account" size={30} color={C.text} />
+      </TouchableOpacity>
+      <Text
+        style={{
+          color: C.text,
+          fontSize: F.small,
+          fontWeight: '600',
+          textShadowColor: C.bg,
+          textShadowRadius: 4,
+        }}
+      >
+        {t('tab_profile')}
+      </Text>
+    </View>
+  );
+
   const statusText = (st: string) =>
     st === 'ARRIVED'
       ? t('arrived')
@@ -706,10 +719,6 @@ export function HomeScreen({
   // Xarita panel ostiga kirib ketmasin: pastki chekka + panel balandligi.
   const floatBottom = sheetH + SP.md;
 
-  const accountBtn = (
-    <SquareBtn icon="account-circle-outline" onPress={onOpenAccount} label={t('account')} />
-  );
-
   // ---------- BUYURTMA REJIMI ----------
   if (!orderId) {
     return (
@@ -722,49 +731,7 @@ export function HomeScreen({
           onChange={setPickup}
         />
 
-        {/* "Profil" — maketdagi yangi element. Matn xarita ustida turgani
-            uchun oq soya bilan beriladi: to'q plitalar ustida ham o'qiladi. */}
-        <View
-          style={{
-            position: 'absolute',
-            right: SP.md,
-            top: STATUS_PAD + SP.md,
-            alignItems: 'center',
-            gap: 3,
-          }}
-        >
-          <TouchableOpacity
-            onPress={onOpenAccount}
-            accessibilityRole="button"
-            accessibilityLabel={t('tab_profile')}
-            style={[
-              elev.card,
-              {
-                width: 52,
-                height: 52,
-                borderRadius: 26,
-                backgroundColor: C.panel,
-                alignItems: 'center',
-                justifyContent: 'center',
-                // Android'da WebView ustidagi element `elevation`siz bosilmaydi.
-                elevation: 4,
-              },
-            ]}
-          >
-            <MaterialCommunityIcons name="account" size={30} color={C.text} />
-          </TouchableOpacity>
-          <Text
-            style={{
-              color: C.text,
-              fontSize: F.small,
-              fontWeight: '600',
-              textShadowColor: C.bg,
-              textShadowRadius: 4,
-            }}
-          >
-            {t('tab_profile')}
-          </Text>
-        </View>
+        {profileBtn}
 
         {/* Saqlangan manzillar — maketda yo'q, lekin ishlab turgan funksiya.
             Panelga emas, xarita ustiga qo'yildi: panel maketdagidek qoladi. */}
@@ -858,8 +825,7 @@ export function HomeScreen({
 
           {err ? <Text style={[S.err, { marginTop: SP.md }]}>{err}</Text> : null}
 
-          <View style={{ flexDirection: 'row', gap: SP.sm, marginTop: SP.md }}>
-            {accountBtn}
+          <View style={{ flexDirection: 'row', marginTop: SP.md }}>
             <Cta
               title={t('order_btn')}
               sub={
@@ -883,6 +849,8 @@ export function HomeScreen({
   return (
     <View style={{ flex: 1, backgroundColor: C.mapBg }}>
       <LiveMap markers={markers} bottomInset={sheetH} />
+
+      {profileBtn}
 
       <Sheet onHeight={setSheetH}>
         <Text style={{ color: C.text, fontSize: F.title, fontWeight: '400' }}>
@@ -988,8 +956,7 @@ export function HomeScreen({
 
         {/* Qo'ng'iroq — haydovchi topilganda asosiy amal shu bo'ladi,
             bekor qilish esa pastdagi kichik havolaga tushadi. */}
-        <View style={{ flexDirection: 'row', gap: SP.sm, marginTop: SP.lg }}>
-          {accountBtn}
+        <View style={{ flexDirection: 'row', marginTop: SP.lg }}>
           {view?.finished ? (
             <Cta title={t('new_order')} onPress={reset} />
           ) : view?.car?.phone ? (
