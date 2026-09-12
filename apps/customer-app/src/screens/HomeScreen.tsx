@@ -367,9 +367,6 @@ export function HomeScreen({
    * "4 kishi" deb yuborilsa haydovchiga noto'g'ri son ko'rinardi.
    */
   const [paxBig, setPaxBig] = useState(false);
-  /** "5+" tanlanganda ANIQ son — maketda yo'q, lekin usiz 7 kishilik guruhga
-   *  5 o'rinli mashina yuborilishi mumkin edi (Damas 7, Cobalt 4). */
-  const [paxCount, setPaxCount] = useState(5);
   /** Foydalanuvchining haqiqiy GPS nuqtasi — xaritadagi ko'k doira. */
   const [myLocation, setMyLocation] = useState<Point | null>(null);
   /** Oshirilsa xarita `pickup` ga majburan ko'chadi (`PickupPicker` izohiga qarang). */
@@ -577,7 +574,13 @@ export function HomeScreen({
         '/customer/orders',
         // "1ta - 4ta" da son YUBORILMAYDI — sig'im filtri o'chiq qolsin
         // (server faqat `> 4` da tekshiradi, yuqoridagi izohga qarang).
-        { category, pickup, ...(paxBig ? { passengers: paxCount } : {}) },
+        //
+        // "5+" da 5 yuboriladi va bu YETARLI: server `seats >= 5` bo'lgan
+        // mashinalarni qoldiradi, parkda esa 4 o'rinli (Cobalt/Nexia) yoki
+        // 7 o'rinli (Damas) mashinalar bor — oraliq yo'q. Ya'ni 5 ham, 7 ham
+        // AYNI Damas'ni tanlaydi, foydalanuvchidan aniq son so'rashning
+        // amaliy ma'nosi yo'q.
+        { category, pickup, ...(paxBig ? { passengers: 5 } : {}) },
         token,
       );
       setOrderId(r.orderId);
@@ -764,46 +767,6 @@ export function HomeScreen({
               onChange={(k) => setPaxBig(k === 'big')}
             />
           </View>
-
-          {/* Aniq son — maketdagi "5+" ni ochib beradi. Usiz 7 kishilik guruh
-              5 o'rinli mashinaga tushib qolishi mumkin edi. */}
-          {paxBig ? (
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: SP.sm,
-                marginTop: SP.md,
-              }}
-            >
-              <Text style={{ color: C.muted, fontSize: F.label }}>{t('pax_exact')}</Text>
-              {[5, 6, 7, 8].map((n) => (
-                <TouchableOpacity
-                  key={n}
-                  onPress={() => setPaxCount(n)}
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 17,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: paxCount === n ? C.warnSoft : C.cardBg,
-                    borderWidth: 1,
-                    borderColor: paxCount === n ? C.pax : C.border,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: paxCount === n ? C.pax : C.muted,
-                      fontWeight: '700',
-                    }}
-                  >
-                    {n}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
 
           <View style={{ flexDirection: 'row', gap: SP.sm, marginTop: SP.md, alignItems: 'stretch' }}>
             {CATEGORIES.map((c) => {
