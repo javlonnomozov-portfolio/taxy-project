@@ -1,11 +1,12 @@
 import { Image, ImageSourcePropType, Text, TouchableOpacity, View } from 'react-native';
-import { C, F, L, SP } from './theme';
+import { C, F, L, SP, elev } from './theme';
 
 /**
  * Toifa kartasi — rasm + nom + boshlang'ich narx (maket: Group 3/9/11).
  *
- * Tanlangan holat maketda IKKI belgi bilan ko'rsatiladi: och yashil fon va
- * yashil chegara. Faqat chegara qoldirilsa quyoshda ko'rinmay qolardi.
+ * Tanlangan holat UCH belgi bilan ko'rsatiladi: och yashil fon, yashil
+ * chegara va ko'tarilish. Faqat chegara qoldirilsa quyoshda ko'rinmay
+ * qolardi, faqat fon esa yonidagi tanlanmagan kartadan zo'rg'a farq qilardi.
  */
 export function CategoryCard({
   image,
@@ -25,17 +26,23 @@ export function CategoryCard({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      style={{
-        flex: 1,
-        height: L.card.height,
-        borderRadius: L.card.radius,
-        borderWidth: 1,
-        borderColor: selected ? C.primary : C.border,
-        backgroundColor: selected ? C.primarySoft : C.bg,
-        paddingTop: 6,
-        paddingHorizontal: 4,
-        alignItems: 'center',
-      }}
+      style={[
+        selected ? elev.raised : elev.card,
+        {
+          flex: 1,
+          height: L.card.height,
+          borderRadius: L.card.radius,
+          borderWidth: 1,
+          borderColor: selected ? C.primary : C.border,
+          backgroundColor: selected ? C.primarySoft : C.bg,
+          paddingTop: 6,
+          paddingHorizontal: 4,
+          alignItems: 'center',
+          // Tanlangan karta bir oz ko'tariladi — soya bilan birga u
+          // "bosilgan" emas, "faol" ekanini bildiradi.
+          transform: [{ translateY: selected ? -1 : 0 }],
+        },
+      ]}
     >
       {/* Rasm QAT'IY o'lchamda: `auto` bo'lsa u o'z tabiiy o'lchamiga yoyilib
           kartani buzadi (maketda 218x126 px = 73x42 dp). */}

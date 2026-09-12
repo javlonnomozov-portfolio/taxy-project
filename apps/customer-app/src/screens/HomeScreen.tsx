@@ -15,7 +15,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { api } from '../api';
 import { LiveMap, MapMarker, PickupPicker } from '../MapView';
 import { CategoryCard } from '../CategoryCard';
-import { C, F, L, S, SP, shadow } from '../theme';
+import { C, F, L, S, SP, elev, shadow } from '../theme';
 import { Lang, makeT } from '../i18n';
 
 type Category = 'standard' | 'comfort' | 'cargo';
@@ -108,16 +108,19 @@ function SquareBtn({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={{
-        width: L.square.w,
-        height: L.cta.height,
-        borderRadius: L.square.radius,
-        backgroundColor: C.cardBg,
-        borderColor: C.border,
-        borderWidth: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+      style={[
+        elev.card,
+        {
+          width: L.square.w,
+          height: L.cta.height,
+          borderRadius: L.square.radius,
+          backgroundColor: C.cardBg,
+          borderColor: C.border,
+          borderWidth: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+      ]}
     >
       <MaterialCommunityIcons name={icon} size={30} color={C.text} />
     </TouchableOpacity>
@@ -151,18 +154,23 @@ function Cta({
     <TouchableOpacity
       onPress={onPress}
       disabled={busy || disabled}
-      style={{
-        flex: 1,
-        height: L.cta.height,
-        borderRadius: danger ? L.cancelRadius : L.cta.radius,
-        backgroundColor: danger ? C.bg : C.primary,
-        borderWidth: danger ? 2 : 0,
-        borderColor: danger ? C.danger : 'transparent',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: SP.md,
-        opacity: busy || disabled ? 0.55 : 1,
-      }}
+      style={[
+        // Bekor qilish tugmasi ko'tarilmaydi: u oq fonli, chegarali —
+        // soya unga "asosiy amal" ko'rinishini berib qo'yardi.
+        danger || busy || disabled ? null : elev.raised,
+        {
+          flex: 1,
+          height: L.cta.height,
+          borderRadius: danger ? L.cancelRadius : L.cta.radius,
+          backgroundColor: danger ? C.bg : C.primary,
+          borderWidth: danger ? 2 : 0,
+          borderColor: danger ? C.danger : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: SP.md,
+          opacity: busy || disabled ? 0.55 : 1,
+        },
+      ]}
     >
       {busy ? (
         <ActivityIndicator color={fg} />
@@ -200,13 +208,16 @@ function Segment({
 }) {
   return (
     <View
-      style={{
-        flexDirection: 'row',
-        height: L.segment.height,
-        borderRadius: L.segment.radius,
-        backgroundColor: C.pax,
-        padding: L.segment.pad,
-      }}
+      style={[
+        elev.card,
+        {
+          flexDirection: 'row',
+          height: L.segment.height,
+          borderRadius: L.segment.radius,
+          backgroundColor: C.pax,
+          padding: L.segment.pad,
+        },
+      ]}
     >
       {options.map((o) => {
         const active = o.key === value;
@@ -214,13 +225,16 @@ function Segment({
           <TouchableOpacity
             key={o.key}
             onPress={() => onChange(o.key)}
-            style={{
-              paddingHorizontal: SP.lg,
-              borderRadius: L.segment.radius,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: active ? C.bg : 'transparent',
-            }}
+            style={[
+              active ? elev.card : null,
+              {
+                paddingHorizontal: SP.lg,
+                borderRadius: L.segment.radius,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: active ? C.bg : 'transparent',
+              },
+            ]}
           >
             <Text
               style={{
@@ -310,13 +324,9 @@ function Sheet({
         paddingHorizontal: L.sheetPad,
         paddingTop: SP.md,
         paddingBottom: SP.xl,
-        borderTopColor: C.border,
+        borderTopColor: C.hairline,
         borderTopWidth: 1,
-        elevation: 16,
-        shadowColor: '#101828',
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-        shadowOffset: { width: 0, height: -4 },
+        ...elev.sheet,
       }}
     >
       {children}

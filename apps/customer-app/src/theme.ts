@@ -7,6 +7,15 @@ import { Platform, StyleSheet } from 'react-native';
 // Sonlar maketdan UCHGA BO'LINIB olingan: maket 1080 px kenglikda chizilgan,
 // telefon esa 360 dp. Izohlardagi qavs ichidagi son — maketdagi asl qiymat.
 //
+// SILLIQLASH (2026-09-12, prototipdan): RANGLAR O'ZGARMADI — maketdagi
+// yashil/to'q sariq/qizil aynan o'sha. O'zgargani:
+//   - chegara: qattiq #999 o'rniga siyoh rangining shaffofi (soyalar bilan
+//     birga kartalar baribir ajralib turadi, lekin panel "qafas" bo'lib
+//     ko'rinmaydi);
+//   - radiuslar bitta shkalada (avval 14/26/30/6 — to'rt xil qiymat edi);
+//   - toifa narxi 10 -> 11 dp;
+//   - ko'tarilgan yuzalar uchun `elev` — avval hamma narsa tekis edi.
+//
 // DIQQAT: mijoz ilovasi OCH temada, haydovchi ilovasi esa TO'Q temada.
 // Ular ataylab boshqacha — `driver-app/src/theme.ts` bilan aralashtirmang.
 //
@@ -28,10 +37,14 @@ export const C = {
   panel2: '#FBFBFB', // = cardBg (eski nom)
 
   text: INK,
-  muted: 'rgba(23, 30, 42, 0.5)',
-  /** Maketdagi ikki xil chegara: kuchli (toifa kartasi) va yumshoq (tarix). */
-  border: '#999999',
-  hairline: 'rgba(0, 0, 0, 0.25)',
+  muted: 'rgba(23, 30, 42, 0.52)',
+  /**
+   * Chegaralar. Maketda ikkalasi ham `#999` edi — oq yuzada bu juda qattiq
+   * chiqib, har bir element qutiga solingandek ko'rinardi. Endi ular
+   * SIYOH rangining shaffofi: fon bilan bir oilada turadi.
+   */
+  border: 'rgba(23, 30, 42, 0.16)', // toifa kartasi, kvadrat tugma, maydonlar
+  hairline: 'rgba(23, 30, 42, 0.10)', // tarix kartasi, panel cheti
 
   primary: GREEN,
   onPrimary: '#FFFFFF',
@@ -71,8 +84,13 @@ export const C = {
   chrome: 'rgba(255, 255, 255, 0.94)',
 };
 
-/** Burchak radiuslari. */
-export const R = { sm: 12, md: 14, lg: 20, xl: 23, card: 14, field: 6, pill: 999 };
+/**
+ * Burchak radiuslari — BITTA shkala.
+ *
+ * Maketda 14 / 26 / 30 / 6 aralash edi; takrorlanuvchi elementlar bir-biriga
+ * o'xshamay qolardi. Endi 12 / 16 / 28 uchligi hamma joyda ishlaydi.
+ */
+export const R = { sm: 12, md: 16, lg: 20, xl: 28, card: 16, field: 12, pill: 999 };
 
 /** Shrift o'lchamlari (maketdagi px / 3). */
 export const F = {
@@ -90,7 +108,7 @@ export const F = {
    * Toifa narxi. Maketda 24 px = 8 dp — telefonda o'qib bo'lmaydi
    * (~6 pt), shuning uchun ATAYLAB kattalashtirildi.
    */
-  tiny: 10,
+  tiny: 11,
 };
 
 /** Bo'shliq shkalasi. */
@@ -98,45 +116,62 @@ export const SP = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 };
 
 /** Maketdan olingan o'lchamlar (px / 3). */
 export const L = {
-  /** Pastki panel (maketda radius 70/87 — assimetriya, o'rtachasi olindi). */
-  sheetRadius: 26,
+  /** Pastki panel. Maketda radius chapda 70, o'ngda 87 edi — qiyshiq; tenglandi. */
+  sheetRadius: R.xl,
   sheetPad: 12,
   /** Toifa kartasi — 109x77 dp (327x231). */
   card: { height: 77, radius: R.card, image: { w: 73, h: 42 } },
   /** Yo'lovchilar tanlagichi — 208x42 dp (625x126). */
   segment: { height: 42, pad: 4, radius: R.pill },
-  /** Asosiy tugma — 268x60 dp (805x181), radius 14 dp (42). */
+  /** Asosiy tugma — 268x60 dp (805x181). */
   cta: { height: 60, radius: R.card },
-  /** "Bekor qilish!" maketda ANCHA yumaloq (77) — asosiy tugmadan farq qilsin. */
+  /** "Bekor qilish!" maketda ANCHA yumaloq — asosiy tugmadan farq qilsin. */
   cancelRadius: 26,
   /** Asosiy tugma yonidagi kvadrat tugma — 65x60 dp (195x181). */
   square: { w: 65, radius: R.card },
-  /** Kabinet sarlavhasidagi yumaloq tugma va tab konteyneri (180 / 775x180). */
-  navBtn: { size: 60, radius: 16 },
+  /** Kabinet sarlavhasidagi tugma va tab konteyneri (180 / 775x180). */
+  navBtn: { size: 60, radius: R.card },
   headerPill: { height: 60, radius: 30 },
   /** Kabinet: avatar 103 dp (309), maydon qutisi 328x45 dp (983x134). */
   avatar: 103,
   field: { height: 45, radius: R.field },
-  /** Tarix kartasi — 328x73 dp (983x218), radius 10 dp (30). */
-  histCard: { height: 73, radius: 10 },
+  /** Tarix kartasi — 328x73 dp (983x218). */
+  histCard: { height: 73, radius: R.card },
 };
 
 /** Birlamchi tugma balandligi — bir qo'l bilan bosiladi. */
 const TAP = 56;
 
 /**
- * Ko'tarilgan yuza soyasi. Oq dizaynda kartalar FAQAT soya bilan ajraladi
- * (qorong'ida fon farqi yetardi), shuning uchun bu bezak emas.
+ * Ko'tarilgan yuzalar.
+ *
+ * Oq dizaynda karta faqat soya bilan ajraladi (qorong'ida fon farqi yetardi),
+ * shuning uchun bu bezak emas — chegara yumshatilgani uchun ayni vaqtda
+ * ZARURAT ham. Android'da faqat `elevation` ishlaydi, iOS'da soya xossalari.
  */
-export const shadow = Platform.select({
-  android: { elevation: 2 },
-  default: {
-    shadowColor: INK,
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-  },
-}) as object;
+function lift(elevation: number, opacity: number, radius: number, dy: number) {
+  return Platform.select({
+    android: { elevation },
+    default: {
+      shadowColor: INK,
+      shadowOpacity: opacity,
+      shadowRadius: radius,
+      shadowOffset: { width: 0, height: dy },
+    },
+  }) as object;
+}
+
+export const elev = {
+  /** Karta, chip, xarita ustidagi tugma. */
+  card: lift(1, 0.06, 6, 2),
+  /** Tanlangan toifa, asosiy tugma, tanlangan tab. */
+  raised: lift(4, 0.12, 12, 4),
+  /** Pastki panel — soya YUQORIGA tushadi (iOS). */
+  sheet: lift(16, 0.14, 18, -6),
+};
+
+/** Eski nom — hali ishlatilayotgan joylar uchun. */
+export const shadow = elev.card;
 
 export const S = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg, padding: SP.xl },
@@ -188,7 +223,7 @@ export const S = StyleSheet.create({
 
   card: {
     backgroundColor: C.bg,
-    borderColor: C.border,
+    borderColor: C.hairline,
     borderWidth: 1,
     borderRadius: R.card,
     padding: SP.lg,
@@ -211,7 +246,7 @@ export const S = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SP.xl,
     paddingVertical: SP.md,
-    borderBottomColor: '#EEEEEE',
+    borderBottomColor: C.hairline,
     borderBottomWidth: 1,
     backgroundColor: C.bg,
   },

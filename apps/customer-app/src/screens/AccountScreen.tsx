@@ -3,7 +3,7 @@ import { Platform, StatusBar, Text, TouchableOpacity, View } from 'react-native'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { HistoryScreen } from './HistoryScreen';
 import { ProfileScreen } from './ProfileScreen';
-import { C, F, L, SP } from '../theme';
+import { C, F, L, SP, elev } from '../theme';
 import { Lang, makeT } from '../i18n';
 
 export type AccountTab = 'history' | 'profile';
@@ -60,33 +60,39 @@ export function AccountScreen({
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel={t('to_map')}
-          style={{
-            width: L.navBtn.size,
-            height: L.navBtn.size,
-            borderRadius: L.navBtn.radius,
-            backgroundColor: C.cardBg,
-            borderColor: C.text,
-            borderWidth: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+          style={[
+            elev.card,
+            {
+              width: L.navBtn.size,
+              height: L.navBtn.size,
+              borderRadius: L.navBtn.radius,
+              backgroundColor: C.cardBg,
+              borderColor: C.border,
+              borderWidth: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+            },
+          ]}
         >
           <MaterialCommunityIcons name="map-marker" size={30} color={C.text} />
         </TouchableOpacity>
 
         <View
-          style={{
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            height: L.headerPill.height,
-            borderRadius: L.headerPill.radius,
-            backgroundColor: C.bg,
-            borderColor: C.hairline,
-            borderWidth: 1,
-            padding: 4,
-          }}
+          style={[
+            elev.card,
+            {
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: L.headerPill.height,
+              borderRadius: L.headerPill.radius,
+              backgroundColor: C.bg,
+              borderColor: C.hairline,
+              borderWidth: 1,
+              padding: 4,
+            },
+          ]}
         >
           {tabs.map((tb) => {
             const active = tb.key === tab;
@@ -96,14 +102,17 @@ export function AccountScreen({
                 onPress={() => setTab(tb.key)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                style={{
-                  height: '100%',
-                  paddingHorizontal: SP.lg,
-                  borderRadius: L.headerPill.radius,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: active ? C.primary : 'transparent',
-                }}
+                style={[
+                  active ? elev.raised : null,
+                  {
+                    height: '100%',
+                    paddingHorizontal: SP.lg,
+                    borderRadius: L.headerPill.radius,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: active ? C.primary : 'transparent',
+                  },
+                ]}
               >
                 <Text
                   style={{

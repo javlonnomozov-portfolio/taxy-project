@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, Text, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { api } from '../api';
-import { C, F, L, S, SP } from '../theme';
+import { C, F, L, S, SP, elev } from '../theme';
 import { Lang, makeT } from '../i18n';
 
 type Category = 'standard' | 'comfort' | 'cargo';
@@ -94,15 +94,18 @@ export function HistoryScreen({ lang, token }: { lang: Lang; token: string }) {
         const done = item.status === 'COMPLETED';
         return (
           <View
-            style={{
-              height: L.histCard.height,
-              borderRadius: L.histCard.radius,
-              backgroundColor: C.bg,
-              borderColor: C.hairline,
-              borderWidth: 1,
-              paddingHorizontal: SP.lg,
-              justifyContent: 'center',
-            }}
+            style={[
+              elev.card,
+              {
+                height: L.histCard.height,
+                borderRadius: L.histCard.radius,
+                backgroundColor: C.bg,
+                borderColor: C.hairline,
+                borderWidth: 1,
+                paddingHorizontal: SP.lg,
+                justifyContent: 'center',
+              },
+            ]}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ color: '#000000', fontWeight: '600', fontSize: F.h3 }}>

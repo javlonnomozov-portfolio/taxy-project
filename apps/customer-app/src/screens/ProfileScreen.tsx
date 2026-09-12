@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { api } from '../api';
-import { C, F, L, S, SP } from '../theme';
+import { C, F, L, S, SP, elev } from '../theme';
 import { Lang, makeT } from '../i18n';
 
 interface Profile {
@@ -140,16 +140,19 @@ export function ProfileScreen({
         {/* Avatar: och yashil doira + to'q sariq halqa (maket: Group 19). */}
         <View style={{ alignItems: 'center', marginTop: SP.sm, marginBottom: SP.xl }}>
           <View
-            style={{
-              width: L.avatar,
-              height: L.avatar,
-              borderRadius: L.avatar / 2,
-              borderWidth: 3,
-              borderColor: C.avatarRing,
-              backgroundColor: C.avatarFill,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            style={[
+              elev.card,
+              {
+                width: L.avatar,
+                height: L.avatar,
+                borderRadius: L.avatar / 2,
+                borderWidth: 3,
+                borderColor: C.avatarRing,
+                backgroundColor: C.avatarFill,
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+            ]}
           >
             <MaterialIcons name="person" size={Math.round(L.avatar * 0.55)} color="#FEFEFE" />
           </View>

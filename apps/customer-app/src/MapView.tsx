@@ -17,7 +17,14 @@ function buildHtml(line: boolean) {
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>html,body,#m{margin:0;padding:0;height:100%;width:100%;background:${C.mapBg}}</style>
+<style>
+  html,body,#m{margin:0;padding:0;height:100%;width:100%;background:${C.mapBg}}
+  /* Qidiruv to'lqini — haydovchi hali topilmaganini bildiradi. Leaflet'ning
+     divIcon'i uchun: className berilgani sababi oq quticha chizilmaydi. */
+  .wave i{position:absolute;top:0;left:0;right:0;bottom:0;border-radius:50%;border:2px solid ${C.pin};opacity:0;animation:ripple 2.4s ease-out infinite}
+  .wave i:nth-child(2){animation-delay:1.2s}
+  @keyframes ripple{0%{transform:scale(1);opacity:.5}100%{transform:scale(7);opacity:0}}
+</style>
 </head><body><div id="m"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -38,6 +45,15 @@ function buildHtml(line: boolean) {
       if(m.label){ mk.bindTooltip(m.label,{permanent:true,direction:'top',offset:[0,-8]}); }
       pts.push([m.lat,m.lng]);
     });
+    // Bitta nuqta = haydovchi hali topilmagan: mijoz nuqtasi ustida to'lqin
+    // aylanib turadi, ya'ni qidiruv davom etayotgani xaritada ham ko'rinadi.
+    if(ms.length===1){
+      L.marker([ms[0].lat,ms[0].lng],{
+        icon: L.divIcon({className:'wave',html:'<i></i><i></i>',iconSize:[18,18]}),
+        interactive: false,
+        zIndexOffset: -1000
+      }).addTo(layer);
+    }
     // Ko'rinishni FAQAT birinchi marta moslaymiz — aks holda foydalanuvchi
     // xaritani surgan zahoti keyingi GPS yangilanishi uni qaytarib olardi.
     if(!framed && pts.length){
@@ -67,7 +83,8 @@ function buildPickerHtml() {
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
   html,body,#m{margin:0;padding:0;height:100%;width:100%;background:${C.mapBg}}
-  .pin{position:absolute;left:50%;top:50%;width:28px;height:35px;margin-left:-14px;margin-top:-35px;pointer-events:none;z-index:1000}
+  .pin{position:absolute;left:50%;top:50%;width:28px;height:35px;margin-left:-14px;margin-top:-35px;pointer-events:none;z-index:1000;animation:drop .5s cubic-bezier(.22,.68,.24,1) both}
+  @keyframes drop{from{transform:translateY(-14px);opacity:0}to{transform:none;opacity:1}}
 </style>
 </head><body><div id="m"></div>
 <svg class="pin" viewBox="0 0 74 92.5" fill="${C.pin}"><path d="M43.5328 43.5328C45.3443 41.7214 46.25 39.5438 46.25 37C46.25 34.4562 45.3443 32.2786 43.5328 30.4672C41.7214 28.6557 39.5438 27.75 37 27.75C34.4562 27.75 32.2786 28.6557 30.4672 30.4672C28.6557 32.2786 27.75 34.4562 27.75 37C27.75 39.5438 28.6557 41.7214 30.4672 43.5328C32.2786 45.3443 34.4562 46.25 37 46.25C39.5438 46.25 41.7214 45.3443 43.5328 43.5328ZM37 80.2438C46.4042 71.6104 53.3802 63.7672 57.9281 56.7141C62.476 49.6609 64.75 43.3979 64.75 37.925C64.75 29.5229 62.0714 22.6432 56.7141 17.2859C51.3568 11.9286 44.7854 9.25 37 9.25C29.2146 9.25 22.6432 11.9286 17.2859 17.2859C11.9286 22.6432 9.25 29.5229 9.25 37.925C9.25 43.3979 11.524 49.6609 16.0719 56.7141C20.6198 63.7672 27.5958 71.6104 37 80.2438ZM37 92.5C24.5896 81.9396 15.3203 72.1307 9.19219 63.0734C3.06406 54.0161 0 45.6333 0 37.925C0 26.3625 3.71927 17.151 11.1578 10.2906C18.5964 3.43021 27.2104 0 37 0C46.7896 0 55.4036 3.43021 62.8422 10.2906C70.2807 17.151 74 26.3625 74 37.925C74 45.6333 70.9359 54.0161 64.8078 63.0734C58.6797 72.1307 49.4104 81.9396 37 92.5Z"/></svg>
