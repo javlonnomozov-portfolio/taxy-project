@@ -619,6 +619,23 @@ Teg API tomonidan yaratiladi — keyin `git fetch origin --tags`.
 
 ---
 
+### 6.6 `railway up` "operation timed out" — sabab `.railwayignore` da
+
+2026-09-12 da deploy uch marta shu xato bilan yiqildi, holbuki `railway
+whoami` va `status` darhol javob berardi va tarmoq joyida edi. Sabab:
+`railway up` BUTUN papkani yuklaydi, `.railwayignore` da esa faqat `data/`,
+`*.log`, `node_modules/` bor edi. Ya'ni yuklamaga `apps/customer-app/android/`
+(Gradle build keshi) va har build'dan qolgan 66 MB'lik APK'lar kirardi —
+gigabaytlar.
+
+Endi `.railwayignore` mobil ilovalarni butunlay chiqarib tashlaydi. Bu
+XAVFSIZ: `apps/api/Dockerfile` faqat `packages/shared` va `apps/api` ni
+ko'chiradi, `pnpm-workspace.yaml` ham ikkala ilovani ataylab chiqarib
+tashlagan.
+
+> Lokal build'dan keyin qolgan APK'larni o'chirib turing — ular baribir
+> GitHub Release'da (§6.5), ish papkasida esa faqat joy egallaydi.
+
 ### 6.5 APK yetkazish — O'ZGARMAS havola (`mijoz-latest`)
 
 Foydalanuvchi har build'da yangi havola olishni istamaydi. Shu sabab

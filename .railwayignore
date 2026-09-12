@@ -1,3 +1,18 @@
 data/
 *.log
 node_modules/
+
+# Mobil ilovalar API konteyneriga KERAK EMAS: Dockerfile faqat
+# packages/shared va apps/api ni ko'chiradi, pnpm-workspace ham ularni
+# ataylab chiqarib tashlagan ("!apps/customer-app", "!apps/driver-app").
+#
+# Ularsiz yuklama kichik qoladi. Bilan esa `railway up` GIGABAYTLAR yuboradi:
+# apps/customer-app/android/ — Gradle build keshi, ustiga har build'dan
+# qolgan 66 MB'lik APK'lar. 2026-09-12 da aynan shu sabab deploy uch marta
+# "operation timed out" bilan yiqildi.
+apps/customer-app/
+apps/driver-app/
+
+*.apk
+dist/
+.expo/
