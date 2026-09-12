@@ -56,6 +56,8 @@ const dict: Record<Lang, Record<string, string>> = {
     cancel_confirm_penalty:
       'Haydovchi allaqachon yo‘lda. Bekor qilish bekor darajangizga ta’sir qiladi. Davom etamizmi?',
     cancelled_free: 'Buyurtma bekor qilindi (jarimasiz).',
+    cancelled_by_driver: 'Haydovchi buyurtmani bekor qildi.',
+    order_closed: 'Buyurtma yopildi.',
     cancelled_penalty: 'Buyurtma bekor qilindi. ⚠️ Bu bekor darajangizga ta’sir qiladi.',
     yes: 'Ha',
     no: 'Yo‘q',
@@ -162,6 +164,8 @@ const dict: Record<Lang, Record<string, string>> = {
     cancel_confirm_penalty:
       'Водитель уже в пути. Отмена повлияет на ваш рейтинг отмен. Продолжить?',
     cancelled_free: 'Заказ отменён (без штрафа).',
+    cancelled_by_driver: 'Водитель отменил заказ.',
+    order_closed: 'Заказ закрыт.',
     cancelled_penalty: 'Заказ отменён. ⚠️ Это повлияет на ваш рейтинг отмен.',
     yes: 'Да',
     no: 'Нет',

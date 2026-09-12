@@ -4,6 +4,8 @@ import {
   Alert,
   AppState,
   Linking,
+  Platform,
+  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
@@ -56,6 +58,13 @@ const FALLBACK = { lat: 39.7683, lng: 67.2792 }; // xizmat hududi markazi
  * (tugma bosilgach spinner abadiy aylanardi).
  */
 const GPS_TIMEOUT_MS = 8000;
+/**
+ * Status bar balandligi. Xarita TO'LIQ ekran (App.tsx umumiy chekka qo'ymaydi),
+ * shuning uchun yuqoridagi tugma status bar ostida qolib ketmasligi uchun
+ * chekkani shu ekranning o'zi hisoblaydi — `LoginScreen`/`AccountScreen` dagi
+ * kabi. `SafeAreaView` Android'da ishlamaydi.
+ */
+const STATUS_PAD = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 44;
 const som = (v: number) => Math.round(v).toLocaleString('ru-RU');
 const CATEGORIES: Category[] = ['standard', 'comfort', 'cargo'];
 /**
@@ -547,6 +556,15 @@ export function HomeScreen({
       try {
         const v = await api<TrackView>('GET', `/customer/orders/${orderId}`, undefined, token);
         if (!alive) return;
+        // Safar YAKUNLANMAY tugadi (bekor qilindi / yopildi): ko'rsatadigan
+        // narx ham, baho ham yo'q. Foydalanuvchini bo'sh ekranda "Yangi
+        // buyurtma" tugmasini bosishga majburlamaymiz — sababini aytamiz va
+        // darhol asosiy ekranga qaytaramiz.
+        if (v.finished && !v.completed) {
+          Alert.alert(t('cancelled'), endedReason(v.orderStatus));
+          reset();
+          return;
+        }
         setView(v);
         setErr(null);
         if (!v.finished) timer.current = setTimeout(tick, 5000);
@@ -615,6 +633,8 @@ export function HomeScreen({
               token,
             );
             Alert.alert(t('cancelled'), r.penalized ? t('cancelled_penalty') : t('cancelled_free'));
+            // Poll'ni kutmaymiz: bekor qilingani allaqachon ma'lum.
+            reset();
           } catch (e) {
             Alert.alert(t('err'), (e as Error).message);
           } finally {
@@ -638,6 +658,14 @@ export function HomeScreen({
     } catch {
       setRateSent(false);
     }
+  }
+
+  /** Nega tugadi — bekor qilingan safarda ko'rsatiladigan yagona ma'lumot. */
+  function endedReason(st: string): string {
+    if (st === 'CANCELLED_BY_DRIVER') return t('cancelled_by_driver');
+    if (st === 'CUSTOMER_NO_SHOW') return t('hist_no_show');
+    if (st === 'CANCELLED_BY_CUSTOMER') return t('cancelled_free');
+    return t('order_closed');
   }
 
   function reset() {
@@ -679,7 +707,7 @@ export function HomeScreen({
   const floatBottom = sheetH + SP.md;
 
   const accountBtn = (
-    <SquareBtn icon="home-account" onPress={onOpenAccount} label={t('account')} />
+    <SquareBtn icon="account-circle-outline" onPress={onOpenAccount} label={t('account')} />
   );
 
   // ---------- BUYURTMA REJIMI ----------
@@ -693,6 +721,50 @@ export function HomeScreen({
           bottomInset={sheetH}
           onChange={setPickup}
         />
+
+        {/* "Profil" — maketdagi yangi element. Matn xarita ustida turgani
+            uchun oq soya bilan beriladi: to'q plitalar ustida ham o'qiladi. */}
+        <View
+          style={{
+            position: 'absolute',
+            right: SP.md,
+            top: STATUS_PAD + SP.md,
+            alignItems: 'center',
+            gap: 3,
+          }}
+        >
+          <TouchableOpacity
+            onPress={onOpenAccount}
+            accessibilityRole="button"
+            accessibilityLabel={t('tab_profile')}
+            style={[
+              elev.card,
+              {
+                width: 52,
+                height: 52,
+                borderRadius: 26,
+                backgroundColor: C.panel,
+                alignItems: 'center',
+                justifyContent: 'center',
+                // Android'da WebView ustidagi element `elevation`siz bosilmaydi.
+                elevation: 4,
+              },
+            ]}
+          >
+            <MaterialCommunityIcons name="account" size={30} color={C.text} />
+          </TouchableOpacity>
+          <Text
+            style={{
+              color: C.text,
+              fontSize: F.small,
+              fontWeight: '600',
+              textShadowColor: C.bg,
+              textShadowRadius: 4,
+            }}
+          >
+            {t('tab_profile')}
+          </Text>
+        </View>
 
         {/* Saqlangan manzillar — maketda yo'q, lekin ishlab turgan funksiya.
             Panelga emas, xarita ustiga qo'yildi: panel maketdagidek qoladi. */}

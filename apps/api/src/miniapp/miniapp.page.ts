@@ -41,6 +41,15 @@ const T = {
     cat_standard: 'Standart',
     cat_comfort: 'Komfort',
     cat_cargo: 'Yuk tashish',
+    profile: 'Profil',
+    profile_first: 'Ism',
+    profile_last: 'Familya',
+    profile_phone: 'Telefon',
+    profile_lang: 'Til',
+    lang_uz: 'O‘zbek',
+    lang_ru: 'Ruscha',
+    not_set: 'Kiritilmagan',
+    back_map: 'Xaritaga qaytish',
     pax_label: 'Yo‘lovchilar soni:',
     pax_few: '1ta - 4ta',
     pax_many: '5+',
@@ -83,6 +92,15 @@ const T = {
     cat_standard: 'Стандарт',
     cat_comfort: 'Комфорт',
     cat_cargo: 'Грузоперевозка',
+    profile: 'Профиль',
+    profile_first: 'Имя',
+    profile_last: 'Фамилия',
+    profile_phone: 'Телефон',
+    profile_lang: 'Язык',
+    lang_uz: 'Узбекский',
+    lang_ru: 'Русский',
+    not_set: 'Не указано',
+    back_map: 'Вернуться к карте',
     pax_label: 'Пассажиров:',
     pax_few: '1 - 4',
     pax_many: '5+',
@@ -162,6 +180,37 @@ export function miniappPage(): string {
     box-shadow: var(--sh-card); }
   .msg { padding: 28px 20px; text-align: center; color: var(--muted); }
 
+  /* --- Profil (maketdagi yangi element) --- */
+  /* Matn xarita ustida turadi — oq soya bilan to'q plitalarda ham o'qiladi. */
+  #profileBtn { position: absolute; right: 12px; top: 12px; z-index: 700;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: none; border: 0; padding: 0; font-family: inherit; }
+  #profileBtn .circle { width: 52px; height: 52px; border-radius: 50%;
+    background: var(--bg); border: 1px solid var(--hair); box-shadow: var(--sh-card);
+    display: flex; align-items: center; justify-content: center; font-size: 26px; }
+  #profileBtn .lbl { font-size: 13px; font-weight: 600; color: var(--ink);
+    text-shadow: 0 0 4px var(--bg), 0 0 4px var(--bg); }
+
+  #profilePanel { position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+    z-index: 800; background: var(--screen); padding: 14px 16px 28px; overflow-y: auto; }
+  .pf-head { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .pf-back { width: 52px; height: 52px; flex: none; border-radius: var(--r-card);
+    background: var(--card); border: 1px solid var(--line); font-size: 22px; color: var(--ink); }
+  .pf-head h2 { margin: 0; font-size: 21px; font-weight: 800; }
+  .pf-field { margin-bottom: 12px; }
+  .pf-field label { display: block; font-size: 18px; margin-bottom: 6px; }
+  /* Fon ekran foni bilan BIR XIL — maketdagidek, faqat chegara ajratadi. */
+  .pf-box { display: flex; align-items: center; gap: 10px; height: 45px; padding: 0 12px;
+    border-radius: 12px; background: var(--screen); border: 1px solid var(--line); }
+  .pf-box input { flex: 1; min-width: 0; border: 0; background: none;
+    font-family: inherit; font-size: 18px; color: var(--ink); }
+  .pf-box .val { flex: 1; font-size: 18px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .pf-box .val.empty { color: var(--muted); }
+  .pf-box button { border: 0; background: none; font-size: 18px; color: var(--ink);
+    padding: 4px 2px; font-family: inherit; }
+  #pfErr { color: var(--red); font-size: 13px; min-height: 16px; }
+
   /* --- Buyurtma rejimi --- */
   /* Nuqta xarita MARKAZIDA qotib turadi, foydalanuvchi xaritani suradi. Bu
      markerni barmoq bilan sudrashdan ancha aniqroq (barmoq nuqtani yopmaydi).
@@ -225,6 +274,16 @@ export function miniappPage(): string {
 <div id="map"></div>
 <div id="centerPin" class="hidden"><svg viewBox="0 0 74 92.5" fill="#BC0000"><path d="M43.5328 43.5328C45.3443 41.7214 46.25 39.5438 46.25 37C46.25 34.4562 45.3443 32.2786 43.5328 30.4672C41.7214 28.6557 39.5438 27.75 37 27.75C34.4562 27.75 32.2786 28.6557 30.4672 30.4672C28.6557 32.2786 27.75 34.4562 27.75 37C27.75 39.5438 28.6557 41.7214 30.4672 43.5328C32.2786 45.3443 34.4562 46.25 37 46.25C39.5438 46.25 41.7214 45.3443 43.5328 43.5328ZM37 80.2438C46.4042 71.6104 53.3802 63.7672 57.9281 56.7141C62.476 49.6609 64.75 43.3979 64.75 37.925C64.75 29.5229 62.0714 22.6432 56.7141 17.2859C51.3568 11.9286 44.7854 9.25 37 9.25C29.2146 9.25 22.6432 11.9286 17.2859 17.2859C11.9286 22.6432 9.25 29.5229 9.25 37.925C9.25 43.3979 11.524 49.6609 16.0719 56.7141C20.6198 63.7672 27.5958 71.6104 37 80.2438ZM37 92.5C24.5896 81.9396 15.3203 72.1307 9.19219 63.0734C3.06406 54.0161 0 45.6333 0 37.925C0 26.3625 3.71927 17.151 11.1578 10.2906C18.5964 3.43021 27.2104 0 37 0C46.7896 0 55.4036 3.43021 62.8422 10.2906C70.2807 17.151 74 26.3625 74 37.925C74 45.6333 70.9359 54.0161 64.8078 63.0734C58.6797 72.1307 49.4104 81.9396 37 92.5Z"/></svg></div>
 <button id="recenter" class="hidden" title="center">◎</button>
+<button id="profileBtn" class="hidden"><span class="circle">👤</span><span class="lbl">…</span></button>
+
+<div id="profilePanel" class="hidden">
+  <div class="pf-head">
+    <button class="pf-back" id="pfBack">◀</button>
+    <h2 id="pfTitle">…</h2>
+  </div>
+  <div id="pfFields"></div>
+  <div id="pfErr"></div>
+</div>
 
 <div id="orderSheet" class="sheet-base hidden">
   <div class="paxrow">
@@ -532,12 +591,10 @@ export function miniappPage(): string {
       })
       .then(function (res) {
         cancelBusy = false;
-        clearTimeout(timer); // kuzatuv tugadi — so'rovlarni to'xtatamiz
-        elTitle.textContent = t.cancelled;
-        elSub.textContent = res.penalized ? t.cancelled_penalty : t.cancelled_free;
-        elInfo.innerHTML = '';
-        document.getElementById('cancelWrap').innerHTML = '';
-        document.getElementById('finish').innerHTML = '';
+        if (tg.showAlert) {
+          tg.showAlert(res.penalized ? t.cancelled_penalty : t.cancelled_free);
+        }
+        returnToOrdering();
       })
       .catch(function (e) {
         cancelBusy = false;
@@ -569,9 +626,11 @@ export function miniappPage(): string {
     var el = document.getElementById('finish');
     if (!d.finished) { el.innerHTML = ''; return; }
 
-    // Bekor qilingan safar uchun na narx, na baho bo'ladi.
+    // Bekor qilingan safar uchun na narx, na baho bo'ladi — ko'rsatadigan
+    // narsa yo'q, shuning uchun darhol buyurtma rejimiga qaytamiz.
     if (!d.completed) {
-      el.innerHTML = '<div class="rate-q">' + esc(t.cancelled) + '</div>';
+      if (tg.showAlert) tg.showAlert(t.cancelled);
+      returnToOrdering();
       return;
     }
 
@@ -704,14 +763,15 @@ export function miniappPage(): string {
 
   window.addEventListener('resize', layout);
 
-  function startOrdering() {
-    elSheet.classList.add('hidden');
-    elOrderSheet.classList.remove('hidden');
-    elCenterPin.classList.remove('hidden');
-    // "Mening joylashuvim" tugmasi BUYURTMA rejimida ham kerak: xaritani
-    // surgandan keyin o'z joyiga qaytadigan yo'l yo'q edi.
-    elRecenter.classList.remove('hidden');
-    elRecenter.title = t.my_loc;
+  /**
+   * Buyurtma varag'ining MATNLI qismini chizadi.
+   *
+   * startOrdering() dan ajratilgan: til almashtirilganda varaqni qaytadan
+   * chizish kerak, lekin centerOnMe() ni QAYTA chaqirmaslik shart —
+   * Telegram WebView geolokatsiya ruxsatini eslamaydi va har chaqiruvda
+   * so'rov oynasi qayta chiqadi.
+   */
+  function paintOrderSheet() {
     document.getElementById('paxLabel').textContent = t.pax_label;
 
     // Yo'lovchilar tanlagichi: "5+" da serverga 5 yuboriladi va bu YETARLI —
@@ -752,6 +812,19 @@ export function miniappPage(): string {
 
     paintOrderBtn();
     layout();
+  }
+
+  function startOrdering() {
+    elSheet.classList.add('hidden');
+    elOrderSheet.classList.remove('hidden');
+    elCenterPin.classList.remove('hidden');
+    // "Mening joylashuvim" tugmasi BUYURTMA rejimida ham kerak: xaritani
+    // surgandan keyin o'z joyiga qaytadigan yo'l yo'q edi.
+    elRecenter.classList.remove('hidden');
+    elRecenter.title = t.my_loc;
+    elProfileBtn.classList.remove('hidden');
+    elProfileBtn.querySelector('.lbl').textContent = t.profile;
+    paintOrderSheet();
 
     // Boshlang'ich markaz — mijozning GPS'i (ruxsat bermasa FALLBACK qoladi).
     // Ruxsat FAQAT shu yerda bir marta so'raladi; keyingi tugma bosishlari
@@ -810,12 +883,32 @@ export function miniappPage(): string {
 
   // ================= KUZATUV REJIMI =================
 
+  /**
+   * Kuzatuvdan buyurtma rejimiga qaytish.
+   *
+   * Avval bekor qilingan safar ekranni QOTIRIB qo'yardi: varaqda "Buyurtma
+   * bekor qilindi" yozuvi qolar, qaytish yo'li esa umuman yo'q edi — mijoz
+   * Telegram'ni yopib qayta ochishga majbur bo'lardi.
+   */
+  function returnToOrdering() {
+    clearTimeout(timer);
+    orderId = null;
+    lastData = null;
+    rateSent = false;
+    elSheet.classList.add('hidden');
+    elInfo.innerHTML = '';
+    document.getElementById('cancelWrap').innerHTML = '';
+    document.getElementById('finish').innerHTML = '';
+    startOrdering();
+  }
+
   function startTracking(id) {
     orderId = id;
     elOrderSheet.classList.add('hidden');
     elCenterPin.classList.add('hidden');
     elSheet.classList.remove('hidden');
     elRecenter.classList.remove('hidden');
+    elProfileBtn.classList.add('hidden');
     elRecenter.title = t.taxi;
     // Kuzatuvda o'z joylashuvimiz kerak emas (olib ketish nuqtasi allaqachon
     // 🧍 bilan ko'rsatiladi) — ikkinchi odamcha chalkashtirardi.
@@ -828,6 +921,132 @@ export function miniappPage(): string {
     layout();
     poll();
   }
+
+  // ================= PROFIL =================
+
+  var elProfileBtn = document.getElementById('profileBtn');
+  var elProfilePanel = document.getElementById('profilePanel');
+  var profile = null;
+  var pfEditing = null;  // qaysi maydon hozir tahrirlanmoqda
+  var langDirty = false; // til o'zgardi: panel yopilganda varaq qayta chiziladi
+
+  function openProfile() {
+    elProfilePanel.classList.remove('hidden');
+    document.getElementById('pfTitle').textContent = t.profile;
+    document.getElementById('pfErr').textContent = '';
+    pfEditing = null;
+    renderProfile();
+    fetch('/miniapp/profile', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ initData: tg.initData }),
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (p) { profile = p; renderProfile(); })
+      .catch(function (e) {
+        document.getElementById('pfErr').textContent =
+          t.err + ' [' + (e && e.message ? e.message : 'network') + ']';
+      });
+  }
+
+  function closeProfile() {
+    elProfilePanel.classList.add('hidden');
+    pfEditing = null;
+    // Til almashgan bo'lsa varaqni SHU YERDA qayta chizamiz — panel ochiqligida
+    // chizish centerOnMe() ni qo'zg'atib, geolokatsiya so'rovini qaytarardi.
+    if (langDirty) {
+      langDirty = false;
+      elRecenter.title = t.my_loc;
+      if (!elOrderSheet.classList.contains('hidden')) paintOrderSheet();
+    }
+  }
+
+  function pfRow(key, label, value, isLang) {
+    var inner;
+    if (pfEditing === key) {
+      inner = '<input id="pfInput" value="' + esc(value || '') + '"'
+        + (key === 'phone' ? ' type="tel"' : '') + '>'
+        + '<button data-act="save" data-key="' + key + '">✓</button>';
+    } else {
+      inner = '<span class="val' + (value ? '' : ' empty') + '">'
+        + esc(value || t.not_set) + '</span>'
+        + '<button data-act="' + (isLang ? 'lang' : 'edit') + '" data-key="' + key + '">✎</button>';
+    }
+    return '<div class="pf-field"><label>' + esc(label) + ':</label>'
+      + '<div class="pf-box">' + inner + '</div></div>';
+  }
+
+  function renderProfile() {
+    var p = profile || { firstName: null, lastName: null, phone: null, language: 'uz' };
+    var el = document.getElementById('pfFields');
+    el.innerHTML =
+      pfRow('firstName', t.profile_first, p.firstName, false) +
+      pfRow('lastName', t.profile_last, p.lastName, false) +
+      pfRow('phone', t.profile_phone, p.phone, false) +
+      pfRow('language', t.profile_lang, p.language === 'ru' ? t.lang_ru : t.lang_uz, true);
+
+    var btns = el.querySelectorAll('button');
+    for (var i = 0; i < btns.length; i++) btns[i].addEventListener('click', onPfClick);
+    var inp = document.getElementById('pfInput');
+    if (inp) inp.focus();
+  }
+
+  function onPfClick() {
+    var act = this.getAttribute('data-act');
+    var key = this.getAttribute('data-key');
+    if (act === 'edit') { pfEditing = key; renderProfile(); return; }
+    if (act === 'lang') {
+      savePf({ language: (profile && profile.language === 'ru') ? 'uz' : 'ru' });
+      return;
+    }
+    var inp = document.getElementById('pfInput');
+    var patch = {};
+    patch[key] = inp ? inp.value : '';
+    savePf(patch);
+  }
+
+  function savePf(patch) {
+    var body = { initData: tg.initData };
+    for (var k in patch) { if (patch.hasOwnProperty(k)) body[k] = patch[k]; }
+    document.getElementById('pfErr').textContent = '';
+    fetch('/miniapp/profile/save', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(function (r) {
+        return r.json().then(function (b) { return { ok: r.ok, body: b }; });
+      })
+      .then(function (res) {
+        if (!res.ok) {
+          // Server sababini AYNAN ko'rsatamiz (masalan uzun ism) — umumiy
+          // "xatolik" hech narsa tushuntirmaydi.
+          document.getElementById('pfErr').textContent = (res.body && res.body.message) || t.err;
+          return;
+        }
+        var changed = !profile || res.body.language !== profile.language;
+        profile = res.body;
+        pfEditing = null;
+        if (changed) {
+          t = L10N[profile.language === 'ru' ? 'ru' : 'uz'];
+          langDirty = true;
+          document.title = t.title;
+          document.getElementById('pfTitle').textContent = t.profile;
+          elProfileBtn.querySelector('.lbl').textContent = t.profile;
+        }
+        renderProfile();
+      })
+      .catch(function (e) {
+        document.getElementById('pfErr').textContent =
+          t.err + ' [' + (e && e.message ? e.message : 'network') + ']';
+      });
+  }
+
+  elProfileBtn.addEventListener('click', openProfile);
+  document.getElementById('pfBack').addEventListener('click', closeProfile);
 
   // ================= BOSHLANISH =================
 

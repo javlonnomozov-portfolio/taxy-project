@@ -14,6 +14,7 @@ import {
 import { ApiExcludeController } from '@nestjs/swagger';
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsLatitude,
   IsLongitude,
@@ -56,6 +57,17 @@ class PickupDto {
 
   @IsLongitude()
   lng!: number;
+}
+
+/**
+ * Kabinetdagi tahrirlanadigan maydonlar — mijoz ilovasidagi `UpdateProfileDto`
+ * bilan AYNI cheklovlar. Ikki kanal bir xil qoidada ishlashi shart.
+ */
+class SaveProfileDto extends InitDataDto {
+  @IsOptional() @IsString() @MaxLength(60) firstName?: string;
+  @IsOptional() @IsString() @MaxLength(60) lastName?: string;
+  @IsOptional() @IsString() @MaxLength(20) phone?: string;
+  @IsOptional() @IsIn(['uz', 'ru']) language?: string;
 }
 
 class CreateOrderDto extends InitDataDto {
@@ -154,6 +166,20 @@ export class MiniappController {
   @HttpCode(200)
   cancel(@Body() dto: TrackDto): Promise<{ penalized: boolean }> {
     return this.miniapp.cancel(dto.initData, dto.orderId);
+  }
+
+  /** Profil ekrani: ism, familiya, telefon, til. */
+  @Post('profile')
+  @HttpCode(200)
+  profile(@Body() dto: InitDataDto) {
+    return this.miniapp.profile(dto.initData);
+  }
+
+  /** O'sha maydonlarni saqlaydi va yangilangan profilni qaytaradi. */
+  @Post('profile/save')
+  @HttpCode(200)
+  saveProfile(@Body() dto: SaveProfileDto) {
+    return this.miniapp.saveProfile(dto.initData, dto);
   }
 
   /** Xaritadan tanlangan nuqta bilan buyurtma berish. */
