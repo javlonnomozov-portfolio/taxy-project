@@ -30,7 +30,7 @@ import { RealtimeService } from '../realtime/realtime.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DispatchOwnershipService } from './dispatch-ownership.service';
 import { ACTIVE_STATUSES } from '../orders/orders.constants';
-import { Candidate, haversineM, sortCandidates } from './dispatch.util';
+import { Candidate, haversineM, servedCategories, sortCandidates } from './dispatch.util';
 
 interface DispatchState {
   orderId: string;
@@ -349,11 +349,14 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     this.lastRetryAt.set(driverId, now);
 
     const category = await this.drivers.getCategory(driverId);
+    // Comfort mashina Standart zakazlarni ham oladi — shuning uchun bu yerda
+    // ham, quyidagi so'rovda ham bitta toifa emas, RO'YXAT tekshiriladi.
+    const serves = category ? servedCategories(category) : [];
 
     // 1) Hali ketayotgan dispatchlarda oynada joy bo'lsa — yangi haydovchini qo'shamiz.
     for (const st of this.states.values()) {
       if (!st.active || st.targeted) continue;
-      if (st.category !== category) continue;
+      if (!serves.includes(st.category)) continue;
       if (st.offered.has(driverId) || st.declined.has(driverId)) continue;
       if (st.offered.size >= st.windowSize) continue;
       await this.fillWindow(st);
@@ -369,7 +372,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     const pending = await this.orders.find({
       where: {
         status: OrderStatus.NO_DRIVER,
-        vehicleCategory: category,
+        vehicleCategory: In(serves),
         createdAt: MoreThan(new Date(now - RETRY_PENDING_MAX_AGE_MS)),
       },
       order: { createdAt: 'ASC' },

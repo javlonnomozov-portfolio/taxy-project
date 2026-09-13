@@ -2,6 +2,37 @@
  * Dispatch'ning SOF mantiqi — DB/Redis/socket'siz, shuning uchun to'g'ridan test qilinadi.
  * (Avval bu kod `DispatchService` ichida private edi va unit test yozib bo'lmasdi.)
  */
+import { VehicleCategory } from '@tty/shared';
+
+/**
+ * Haydovchi qaysi TOIFADAGI buyurtmalarni oladi.
+ *
+ * Comfort mashina Standart buyurtmani ham oladi — bir tomonlama: Standart
+ * mashina Comfort buyurtmani KO'RMAYDI (aks holda Comfort toifasining ma'nosi
+ * qolmasdi). Yuk mashinasi butunlay alohida.
+ *
+ * NEGA KERAK BO'LDI: 2026-09-13 da mijoz Standart zakaz berdi, haydovchi
+ * ishni boshladi, lekin zakaz unga KO'RINMADI — uning mashinasi Comfort
+ * toifasida edi. Kichik shaharda toifani qat'iy ajratish "taksi topilmadi"
+ * degani, bo'sh turgan mashina bor bo'lsa ham.
+ *
+ * NARX BUNGA BOG'LIQ EMAS: hisob `order.vehicleCategory` (mijoz TANLAGAN
+ * toifa) bo'yicha chiqadi, mashina toifasi bo'yicha emas. Ya'ni Comfort
+ * mashina Standart zakazni olsa, mijoz Standart narx to'laydi — unga
+ * ko'rsatilgan narx. Haydovchi ilovasida bunday zakaz BOSHQA rangda
+ * ko'rinadi, u nimaga rozi bo'layotganini bilsin.
+ */
+export function servedCategories(vehicle: VehicleCategory): VehicleCategory[] {
+  if (vehicle === VehicleCategory.COMFORT) {
+    return [VehicleCategory.COMFORT, VehicleCategory.STANDARD];
+  }
+  return [vehicle];
+}
+
+/** `servedCategories` ning teskarisi: shu toifadagi buyurtmani kim ola oladi. */
+export function servingVehicles(order: VehicleCategory): VehicleCategory[] {
+  return Object.values(VehicleCategory).filter((v) => servedCategories(v).includes(order));
+}
 
 export interface Candidate {
   driverId: string;

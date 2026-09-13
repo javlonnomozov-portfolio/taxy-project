@@ -29,6 +29,23 @@ export const C = {
   warnSoft: 'rgba(220, 104, 3, 0.10)',
   gold: '#F79009', // reyting yulduzi
 
+  /**
+   * COMFORT buyurtma — oltin.
+   *
+   * Comfort mashina Standart zakazlarni ham oladi (dispatch.util.ts:
+   * `servedCategories`), lekin narx MIJOZ tanlagan toifa bo'yicha chiqadi.
+   * Ya'ni bir ro'yxatda ikki xil pullik zakaz turadi va haydovchi ularni bir
+   * qarashda ajrata olishi SHART — aks holda arzon zakazni qimmat deb olib,
+   * yakunda hafsalasi pir bo'ladi.
+   *
+   * Yashil brend rangi bilan urishmaydi va taksi ilovalarida oltin
+   * "premium" ni bildiradi.
+   */
+  premium: '#B78108', // matn, ikonka, chap chegara
+  premiumBg: '#FFFCF5', // karta foni — oqdan zo'rg'a farq qiladi, charchatmaydi
+  premiumChip: 'rgba(183, 129, 8, 0.12)', // "COMFORT" yorlig'i foni
+  premiumBorder: 'rgba(183, 129, 8, 0.35)',
+
   /** Xarita (WebView) foni — plitalar yuklanguncha ko'rinadi. */
   mapBg: '#EAEEF3',
 

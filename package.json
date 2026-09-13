@@ -41,6 +41,7 @@
     "sim:customer-auth": "node scripts/customer-auth-sim.mjs",
     "sim:customer-addresses": "node scripts/customer-addresses-sim.mjs",
     "sim:seat-filter": "node scripts/seat-filter-sim.mjs",
+    "sim:category-overlap": "node scripts/category-overlap-sim.mjs",
     "try:login": "node scripts/customer-login-try.mjs",
     "release:apk": "node scripts/publish-apk.mjs"
   },

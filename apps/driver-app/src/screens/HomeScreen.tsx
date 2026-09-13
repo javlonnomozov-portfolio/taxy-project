@@ -26,6 +26,12 @@ interface Offer {
   /** Yo'lovchilar soni (mijoz aytgan bo'lsa). 4 dan ko'p bo'lsa server
       allaqachon faqat sig'adigan mashinalarga yuborgan. */
   passengers?: number;
+  /**
+   * MIJOZ tanlagan toifa — mashina toifasi EMAS. Comfort mashina Standart
+   * zakazni ham oladi, lekin narx mijozga ko'rsatilgani bo'yicha chiqadi.
+   * Server buni allaqachon yuborardi; ilova endi o'qiydi va rangda ko'rsatadi.
+   */
+  category?: 'standard' | 'comfort' | 'cargo';
   customer: { phone: string; name?: string };
 }
 /** `GET /trips/active` javobi — `order:assigned` bilan bir xil shakl + `stage`. */
@@ -1066,6 +1072,12 @@ export function HomeScreen({
             {[...offers].sort((a, b) => a.distanceM - b.distanceM).map((o) => {
               const expanded = expandedId === o.orderId;
 
+              // Comfort — oltin, qolgani — oddiy yashil. Rang faqat shu
+              // ikkita o'zgaruvchi orqali tarqaladi, shunda karta ichida
+              // yarim-oltin yarim-yashil holat chiqib qolmaydi.
+              const premium = o.category === 'comfort';
+              const tone = premium ? C.premium : C.accent;
+
               // "Rad etish" tor va rangsiz, "Qabul qilish" keng va yashil —
               // ular tasodifan almashtirilmasligi kerak.
               const respondRow = (
@@ -1091,7 +1103,7 @@ export function HomeScreen({
               const offerOverlay = (
                 <>
                   <View style={[S.row, { gap: 6, marginBottom: SP.md }]}>
-                    <MaterialIcons name="near-me" size={18} color={C.accent} />
+                    <MaterialIcons name="near-me" size={18} color={tone} />
                     <Text style={{ color: C.text, fontSize: F.h3, fontWeight: '800' }}>
                       ~{(o.distanceM / 1000).toFixed(1)} {t('km')}
                     </Text>
@@ -1103,14 +1115,51 @@ export function HomeScreen({
               return (
                 <View
                   key={o.orderId}
-                  style={[S.card, { marginBottom: SP.md, padding: SP.lg, borderColor: C.border }]}
+                  style={[
+                    S.card,
+                    {
+                      marginBottom: SP.md,
+                      padding: SP.lg,
+                      borderColor: premium ? C.premiumBorder : C.border,
+                    },
+                    // Chap chekkadagi oltin chiziq — ro'yxatni tez ko'zdan
+                    // kechirganda eng tez ilinadigan belgi.
+                    premium && {
+                      backgroundColor: C.premiumBg,
+                      borderLeftWidth: 3,
+                      borderLeftColor: C.premium,
+                    },
+                  ]}
                 >
-                  <View>
+                  <View style={[S.row, { justifyContent: 'space-between' }]}>
                     <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 0.6 }}>
                       {t('distance_away').toUpperCase()}
                     </Text>
+                    {premium ? (
+                      <View
+                        style={{
+                          backgroundColor: C.premiumChip,
+                          borderRadius: R.pill,
+                          paddingHorizontal: SP.md,
+                          paddingVertical: 3,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: C.premium,
+                            fontSize: F.tiny,
+                            fontWeight: '800',
+                            letterSpacing: 0.8,
+                          }}
+                        >
+                          {t('cat_comfort').toUpperCase()}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <View>
                     <View style={[S.row, { gap: 6, marginTop: 2 }]}>
-                      <MaterialIcons name="near-me" size={20} color={C.accent} />
+                      <MaterialIcons name="near-me" size={20} color={tone} />
                       <Text style={{ color: C.text, fontSize: F.title, fontWeight: '800' }}>
                         ~{(o.distanceM / 1000).toFixed(1)} {t('km')}
                       </Text>
@@ -1119,7 +1168,7 @@ export function HomeScreen({
 
                   {o.pickupAddress ? (
                     <View style={[S.row, { gap: 6, marginTop: SP.md }]}>
-                      <MaterialIcons name="location-on" size={18} color={C.accent} />
+                      <MaterialIcons name="location-on" size={18} color={tone} />
                       <Text style={{ color: C.text, fontSize: 15, flex: 1 }}>{o.pickupAddress}</Text>
                     </View>
                   ) : null}

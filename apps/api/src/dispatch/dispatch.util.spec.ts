@@ -1,4 +1,12 @@
-import { Candidate, haversineM, sortCandidates, RATING_BUCKET_M } from './dispatch.util';
+import { VehicleCategory } from '@tty/shared';
+import {
+  Candidate,
+  haversineM,
+  servedCategories,
+  servingVehicles,
+  sortCandidates,
+  RATING_BUCKET_M,
+} from './dispatch.util';
 
 describe('haversineM', () => {
   it('bir xil nuqta uchun 0 qaytaradi', () => {
@@ -67,5 +75,55 @@ describe('sortCandidates — masofa + reyting tie-break (2.4)', () => {
 
   it('bucket kengligi hujjatlashtirilgan qiymatga mos (200 m)', () => {
     expect(RATING_BUCKET_M).toBe(200);
+  });
+});
+
+describe('servedCategories — qaysi mashina qaysi zakazni oladi', () => {
+  it('Comfort mashina Standart zakazni ham oladi', () => {
+    expect(servedCategories(VehicleCategory.COMFORT)).toEqual([
+      VehicleCategory.COMFORT,
+      VehicleCategory.STANDARD,
+    ]);
+  });
+
+  it('Standart mashina Comfort zakazni OLMAYDI (bir tomonlama)', () => {
+    expect(servedCategories(VehicleCategory.STANDARD)).toEqual([VehicleCategory.STANDARD]);
+  });
+
+  it('Yuk mashinasi alohida — boshqa toifa aralashmaydi', () => {
+    expect(servedCategories(VehicleCategory.CARGO)).toEqual([VehicleCategory.CARGO]);
+    for (const v of Object.values(VehicleCategory)) {
+      if (v !== VehicleCategory.CARGO) {
+        expect(servedCategories(v)).not.toContain(VehicleCategory.CARGO);
+      }
+    }
+  });
+
+  it("har mashina o'z toifasini albatta oladi", () => {
+    for (const v of Object.values(VehicleCategory)) {
+      expect(servedCategories(v)).toContain(v);
+    }
+  });
+});
+
+describe('servingVehicles — teskari qidiruv', () => {
+  it('Standart zakazni Standart ham, Comfort ham oladi', () => {
+    expect(servingVehicles(VehicleCategory.STANDARD).sort()).toEqual(
+      [VehicleCategory.STANDARD, VehicleCategory.COMFORT].sort(),
+    );
+  });
+
+  it('Comfort zakazni faqat Comfort oladi', () => {
+    expect(servingVehicles(VehicleCategory.COMFORT)).toEqual([VehicleCategory.COMFORT]);
+  });
+
+  it('ikki funksiya bir-biriga MOS (har juftlik uchun)', () => {
+    for (const vehicle of Object.values(VehicleCategory)) {
+      for (const order of Object.values(VehicleCategory)) {
+        expect(servedCategories(vehicle).includes(order)).toBe(
+          servingVehicles(order).includes(vehicle),
+        );
+      }
+    }
   });
 });

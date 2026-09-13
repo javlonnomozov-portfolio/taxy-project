@@ -21,6 +21,9 @@ const dict: Record<Lang, Record<string, string>> = {
     waiting_orders: 'Buyurtma kutilmoqda…',
     new_order: 'Yangi buyurtma',
     new_orders: 'Yangi buyurtmalar',
+    // Buyurtma toifasi yorlig'i — Comfort zakaz oltin rangda ajralib turadi
+    // (Comfort mashina Standart zakazni ham oladi, narx esa har xil).
+    cat_comfort: 'Comfort',
     show_map: 'Xaritada ko‘rish',
     hide_map: 'Xaritani yashirish',
     fullscreen: 'Xaritani kattalashtirish',
@@ -124,6 +127,7 @@ const dict: Record<Lang, Record<string, string>> = {
     waiting_orders: 'Ожидание заказов…',
     new_order: 'Новый заказ',
     new_orders: 'Новые заказы',
+    cat_comfort: 'Comfort',
     show_map: 'Показать на карте',
     hide_map: 'Скрыть карту',
     fullscreen: 'Развернуть карту',

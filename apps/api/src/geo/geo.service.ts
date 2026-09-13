@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 import { VehicleCategory } from '@tty/shared';
 import { REDIS } from '../redis/redis.module';
+import { servedCategories } from '../dispatch/dispatch.util';
 
 // Jonli haydovchi joylashuvi va radius qidiruv — Redis GEO.
 // Har mashina toifasi uchun alohida geo-set (dispatch toifa filtri uchun).
@@ -13,19 +14,34 @@ export class GeoService {
     return `geo:drivers:${category}`;
   }
 
-  /** Onlayn (ONLINE_IDLE) haydovchi joylashuvini yangilash. */
+  /**
+   * Onlayn (ONLINE_IDLE) haydovchi joylashuvini yangilash.
+   *
+   * `category` — MASHINA toifasi. Haydovchi o'zi xizmat qiladigan HAR
+   * toifaning indeksiga yoziladi: Comfort mashina `comfort` va `standard`
+   * indekslarining IKKALASIDA ham turadi, shuning uchun Standart zakaz uni
+   * nomzod sifatida topadi (`servedCategories`).
+   */
   async setDriverLocation(
     driverId: string,
     category: VehicleCategory,
     lng: number,
     lat: number,
   ): Promise<void> {
-    await this.redis.geoadd(this.key(category), lng, lat, driverId);
+    await Promise.all(
+      servedCategories(category).map((c) => this.redis.geoadd(this.key(c), lng, lat, driverId)),
+    );
   }
 
-  /** Haydovchini geo-indeksdan olib tashlash (oflayn / band bo'lganda). */
+  /**
+   * Haydovchini geo-indeksdan olib tashlash (oflayn / band bo'lganda).
+   *
+   * Xizmat qiladigan HAMMA indeksdan chiqariladi — aks holda Comfort
+   * haydovchi band bo'lganida `standard` indeksida qolib ketardi va unga
+   * zakaz taklif qilinaverardi.
+   */
   async removeDriver(driverId: string, category: VehicleCategory): Promise<void> {
-    await this.redis.zrem(this.key(category), driverId);
+    await Promise.all(servedCategories(category).map((c) => this.redis.zrem(this.key(c), driverId)));
   }
 
   async removeFromAll(driverId: string): Promise<void> {
