@@ -49,6 +49,7 @@ const T = {
     ordering: 'Yuborilmoqda…',
     my_loc: 'Mening joylashuvim',
     price: 'Narx',
+    extra: 'Qo‘shimcha',
     som: 'so‘m',
     rate_prompt: 'Xohlasangiz, haydovchini baholang (ixtiyoriy):',
     thanks_rating: 'Bahoyingiz uchun rahmat! 🙏',
@@ -91,6 +92,7 @@ const T = {
     ordering: 'Отправляем…',
     my_loc: 'Моё местоположение',
     price: 'Стоимость',
+    extra: 'Доплата',
     som: 'сум',
     rate_prompt: 'Если хотите, оцените водителя (необязательно):',
     thanks_rating: 'Спасибо за оценку! 🙏',
@@ -580,6 +582,15 @@ export function miniappPage(): string {
     if (d.finalPrice != null) {
       html += '<div class="price"><div class="lbl">' + esc(t.price) + '</div>' +
               '<div class="val">' + money(d.finalPrice) + ' <small>' + esc(t.som) + '</small></div></div>';
+      // Operator qo'shgan summa ALOHIDA qator. U yakuniy narxga allaqachon
+      // kirgan, lekin jimgina kirsa mijoz "nega bunchalik ko'p?" deb qolardi.
+      if (d.fareAdjustment) {
+        html += '<div class="lbl" style="text-align:center;margin-top:-6px">' +
+                esc(t.extra) + ': ' + (d.fareAdjustment > 0 ? '+' : '') +
+                money(d.fareAdjustment) + ' ' + esc(t.som) +
+                (d.fareAdjustmentReason ? ' \u2014 ' + esc(d.fareAdjustmentReason) : '') +
+                '</div>';
+      }
     }
 
     // d.rated bot chatidan berilgan bahoni ham qamrab oladi — ikki oyna

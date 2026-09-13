@@ -63,6 +63,13 @@ const uz: Record<string, string> = {
   th_created: 'Yaratilgan',
   th_finished: 'Tugagan',
   no_orders: 'Zakaz yo‘q',
+  // Taksometrdan TASHQARI summa — yuk, uzoq kutish, mashina kirmaydigan ko‘cha.
+  th_adjustment: 'Qo‘shimcha',
+  adjust_fare: 'Narxni tuzatish',
+  adjust_fare_hint: 'Taksometrdan tashqari summa. Yakuniy hisobga alohida qator bo‘lib qo‘shiladi va mijoz sababni ko‘radi. Manfiy yozsangiz — chegirma. Faqat safar tugagunga qadar o‘zgartirish mumkin.',
+  adjust_amount: 'Summa (so‘m):',
+  adjust_reason: 'Sabab:',
+  adjust_reason_ph: 'masalan: katta yuk',
 
   // Foydalanuvchilar
   customers_title: 'Foydalanuvchilar',
@@ -257,6 +264,12 @@ const ru: Record<string, string> = {
   th_created: 'Создан',
   th_finished: 'Завершён',
   no_orders: 'Заказов нет',
+  th_adjustment: 'Доплата',
+  adjust_fare: 'Изменить цену',
+  adjust_fare_hint: 'Сумма сверх таксометра. Добавляется в итоговый счёт отдельной строкой, клиент видит причину. Отрицательное значение — скидка. Менять можно только до завершения поездки.',
+  adjust_amount: 'Сумма (сум):',
+  adjust_reason: 'Причина:',
+  adjust_reason_ph: 'например: крупный багаж',
 
   customers_title: 'Пользователи',
   search_customer: 'Поиск (имя или телефон)',

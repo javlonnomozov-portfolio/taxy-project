@@ -84,6 +84,23 @@ export class Order {
   @Column({ type: 'numeric', name: 'night_multiplier', precision: 4, scale: 2, default: 1.0, transformer: numericTransformer })
   nightMultiplier!: number;
 
+  /**
+   * Operator qo'shgan (yoki ayirgan) summa — taksometrdan TASHQARI.
+   *
+   * Masalan mijozda katta yuk bor, kutish uzoq bo'ldi, mashina kirmaydigan
+   * ko'chaga borildi. Avval bunday kelishuvlar telefon orqali hal bo'lib,
+   * pul tizimdan tashqarida olinardi: hisobotda ham, komissiyada ham
+   * ko'rinmasdi.
+   *
+   * Yakuniy narxga ALOHIDA qator bo'lib qo'shiladi — mijoz nima uchun
+   * to'layotganini ko'radi (`fareAdjustmentReason`).
+   */
+  @Column({ type: 'numeric', name: 'fare_adjustment', precision: 10, scale: 2, default: 0, transformer: numericTransformer })
+  fareAdjustment!: number;
+
+  @Column({ type: 'text', name: 'fare_adjustment_reason', nullable: true })
+  fareAdjustmentReason!: string | null;
+
   @Column({ type: 'numeric', name: 'commission_amount', precision: 10, scale: 2, nullable: true, transformer: numericTransformer })
   commissionAmount!: number | null;
 

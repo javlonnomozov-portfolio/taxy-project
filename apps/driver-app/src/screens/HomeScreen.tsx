@@ -45,6 +45,8 @@ interface ActiveTrip {
   meterConfig: MeterConfig;
   stage: Stage;
   startedAt: string | null;
+  fareAdjustment?: number;
+  fareAdjustmentReason?: string | null;
 }
 interface MeterConfig {
   baseFare: number;
@@ -61,6 +63,13 @@ interface Trip {
   customer: { phone: string; name?: string };
   meter: MeterConfig;
   stage: Stage;
+  /**
+   * Operator kelishgan qo'shimcha (yuk, uzoq kutish va h.k.). Taksometrga
+   * qo'shib ko'rsatiladi — haydovchi mijozdan AYNAN yakuniy hisobdagi
+   * summani so'rashi kerak.
+   */
+  fareAdjustment: number;
+  fareAdjustmentReason: string | null;
 }
 
 function haversine(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -210,7 +219,16 @@ export function HomeScreen({
 
     // Ayni safar allaqachon ekranda — tegmaymiz. Aks holda jonli masofa
     // saqlangan (15 soniyagacha eski) qiymatga qaytib ketardi.
-    if (tripRef.current?.orderId === active.orderId) return true;
+    if (tripRef.current?.orderId === active.orderId) {
+      // Qolgan hamma narsaga tegmaymiz, lekin QO'SHIMCHA yangilanadi: operator
+      // uni safar davomida o'zgartiradi va aynan shu yo'l bilan ekranga yetadi.
+      const adj = active.fareAdjustment ?? 0;
+      const why = active.fareAdjustmentReason ?? null;
+      if (tripRef.current.fareAdjustment !== adj || tripRef.current.fareAdjustmentReason !== why) {
+        setTrip((cur) => (cur ? { ...cur, fareAdjustment: adj, fareAdjustmentReason: why } : cur));
+      }
+      return true;
+    }
 
     const saved = await storage.getTripProgress();
     setTrip({
@@ -222,6 +240,8 @@ export function HomeScreen({
       customer: active.customer,
       meter: active.meterConfig,
       stage: active.stage,
+      fareAdjustment: active.fareAdjustment ?? 0,
+      fareAdjustmentReason: active.fareAdjustmentReason ?? null,
     });
     setDistanceM(saved?.orderId === active.orderId ? saved.distanceM : 0);
     setOffers([]);
@@ -314,6 +334,10 @@ export function HomeScreen({
           customer: a.customer,
           meter: a.meterConfig,
           stage: 'accepted',
+          // Yangi biriktirilgan zakazda qo'shimcha hali yo'q; operator uni
+          // keyinroq qo'shsa `announcement` + `syncActiveTrip` olib keladi.
+          fareAdjustment: 0,
+          fareAdjustmentReason: null,
         });
         setOffers([]);
         setDistanceM(0);
@@ -327,6 +351,14 @@ export function HomeScreen({
     s.on('connect', () => {
       void fetchPending();
       void syncActiveTrip();
+    });
+    // Operator narxni tuzatdi. Xabarning o'zi summani emas, faqat MATNNI
+    // ko'rsatadi; haqiqiy qiymat serverdan qayta olinadi — xabar kelmay qolsa
+    // ham ilova fondan qaytganda `syncActiveTrip` uni baribir tortadi.
+    s.on(EV.announcement, (e: { orderId?: string; message?: string }) => {
+      if (!e?.orderId || tripRef.current?.orderId !== e.orderId) return;
+      void syncActiveTrip();
+      if (e.message) Alert.alert(t('extra_fee_title'), e.message);
     });
     // Safar mijoz/operator tomonidan bekor qilindi — ekranni yopib, yana buyurtma qabul qilamiz.
     s.on(EV.tripEnded, (e: { orderId: string; reason?: string }) => {
@@ -680,8 +712,12 @@ export function HomeScreen({
 
   // Safar paneli
   if (trip) {
-    const liveMeter =
-      trip.meter.baseFare + (trip.meter.perKm * distanceM) / 1000;
+    // Qo'shimcha server hisobidagi kabi OXIRIDA qo'shiladi va 0 dan pastga
+    // tushmaydi (`PricingService.computeFare`).
+    const liveMeter = Math.max(
+      0,
+      trip.meter.baseFare + (trip.meter.perKm * distanceM) / 1000 + (trip.fareAdjustment || 0),
+    );
     const goingToCustomer = trip.stage !== 'in_progress';
     const me = lastLoc.current
       ? [{ lat: lastLoc.current.lat, lng: lastLoc.current.lng, color: C.online, label: t('online') }]
@@ -804,6 +840,30 @@ export function HomeScreen({
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Operator kelishgan qo'shimcha — ogohlantirish rangida, e'tibordan
+              chetda qolmasin: haydovchi mijozga shu summani aytishi kerak. */}
+          {trip.fareAdjustment ? (
+            <View
+              style={[
+                S.card,
+                { marginTop: SP.md, padding: SP.lg, backgroundColor: C.warnSoft, borderColor: C.warn },
+              ]}
+            >
+              <Text style={{ color: C.warn, fontSize: F.tiny, fontWeight: '800', letterSpacing: 0.6 }}>
+                {t('extra_fee').toUpperCase()}
+              </Text>
+              <Text style={{ color: C.text, fontSize: F.h2, fontWeight: '800', marginTop: 2 }}>
+                {trip.fareAdjustment > 0 ? '+' : ''}
+                {som(trip.fareAdjustment)} {t('som')}
+              </Text>
+              {trip.fareAdjustmentReason ? (
+                <Text style={{ color: C.text, fontSize: F.body, marginTop: 2 }}>
+                  {trip.fareAdjustmentReason}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           {/* Taksometr — safarda ekrandagi ENG KATTA element (qo'l uzunligidan o'qilsin). */}
           {trip.stage === 'in_progress' && (

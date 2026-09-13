@@ -63,6 +63,7 @@ const dict: Record<Lang, Record<string, string>> = {
     no: 'Yo‘q',
 
     price: 'Narx',
+    extra_fee: 'Qo‘shimcha',
     som: 'so‘m',
     rate_prompt: 'Xohlasangiz, haydovchini baholang:',
     rate_comment_ph: 'Izoh (ixtiyoriy)',
@@ -171,6 +172,7 @@ const dict: Record<Lang, Record<string, string>> = {
     no: 'Нет',
 
     price: 'Стоимость',
+    extra_fee: 'Доплата',
     som: 'сум',
     rate_prompt: 'Если хотите, оцените водителя:',
     rate_comment_ph: 'Комментарий (необязательно)',

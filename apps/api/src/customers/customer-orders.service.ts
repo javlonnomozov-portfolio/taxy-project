@@ -188,6 +188,8 @@ export class CustomerOrdersService {
         : null,
       finished: CustomerOrdersService.FINISHED.includes(order.status),
       finalPrice: order.finalPrice,
+      fareAdjustment: Number(order.fareAdjustment) || 0,
+      fareAdjustmentReason: order.fareAdjustmentReason,
       completed: order.status === OrderStatus.COMPLETED,
       rated:
         order.status === OrderStatus.COMPLETED
@@ -251,6 +253,14 @@ export interface TrackView {
   finished: boolean;
   /** Yakuniy narx — faqat COMPLETED bo'lganda to'ladi. */
   finalPrice: number | null;
+  /**
+   * Operator qo'shgan summa va sababi — hisobda ALOHIDA qator.
+   *
+   * Yakuniy narxga allaqachon kirgan, lekin jimgina kirsa mijoz "nega
+   * bunchalik ko'p?" deb qolardi. Sabab ko'rinib tursa savol tug'ilmaydi.
+   */
+  fareAdjustment: number;
+  fareAdjustmentReason: string | null;
   /** Muvaffaqiyatli yakunlandimi (bekor qilish emas) — baholash shunda so'raladi. */
   completed: boolean;
   /** Mijoz allaqachon baholaganmi (bot chatidan ham bo'lishi mumkin). */

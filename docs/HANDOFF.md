@@ -268,6 +268,44 @@ ikkalasi ham `CustomersService.updateProfile` ga tushadi.
 Buyurtmalar tarixi mini appga ATAYLAB qo'shilmadi (foydalanuvchi qarori) —
 u faqat ilovada.
 
+### ✅ Narx modeli va toifalar — kelishilgan qarorlar (2026-09-13)
+
+Foydalanuvchi bilan kelishildi, qayta ochilmasin:
+
+| Qaror | Qanday | Nega |
+|---|---|---|
+| **Comfort mashina Standart zakazni ham oladi** | `servedCategories()` (`dispatch.util.ts`) — Comfort haydovchi `geo:drivers:comfort` va `geo:drivers:standard` ikkalasida turadi | Kichik shaharda toifani qat'iy ajratish "taksi topilmadi" degani. 2026-09-13 da aynan shu sabab Standart zakaz Comfort haydovchiga ko'rinmagan |
+| Bir tomonlama | Standart mashina Comfort zakazni **ko'rmaydi**, Yuk butunlay alohida | Aks holda Comfort toifasi ma'nosini yo'qotadi |
+| **Narx mijoz tanlagan toifa bo'yicha** | `trips.complete()` `order.vehicleCategory` ni ishlatadi — kod o'zgarmadi | Mijozga Standart narx ko'rsatilgan; Comfort mashina kelgani uchun qimmat olish — aldash |
+| Haydovchi ilovasida rang | Comfort zakaz — **oltin** (`C.premium` #B78108, krem fon, chap chiziq, COMFORT chipi), Standart — oddiy yashil | Bir ro'yxatda ikki xil pullik zakaz turadi, haydovchi bir qarashda ajratsin |
+| **Surge toifa bo'yicha** | `tariffs.surge_multiplier`; global `surgeActive` — bosh kalit | Standart taqchilligi Yuk narxini ko'tarmasin. Migratsiya global qiymatni har toifaga ko'chirgan |
+| Tungi soatlar panelda | `nightFrom`/`nightTo` Sozlamalar jadvalida | Avval faqat SQL bilan o'zgarardi |
+| **Operator narxni tuzatadi** | `POST /ops/orders/:id/fare` `{amount, reason}` → `orders.fare_adjustment` | Yuk, uzoq kutish kabi kelishuvlar pul tizimdan TASHQARIDA olinardi |
+| Qo'shimcha koeffitsientga ko'paytirilmaydi | `total = max(0, taksometr × tungi × surge + qo'shimcha)` | Kelishilgan "yuk uchun 5 000" tunda 6 000 ga aylanmasin |
+| Toifa o'zgartirilmaydi, qo'shimcha qo'shiladi | — | Toifani almashtirish safar o'rtasida taksometrni sakratadi |
+| Faqat FAOL zakazda, sabab majburiy | server 400 qaytaradi | Yakunlangan narx mijozga aytilgan va komissiya yechilgan |
+| OPERATOR ham qila oladi (admin shart emas) | `@Roles(OPERATOR, ...)`, `order_events` ga `fare_adjusted` yoziladi | Mijoz bilan telefonda aynan operator gaplashadi |
+
+**Qayerda ko'rinadi:** admin → Zakazlar (ustun + "Narxni tuzatish"), haydovchi
+ilovasi (to'q sariq karta + taksometrga qo'shilgan, `announcement` soket
+hodisasi — avval ilova uni UMUMAN tinglamasdi), mijoz ilovasi va mini app
+(yakuniy narx ostida alohida qator).
+
+**Tarif endpointi endi validatsiyali** (`UpdateTariffDto`) — avval
+`Record<string, number>` bo'lib, tana to'g'ridan entity'ga yozilardi.
+
+**Simlar:** `sim:category-overlap` (15), `sim:fare-adjustment` (12).
+
+> ⚠️ **Sim yozishda tuzoq:** `driver:offer_response` handleri **ack
+> qaytarmaydi** (trip:* esa `{ ok: true }` qaytaradi). Uni `await emit(...)`
+> qilgan sim hech qanday xatosiz ABADIY qotib qoladi. Yangi simlarda
+> `emit` ga muddat qo'yilgan — shu naqshdan foydalaning.
+
+> ⚠️ **Dispatch log'idagi "Nomzod topilmadi" har doim ham nosozlik emas.**
+> U oyna (`windowSize`) to'lmay qolganda ham chiqadi — masalan 2 ta
+> haydovchi bor, oyna 6 ta. Haqiqiy "hech kimga taklif ketmadi" holati —
+> faqat `NO_DRIVER` statusi.
+
 ### ✅ Hal qilingan mahsulot savollari (o'zgarmagan, qayta ochilmasin)
 
 - **4+ yo'lovchi uchun yangi TOIFA/mashina rusumi tanlash — KERAK EMAS.**

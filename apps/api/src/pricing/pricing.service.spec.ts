@@ -189,3 +189,37 @@ describe('toifa bo\u2018yicha surge', () => {
     expect(fare.total).toBe(4000);
   });
 });
+
+describe('operator qo‘shimchasi (fare adjustment)', () => {
+  it('taksometr summasiga qo‘shiladi va alohida qaytadi', async () => {
+    // 4000 + 5 km * 2000 = 14 000, qo'shimcha +5 000
+    const fare = await makeService(tariff()).computeFare(
+      VehicleCategory.STANDARD, 5000, 0, DAY, 5000,
+    );
+    expect(fare.adjustment).toBe(5000);
+    expect(fare.total).toBe(19000);
+  });
+
+  it('koeffitsientlarga KO‘PAYTIRILMAYDI (kelishilgan summa o‘zgarmasin)', async () => {
+    // Tunda: 4000 * 1.2 = 4800, qo'shimcha +5 000 aynan 5 000 bo'lib qoladi
+    const NIGHT = new Date('2026-07-27T23:30:00');
+    const fare = await makeService(tariff()).computeFare(
+      VehicleCategory.STANDARD, 0, 0, NIGHT, 5000,
+    );
+    expect(fare.nightMultiplier).toBe(1.2);
+    expect(fare.total).toBe(9800);
+  });
+
+  it('manfiy qo‘shimcha (chegirma) hisobni noldan pastga tushirmaydi', async () => {
+    const fare = await makeService(tariff()).computeFare(
+      VehicleCategory.STANDARD, 0, 0, DAY, -50000,
+    );
+    expect(fare.total).toBe(0);
+  });
+
+  it('qo‘shimcha berilmasa eski hisob o‘zgarmaydi', async () => {
+    const fare = await makeService(tariff()).computeFare(VehicleCategory.STANDARD, 5000, 0, DAY);
+    expect(fare.adjustment).toBe(0);
+    expect(fare.total).toBe(14000);
+  });
+});

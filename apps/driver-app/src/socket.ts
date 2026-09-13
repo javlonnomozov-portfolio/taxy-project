@@ -18,6 +18,9 @@ export const EV = {
   orderOfferCancelled: 'order:offer_cancelled',
   orderAssigned: 'order:assigned',
   tripEnded: 'trip:ended', // safar tashqi sabab bilan tugadi (mijoz/operator bekor qildi)
+  // Operator xabari — hozircha narx tuzatilganda keladi. Avval server buni
+  // yuborardi, ilova esa TINGLAMASDI: xabar jimgina yo'qolardi.
+  announcement: 'announcement',
 } as const;
 
 /**

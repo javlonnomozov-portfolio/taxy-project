@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ActorType, OrderStatus, OrderType, PanelRole, SOCKET_EVENTS, VehicleCategory } from '@tty/shared';
@@ -17,6 +17,8 @@ import { Tariff } from '../entities/tariff.entity';
 
 @Injectable()
 export class OpsService {
+  private readonly log = new Logger(OpsService.name);
+
   constructor(
     @InjectRepository(Order) private readonly orders: Repository<Order>,
     @InjectRepository(Customer) private readonly customers: Repository<Customer>,
@@ -88,6 +90,69 @@ export class OpsService {
         : undefined,
     });
     this.realtime.emitToOps(SOCKET_EVENTS.ops.orderUpdate, { orderId, status: OrderStatus.ACCEPTED, driverId });
+    return (await this.orders.findOne({ where: { id: orderId } }))!;
+  }
+
+  /**
+   * Buyurtma narxini tuzatish — taksometrdan TASHQARI summa.
+   *
+   * NEGA KERAK: hayotda kelishuv taksometrdan chetga chiqadi — mijozda katta
+   * yuk bor, kutish uzoq bo'ldi, mashina kirmaydigan ko'chaga borish kerak.
+   * Avval bular telefon orqali hal bo'lib, pul TIZIMDAN TASHQARIDA olinardi:
+   * hisobotda ham, komissiyada ham ko'rinmasdi.
+   *
+   * NEGA TOIFA O'ZGARTIRILMAYDI: "zakazni Comfort'ga o'tkazish" butun hisobni
+   * (baza + km + kutish) qayta yozadi va safar o'rtasida taksometr sakrab
+   * ketadi. Qo'shimcha esa alohida qator bo'lib turadi.
+   *
+   * FAQAT FAOL buyurtmada: yakunlangan safarning narxi allaqachon mijozga
+   * aytilgan va haydovchidan komissiya yechilgan — uni orqaga o'zgartirish
+   * ikkalasini ham buzardi.
+   */
+  async adjustFare(
+    orderId: string,
+    amount: number,
+    reason: string,
+    actorId?: string,
+  ): Promise<Order> {
+    const order = await this.orders.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Buyurtma topilmadi');
+    if (!ACTIVE_STATUSES.includes(order.status)) {
+      throw new BadRequestException('Yakunlangan buyurtma narxini o\u2018zgartirib bo\u2018lmaydi');
+    }
+
+    const before = Number(order.fareAdjustment) || 0;
+    await this.orders.update(orderId, {
+      fareAdjustment: amount,
+      fareAdjustmentReason: reason,
+    });
+    await this.events.record(orderId, 'fare_adjusted', ActorType.OPERATOR, {
+      actorId,
+      reason,
+      payload: { before, after: amount },
+    });
+
+    // Ikkala tomonga ham AYTAMIZ. Haydovchi bilmasa mijozdan noto'g'ri summa
+    // so'rardi; mijoz bilmasa yakunda kutilmagan hisob chiqardi.
+    if (order.driverId) {
+      this.realtime.emitToDriver(order.driverId, SOCKET_EVENTS.driver.announcement, {
+        orderId,
+        message: `${reason}: ${amount > 0 ? '+' : ''}${amount}`,
+      });
+    }
+    this.realtime.emitToCustomer(order.customerId, SOCKET_EVENTS.customer.orderStatus, {
+      orderId,
+      status: order.status,
+      fareAdjustment: amount,
+      fareAdjustmentReason: reason,
+    });
+    this.realtime.emitToOps(SOCKET_EVENTS.ops.orderUpdate, {
+      orderId,
+      status: order.status,
+      fareAdjustment: amount,
+    });
+
+    this.log.log(`Narx tuzatildi (zakaz ${orderId}): ${before} -> ${amount} (${reason})`);
     return (await this.orders.findOne({ where: { id: orderId } }))!;
   }
 

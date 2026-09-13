@@ -55,6 +55,22 @@ export class UpdateTariffDto {
   @IsOptional() @IsNumber() @Min(1) @Max(5) surgeMultiplier?: number;
 }
 
+/**
+ * Buyurtma narxini tuzatish (`POST /ops/orders/:id/fare`).
+ *
+ * Manfiy qiymat ham mumkin (chegirma — masalan haydovchi kech kelgani
+ * uchun), lekin yakuniy hisob nolga tushib ketmaydi.
+ *
+ * `reason` MAJBURIY: summa sababsiz o'zgarsa, mijoz uchun ham, keyinchalik
+ * nizo chiqqanda operator uchun ham tushunarsiz bo'lardi.
+ */
+export class FareAdjustmentDto {
+  /** Qo'shimcha (so'm). Manfiy — chegirma. */
+  @IsNumber() @Min(-1_000_000) @Max(1_000_000) amount!: number;
+  /** Nima uchun — mijoz hisobda shuni ko'radi. */
+  @IsString() @MinLength(3) reason!: string;
+}
+
 export class SettingsDto {
   /** Yangi toifa uchun boshlang'ich koeffitsient (amaldagi narx TARIFDAN olinadi). */
   @IsOptional() @IsNumber() @Min(1) @Max(5) surgeMultiplier?: number;

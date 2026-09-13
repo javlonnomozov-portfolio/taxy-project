@@ -44,6 +44,9 @@ interface TrackView {
   car: { name: string; plate: string; model: string; phone: string; rating: number } | null;
   finished: boolean;
   finalPrice: number | null;
+  /** Operator qo'shgan summa — yakuniy narxga kirgan, alohida ko'rsatiladi. */
+  fareAdjustment?: number;
+  fareAdjustmentReason?: string | null;
   completed: boolean;
   rated: boolean;
   cancellable: boolean;
@@ -926,6 +929,17 @@ export function HomeScreen({
             <Text style={{ color: C.ok, fontSize: F.hero, fontWeight: '800' }}>
               {som(view.finalPrice ?? 0)} <Text style={{ fontSize: F.h2 }}>{t('som')}</Text>
             </Text>
+
+            {/* Operator qo'shgan summa yakuniy narxga ALLAQACHON kirgan.
+                Jimgina kirsa mijoz "nega bunchalik ko'p?" deb qolardi —
+                sabab ko'rinib tursa savol tug'ilmaydi. */}
+            {view.fareAdjustment ? (
+              <Text style={{ color: C.muted, fontSize: F.label, marginTop: 2 }}>
+                {t('extra_fee')}: {view.fareAdjustment > 0 ? '+' : ''}
+                {som(view.fareAdjustment)} {t('som')}
+                {view.fareAdjustmentReason ? ` — ${view.fareAdjustmentReason}` : ''}
+              </Text>
+            ) : null}
 
             {view.rated || rateSent ? (
               <Text style={{ color: C.ok, fontWeight: '700', marginTop: SP.md }}>

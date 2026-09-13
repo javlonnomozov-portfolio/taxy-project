@@ -11,6 +11,12 @@ export interface FareBreakdown {
   subtotal: number;
   nightMultiplier: number;
   surgeMultiplier: number;
+  /**
+   * Operator qo'shgan summa (`orders.fare_adjustment`). Koeffitsientlardan
+   * KEYIN qo'shiladi: kelishilgan "yuk uchun 5 000" tungi tarifda 6 000 ga
+   * aylanib qolmasin — mijozga aytilgan raqam aynan shu bo'lib qolsin.
+   */
+  adjustment: number;
   total: number;
 }
 
@@ -48,6 +54,7 @@ export class PricingService {
     distanceM: number,
     waitingMinutes: number,
     when: Date = new Date(),
+    adjustment = 0,
   ): Promise<FareBreakdown> {
     const tariff = await this.settings.getTariff(category);
     if (!tariff) {
@@ -59,7 +66,8 @@ export class PricingService {
         subtotal: 4000,
         nightMultiplier: 1,
         surgeMultiplier: 1,
-        total: 4000,
+        adjustment,
+        total: Math.max(0, 4000 + adjustment),
       };
     }
 
@@ -80,8 +88,21 @@ export class PricingService {
     const surgeMultiplier = (await this.settings.surgeActive())
       ? Number(tariff.surgeMultiplier) || 1
       : 1;
-    const total = Math.round(subtotal * nightMultiplier * surgeMultiplier);
+    // Qo'shimcha KOEFFITSIENTLARDAN KEYIN qo'shiladi — kelishilgan "yuk uchun
+    // 5 000" tungi tarifda 6 000 ga aylanib qolmasin. Manfiy chegirma butun
+    // hisobni minusga tushirmasligi uchun 0 dan pastga tushmaydi.
+    const metered = Math.round(subtotal * nightMultiplier * surgeMultiplier);
+    const total = Math.max(0, metered + adjustment);
 
-    return { base, distance, waiting, subtotal, nightMultiplier, surgeMultiplier, total };
+    return {
+      base,
+      distance,
+      waiting,
+      subtotal,
+      nightMultiplier,
+      surgeMultiplier,
+      adjustment,
+      total,
+    };
   }
 }

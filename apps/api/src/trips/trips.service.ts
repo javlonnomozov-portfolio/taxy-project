@@ -115,6 +115,15 @@ export class TripsService {
     meterConfig: { baseFare: number; perKm: number; waitingPerMin: number };
     stage: 'accepted' | 'arrived' | 'in_progress';
     startedAt: string | null;
+    /**
+     * Operator kelishgan qo'shimcha (yuk, uzoq kutish va h.k.).
+     *
+     * Haydovchi buni KO'RISHI shart: u mijozdan qancha pul olishini bilishi
+     * kerak. Faqat soket xabari yuborilsa, ilova fondan qaytganda yoki
+     * xabar kelmay qolganda haydovchi eski summani aytardi.
+     */
+    fareAdjustment: number;
+    fareAdjustmentReason: string | null;
   } | null> {
     const order = await this.orders.findOne({
       where: {
@@ -158,6 +167,8 @@ export class TripsService {
             ? 'arrived'
             : 'accepted',
       startedAt: order.startedAt ? order.startedAt.toISOString() : null,
+      fareAdjustment: Number(order.fareAdjustment) || 0,
+      fareAdjustmentReason: order.fareAdjustmentReason,
     };
   }
 
@@ -274,6 +285,10 @@ export class TripsService {
       distanceM,
       order.waitingMinutes,
       new Date(),
+      // Operator kelishgan qo'shimcha (yuk, uzoq kutish va h.k.) — shu
+      // yerda qo'shiladi, ya'ni komissiya ham undan hisoblanadi. Aks holda
+      // bu pul tizimdan tashqarida qolib ketardi.
+      Number(order.fareAdjustment) || 0,
     );
 
     // Holat o'tishi va komissiya BITTA tranzaksiyada, shu tartibda:

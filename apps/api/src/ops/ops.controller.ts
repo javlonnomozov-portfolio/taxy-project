@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
+import { JwtPayload } from '../auth/roles';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrderStatus, PanelRole, VehicleCategory } from '@tty/shared';
 import { OpsService } from './ops.service';
@@ -10,6 +12,7 @@ import {
   CloseDto,
   CreateAdminDto,
   CreateDriverDto,
+  FareAdjustmentDto,
   SettingsDto,
   TopUpDto,
   UpdateTariffDto,
@@ -158,6 +161,21 @@ export class OpsController {
   @Get('tariffs')
   tariffs() {
     return this.ops.listTariffs();
+  }
+
+  /**
+   * Narxni tuzatish — OPERATOR ham qila oladi.
+   *
+   * Aynan operator mijoz bilan telefonda gaplashadi ("yukingiz bormi?"),
+   * shuning uchun buni admin darajasiga ko'tarish amalda ishlamas edi:
+   * kelishuv paytida admin yonida bo'lmaydi. Har o'zgarish `order_events`
+   * ga kim va nega qilgani bilan yoziladi.
+   */
+  @Roles(PanelRole.OPERATOR, PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Post('orders/:id/fare')
+  adjustFare(@Param('id') id: string, @Body() dto: FareAdjustmentDto, @Req() req: Request) {
+    const user = (req as Request & { user?: JwtPayload }).user;
+    return this.ops.adjustFare(id, dto.amount, dto.reason, user?.sub);
   }
 
   @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
