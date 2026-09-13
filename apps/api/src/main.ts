@@ -7,7 +7,9 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
+import type Redis from 'ioredis';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
+import { REDIS } from './redis/redis.module';
 import { corsOptions, parseOrigins, selfOrigin } from './config/cors';
 import { CorsSocketAdapter } from './realtime/cors-socket.adapter';
 
@@ -20,7 +22,10 @@ async function bootstrap() {
   // bloklab qo'yardi. Bitta ishonchli proksi (Railway edge) hisobga olinadi.
   app.set('trust proxy', 1);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.useGlobalFilters(new AllExceptionsFilter());
+  // Filtrga Redis beriladi: 5xx bo'lganda bot orqali Telegram'ga xabar ketsin
+  // (bo'g'uv filtrning o'zida). `RedisModule` global, shuning uchun klient
+  // shu yerdan olinadi — filtrning o'zi DI konteynerida emas.
+  app.useGlobalFilters(new AllExceptionsFilter(app.get<Redis>(REDIS)));
 
   // Standart himoya sarlavhalari. API JSON qaytaradi va brauzerda sahifa
   // ko'rsatmaydi, shuning uchun CSP shart emas; `crossOriginResourcePolicy`

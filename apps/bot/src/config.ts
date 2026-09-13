@@ -11,6 +11,9 @@ export const CONFIG = {
   // "Taksi qayerda?" jonli xaritasi (Telegram Mini App). Odatda API'ning o'zi
   // beradi: <API_BASE_URL>/miniapp/track.
   miniappUrl: process.env.MINIAPP_URL || process.env.API_BASE_URL + '/miniapp/track',
+  // Server xatolari (5xx) haqida ogohlantirish shu chatga boradi. Bo'sh
+  // qoldirilsa ogohlantirish butunlay o'chiq — lokal dev'da shunday.
+  adminChatId: process.env.ADMIN_CHAT_ID ?? '',
 };
 
 export const hasToken = !!CONFIG.botToken && CONFIG.botToken !== 'your_telegram_bot_token';

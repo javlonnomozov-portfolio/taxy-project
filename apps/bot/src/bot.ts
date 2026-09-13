@@ -16,6 +16,7 @@ import {
 } from './keyboards';
 import { hasMiniapp } from './config';
 import { createSessionStore, resetDraft, Session, SessionStore } from './session';
+import { listenAlerts } from './alerts';
 import { listenMiniappOrders } from './miniapp-events';
 import { trackOrder, stopTracking, markCancelAnnounced } from './tracker';
 
@@ -454,6 +455,9 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
       .catch(() => {});
     startTracking(bot.telegram, chatId, s.customerId, s.lang, orderId);
   });
+
+  // Server xatolari (5xx) haqida adminga xabar. `ADMIN_CHAT_ID` bo'lmasa jim.
+  listenAlerts(bot.telegram);
 
   // Handler xatolarini yutamiz — bot hech qachon yiqilmasin (masalan eskirgan callback).
   bot.catch((err, ctx) => {
