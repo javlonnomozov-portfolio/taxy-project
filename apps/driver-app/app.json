@@ -50,7 +50,11 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION"
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "RECORD_AUDIO",
+        "CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
       ]
     },
     "plugins": [
@@ -67,6 +71,19 @@
         "expo-notifications",
         {
           "color": "#4c8dff"
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Admin bilan ovozli xabar yozish uchun mikrofon kerak."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Admin bilan chatda rasm yuborish uchun galereya kerak.",
+          "cameraPermission": "Admin bilan chatda rasm yuborish uchun kamera kerak."
         }
       ],
       "./plugins/withAndroidRelease"

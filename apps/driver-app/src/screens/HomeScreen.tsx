@@ -12,6 +12,7 @@ import { S, C, R, F, SP } from '../theme';
 import { Lang, makeT } from '../i18n';
 import { MiniMap, MapMarker } from '../MapView';
 import { CabinetScreen } from './CabinetScreen';
+import { ChatScreen } from './ChatScreen';
 import { storage } from '../storage';
 
 interface LatLng { lat: number; lng: number }
@@ -130,6 +131,17 @@ export function HomeScreen({
   const [distanceM, setDistanceM] = useState(0);
   const [done, setDone] = useState<{ price: number } | null>(null);
   const [showCabinet, setShowCabinet] = useState(false);
+  // Admin bilan chat. O'qilmaganlar soni tepadagi tugmada nishon bo'lib turadi;
+  // chat ochiq bo'lsa soket xabari hisoblanmaydi (ekranning o'zi o'qildi qiladi).
+  const [showChat, setShowChat] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
+  useEffect(() => {
+    api<{ unread: number }>('GET', '/chat/unread', undefined, token)
+      .then((r) => setChatUnread(r?.unread ?? 0))
+      .catch(() => {});
+  }, [token]);
+  const showChatRef = useRef(false);
+  showChatRef.current = showChat;
   // Ulanish/ro'yxatdan o'tish xatosi — avval JIMGINA yutilardi va haydovchi
   // sababsiz "Ulanmoqda…" holatida qolardi.
   const [connError, setConnError] = useState<string | null>(null);
@@ -355,6 +367,9 @@ export function HomeScreen({
     // Operator narxni tuzatdi. Xabarning o'zi summani emas, faqat MATNNI
     // ko'rsatadi; haqiqiy qiymat serverdan qayta olinadi — xabar kelmay qolsa
     // ham ilova fondan qaytganda `syncActiveTrip` uni baribir tortadi.
+    s.on('chat:message', (m: { sender?: string }) => {
+      if (m?.sender === 'ops' && !showChatRef.current) setChatUnread((n) => n + 1);
+    });
     s.on(EV.announcement, (e: { orderId?: string; message?: string }) => {
       if (!e?.orderId || tripRef.current?.orderId !== e.orderId) return;
       void syncActiveTrip();
@@ -660,6 +675,20 @@ export function HomeScreen({
   const navigate = (p: { lat: number; lng: number }) =>
     Linking.openURL(`https://yandex.uz/maps/?rtext=~${p.lat},${p.lng}&rtt=auto`);
   const call = (phone: string) => Linking.openURL('tel:' + phone);
+
+  if (showChat) {
+    return (
+      <ChatScreen
+        lang={lang}
+        token={token}
+        socket={socketRef.current}
+        onClose={() => {
+          setShowChat(false);
+          setChatUnread(0);
+        }}
+      />
+    );
+  }
 
   if (showCabinet) {
     return <CabinetScreen lang={lang} token={token} onClose={() => setShowCabinet(false)} />;
@@ -985,6 +1014,34 @@ export function HomeScreen({
           <Text style={S.brand}>Toy TaxY</Text>
         </View>
         <View style={[S.row, { gap: SP.xl }]}>
+          <TouchableOpacity
+            onPress={() => {
+              setShowChat(true);
+              setChatUnread(0);
+            }}
+            hitSlop={10}
+            style={[S.row, { gap: 4 }]}
+          >
+            <MaterialIcons name="chat" size={20} color={C.accent} />
+            <Text style={{ color: C.accent, fontSize: 15, fontWeight: '700' }}>{t('chat_open')}</Text>
+            {chatUnread > 0 ? (
+              <View
+                style={{
+                  minWidth: 18,
+                  height: 18,
+                  borderRadius: 9,
+                  paddingHorizontal: 4,
+                  backgroundColor: C.danger,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>
+                  {chatUnread > 9 ? '9+' : chatUnread}
+                </Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowCabinet(true)} hitSlop={10}>
             <Text style={{ color: C.accent, fontSize: 15, fontWeight: '700' }}>{t('cabinet')}</Text>
           </TouchableOpacity>
