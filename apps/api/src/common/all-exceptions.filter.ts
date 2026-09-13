@@ -102,9 +102,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (typeof payload === 'string') {
         message = payload;
       } else {
-        const obj = payload as { message?: string | string[]; error?: string };
-        message = obj.message ?? exception.message;
-        if (obj.error) code = obj.error.replace(/\s+/g, '_').toUpperCase();
+        const obj = payload as { message?: unknown; error?: unknown };
+        message =
+          typeof obj.message === 'string' || Array.isArray(obj.message)
+            ? (obj.message as string | string[])
+            : exception.message;
+        // `error` HAR DOIM ham matn emas: @nestjs/terminus health tekshiruvi (503)
+        // unga `{ database: { status: 'down' } }` OBYEKTINI qo'yadi. Avval shu
+        // yerda `.replace` yiqilardi, filtr ichidagi xato esa butun jarayonni
+        // o'ldirardi — baza bir lahza sekinlashsa API qulardi.
+        if (typeof obj.error === 'string') code = obj.error.replace(/\s+/g, '_').toUpperCase();
       }
     }
 

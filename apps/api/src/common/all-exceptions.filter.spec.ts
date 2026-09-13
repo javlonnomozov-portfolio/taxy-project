@@ -121,3 +121,37 @@ describe('AllExceptionsFilter — ogohlantirish', () => {
     ).not.toThrow();
   });
 });
+
+describe('AllExceptionsFilter — obyektli javoblar', () => {
+  it('health 503 (error OBYEKT) filtrni yiqitmaydi va ogohlantirish yuboradi', () => {
+    const { redis, sent } = fakeRedis();
+    const terminus = new HttpException(
+      { status: 'error', info: {}, error: { database: { status: 'down' } }, details: {} },
+      HttpStatus.SERVICE_UNAVAILABLE,
+    );
+    expect(() => new AllExceptionsFilter(redis).catch(terminus, hostFor('GET', '/health'))).not.toThrow();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].status).toBe(503);
+  });
+
+  it('error matn bo‘lsa kod avvalgidek undan olinadi', () => {
+    let body: { code?: string } = {};
+    const res = {
+      status() {
+        return res;
+      },
+      json(b: { code?: string }) {
+        body = b;
+        return res;
+      },
+    };
+    const host = {
+      switchToHttp: () => ({ getResponse: () => res, getRequest: () => ({ method: 'GET', url: '/x' }) }),
+    } as unknown as ArgumentsHost;
+    new AllExceptionsFilter().catch(
+      new HttpException({ message: 'yomon', error: 'Bad Request' }, HttpStatus.BAD_REQUEST),
+      host,
+    );
+    expect(body.code).toBe('BAD_REQUEST');
+  });
+});

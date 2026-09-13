@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import { api } from '../api';
 import { connectOps } from '../socket';
 import { Page, shortId, CategoryLabel, StatusBadge, money, time } from '../ui';
 import { useI18n } from '../i18n';
 import { IconWarn } from '../icons';
+import { ChatInbox, DriverWindow } from './DriverWindow';
 
 interface Order {
   id: string;
@@ -67,6 +68,9 @@ function FlyTo({ pos }: { pos: [number, number] | null }) {
 
 export function Dashboard() {
   const { t, lang } = useI18n();
+  // Soket tinglovchisi bir marta ulanadi — til almashsa ham eski `t` qolmasin.
+  const tRef = useRef(t);
+  tRef.current = t;
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Record<string, DriverPos>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -116,6 +120,9 @@ export function Dashboard() {
     s.on('alert', (a: Omit<Alert, 'at'>) =>
       setAlerts((prev) => [{ ...a, at: Date.now() }, ...prev].slice(0, 50)),
     );
+    s.on('chat:message', (m: { sender: string }) => {
+      if (m.sender === 'driver') flash(tRef.current('chat_new_message'));
+    });
     const iv = setInterval(() => {
       load();
       loadDrivers();
@@ -309,41 +316,33 @@ export function Dashboard() {
 
         {/* O'ng panel: tanlangan taksi ma'lumoti yoki ogohlantirishlar */}
         <div className="card">
-          {selectedDriver ? (
+          {selectedDriverId ? (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ margin: 0 }}>{t('taxi_panel')}</h2>
                 <button className="danger" onClick={() => setSelectedDriverId(null)}>✕</button>
               </div>
-              <div style={{ marginTop: 12, lineHeight: 1.9 }}>
-                <div style={{ fontSize: 18, fontWeight: 700 }}>{selectedDriver.name || t('driver_word')}</div>
-                <div className="lbl">{t('status_label')}: {selectedDriver.status === 'ONLINE_IDLE' ? t('free_now') : t('on_trip')}</div>
-                <div>📞 {selectedDriver.phone || '—'}</div>
-                <div>🚗 {selectedDriver.car || '—'}</div>
-                <div>🔢 {t('plate_label')}: <b>{selectedDriver.plate || '—'}</b></div>
-                <div>⭐ {t('rating_label')}: {selectedDriver.ratingAvg ?? 0}</div>
-                <div className="lbl">{t('category_label')}: {selectedDriver.category}</div>
-              </div>
-              {dispatchMode ? (
-                selectedDriver.status === 'ONLINE_IDLE' ? (
-                  <button
-                    className="primary"
-                    style={{ marginTop: 14, width: '100%' }}
-                    onClick={() => sendOffer(selectedDriver.driverId)}
-                  >
-                    {t('send_offer_btn')}
-                  </button>
-                ) : (
-                  <div className="lbl" style={{ marginTop: 14 }}>{t('taxi_busy')}</div>
-                )
-              ) : (
-                <div className="lbl" style={{ marginTop: 14 }}>
-                  {t('pick_order_hint')}
-                </div>
-              )}
+              {/* Holat, reyting, bugungi ish va chat — bitta oynada (DriverWindow.tsx). */}
+              <DriverWindow
+                driverId={selectedDriverId}
+                actions={
+                  dispatchMode ? (
+                    selectedDriver?.status === 'ONLINE_IDLE' ? (
+                      <button className="primary" style={{ width: '100%' }} onClick={() => sendOffer(selectedDriverId)}>
+                        {t('send_offer_btn')}
+                      </button>
+                    ) : (
+                      <div className="lbl">{t('taxi_busy')}</div>
+                    )
+                  ) : (
+                    <div className="lbl">{t('pick_order_hint')}</div>
+                  )
+                }
+              />
             </>
           ) : (
             <>
+              <ChatInbox onOpen={(id) => setSelectedDriverId(id)} />
               <h2>{t('stat_alerts')}</h2>
               <div className="alerts">
                 {alerts.length === 0 && <div className="lbl">{t('alerts_none')}</div>}

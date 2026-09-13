@@ -306,6 +306,46 @@ hodisasi — avval ilova uni UMUMAN tinglamasdi), mijoz ilovasi va mini app
 > haydovchi bor, oyna 6 ta. Haqiqiy "hech kimga taklif ketmadi" holati —
 > faqat `NO_DRIVER` statusi.
 
+### ✅ Haydovchi ↔ panel chati (2026-09-13)
+
+**Foydalanuvchi talabi:** haydovchi ilovasida admin bilan chat — matn, ovozli
+xabar, rasm. Panelda xaritadan haydovchini bosganda oyna ochiladi: holat,
+reyting va shu haydovchi bilan chat.
+
+| Qaror | Qanday | Nega |
+|---|---|---|
+| Fayllar **Postgres ichida** | `chat_media` (bytea, `select: false`) + `driver_messages` | Foydalanuvchi tanladi: yangi hisob/bog'liqlik yo'q. Baytlar alohida jadvalda — ro'yxat megabaytlarni tortmasin |
+| Har haydovchi bilan **bitta** suhbat, barcha panel rollari ko'radi va yozadi | `/ops/chat/*` — OPERATOR, ADMIN, SUPER_ADMIN; har xabarda `author_login` | Kechasi ham navbatchi javob bera olsin. Cheklash kerak bo'lsa — faqat `@Roles` |
+| Fayl turi **baytlardan** aniqlanadi | `chat/chat.media.ts` (`sniffMime`) | Klient `Content-Type` iga ishonilmaydi: rasm deb yuborilgan SVG/HTML panelda skript bo'lib ochilardi. SVG qo'llanmaydi |
+| Chegaralar | fayl 2 MB (multer, 413), ovoz 90 s, matn 2000, daqiqasiga 20 xabar (Redis, 429) | Tasodifiy tugma yoki skript chatni ko'mmasin |
+| Begona fayl — **404**, 403 emas | `ChatService.media` | Fayl mavjudligini ham oshkor qilmaymiz |
+| Panelda rasm/ovoz blob orqali | `DriverWindow.tsx` `MediaView` | `<img src>` Bearer yubormaydi; tokenni havolaga yozish uni tarix va proksi loglariga chiqarardi |
+
+**Panel:** `apps/admin/src/pages/DriverWindow.tsx` — `DriverWindow` (xaritada
+haydovchi bosilganda: holat, reyting, mashina, bugungi safar/daromad, balans,
+stavkalar, faol zakaz, chat) va `ChatInbox` (haydovchi tanlanmaganda —
+suhbatlar ro'yxati; oflayn haydovchi xaritada yo'q, unga shu yerdan kiriladi).
+Yangi xabar kelganda Dashboard toast chiqaradi.
+
+**API:** haydovchi `GET/POST /chat/messages`, `POST /chat/media` (multipart:
+`file`, `kind`, `durationSec`), `POST /chat/read`, `GET /chat/unread`,
+`GET /chat/media/:id`. Panel: `/ops/chat/conversations`,
+`/ops/chat/drivers/:id/{summary,messages,media,read}`, `/ops/chat/media/:id`.
+Soket: `chat:message`, `chat:read` (haydovchi xonasi + `ops`).
+
+**Sim:** `sim:driver-chat` — 23 tekshiruv.
+
+**Rollar (holat):** kodda 3 ta — `super_admin`, `admin`, `operator`. Akkauntni
+FAQAT `super_admin` API orqali yaratadi (`POST /ops/admins`); panelda buning
+sahifasi ham, ro'yxat endpointi ham YO'Q.
+
+> ⚠️ **Tuzatilgan jiddiy nuqson (prod'da ham bor edi):** `AllExceptionsFilter`
+> `payload.error` ni doim matn deb `.replace` qilardi. `@nestjs/terminus` health
+> tekshiruvi 503 da unga OBYEKT qo'yadi — filtr ichidagi xato butun jarayonni
+> o'ldirardi. Ya'ni baza bir lahza sekinlashsa (health 3 s timeout) API QULARDI.
+> 2026-09-13 da lokal API aynan shunday yiqildi (fonda Gradle bazani
+> sekinlashtirgan). Endi faqat `typeof === 'string'` bo'lsa ishlatiladi, test bor.
+
 ### ✅ Hal qilingan mahsulot savollari (o'zgarmagan, qayta ochilmasin)
 
 - **4+ yo'lovchi uchun yangi TOIFA/mashina rusumi tanlash — KERAK EMAS.**

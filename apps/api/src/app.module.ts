@@ -24,6 +24,7 @@ import { TripsModule } from './trips/trips.module';
 import { ReputationModule } from './reputation/reputation.module';
 import { OpsModule } from './ops/ops.module';
 import { MiniappModule } from './miniapp/miniapp.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { MiniappModule } from './miniapp/miniapp.module';
     OffersModule,
     OpsModule,
     MiniappModule,
+    ChatModule,
     RealtimeModule,
   ],
 })

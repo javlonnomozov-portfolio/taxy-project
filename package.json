@@ -43,6 +43,7 @@
     "sim:seat-filter": "node scripts/seat-filter-sim.mjs",
     "sim:category-overlap": "node scripts/category-overlap-sim.mjs",
     "sim:fare-adjustment": "node scripts/fare-adjustment-sim.mjs",
+    "sim:driver-chat": "node scripts/driver-chat-sim.mjs",
     "try:login": "node scripts/customer-login-try.mjs",
     "release:apk": "node scripts/publish-apk.mjs"
   },
