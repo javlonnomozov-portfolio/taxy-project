@@ -850,6 +850,26 @@ qoladi — eski versiyaga qaytish kerak bo'lsa.
 
 ---
 
+
+**Haydovchi uchun ham o'zgarmas havola (2026-09-13):**
+
+```
+https://github.com/javlonnomozov-portfolio/taxy-project/releases/download/haydovchi-latest/toy-taxy-haydovchi.apk
+```
+
+```bash
+node scripts/publish-apk.mjs <apk> --tag haydovchi-latest --name toy-taxy-haydovchi.apk --label haydovchi
+```
+
+`--label` bo'lmasa reliz sarlavhasi "mijoz" bo'lib chiqadi. Birinchi chiqarilgan
+build — versionCode 3 (oltin Comfort kartasi, narx tuzatish kartasi, admin bilan chat).
+
+> ⚠️ Eski `releases/latest/download/toy-taxy-haydovchi.apk` (v1.0.0) — EAS
+> kaliti bilan imzolangan. Yangi lokal build debug kaliti bilan (6.2), shuning
+> uchun uning ustiga **o'rnatilmaydi**: haydovchi eski ilovani bir marta o'chirib,
+> keyin yangisini o'rnatishi kerak. Keyingi `haydovchi-latest` build'lari bir-birining
+> ustiga o'rnatilaveradi.
+
 ## 7. Arxitektura qarorlari (nega aynan shunday)
 
 Avvalgi qarorlar (dispatch egaligi, Redis geo-indeks, WS interceptor,
