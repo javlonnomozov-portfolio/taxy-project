@@ -24,6 +24,24 @@ const FINISHED_STATUSES = [
   OrderStatus.CANCELLED_BY_DRIVER,
 ];
 
+/**
+ * Panelga chiqariladigan haydovchi — parol hash'i va push tokenisiz.
+ *
+ * NEGA: `GET /ops/drivers` butun entity'ni qaytarardi, ya'ni javobda har
+ * haydovchining bcrypt hash'i va Expo push tokeni bor edi. Panel ularning
+ * ikkalasini ham ishlatmaydi (qidirib tekshirildi), lekin javob brauzer
+ * tarixida, proxy loglarida va operator ekranida qolardi. Push token o'zi
+ * ham yetarli: uni bilgan odam haydovchiga soxta bildirishnoma yubora oladi.
+ */
+export type DriverView = Omit<Driver, 'passwordHash' | 'pushToken'>;
+
+export function toDriverView(d: Driver): DriverView {
+  const { passwordHash, pushToken, ...rest } = d;
+  void passwordHash;
+  void pushToken;
+  return rest;
+}
+
 @Injectable()
 export class DriversService {
   constructor(
@@ -67,7 +85,7 @@ export class DriversService {
       /** Yo'lovchi o'rinlari (Damas 7, Cobalt 4). Berilmasa entity default = 4. */
       seats?: number;
     };
-  }): Promise<{ driver: Driver; tempPassword: string }> {
+  }): Promise<{ driver: DriverView; tempPassword: string }> {
     const existing = await this.drivers.findOne({ where: { phone: data.phone } });
     if (existing) throw new ForbiddenException('Bu telefon bilan haydovchi allaqachon mavjud');
 
@@ -93,18 +111,19 @@ export class DriversService {
       }),
     );
     await this.vehicles.save(this.vehicles.create({ driverId: driver.id, ...data.vehicle }));
-    return { driver, tempPassword };
+    // Yangi haydovchida hash ALLAQACHON o'rnatilgan — uni javobga qo'shmaymiz.
+    return { driver: toDriverView(driver), tempPassword };
   }
 
-  async approve(driverId: string): Promise<Driver> {
+  async approve(driverId: string): Promise<DriverView> {
     const driver = await this.mustFind(driverId);
     driver.approvalStatus = ApprovalStatus.APPROVED;
     const saved = await this.drivers.save(driver);
     await this.accounts.invalidate('driver', driverId); // yana kira olsin
-    return saved;
+    return toDriverView(saved);
   }
 
-  async block(driverId: string): Promise<Driver> {
+  async block(driverId: string): Promise<DriverView> {
     const driver = await this.mustFind(driverId);
     driver.approvalStatus = ApprovalStatus.BLOCKED;
     driver.status = DriverStatus.OFFLINE;
@@ -115,18 +134,19 @@ export class DriversService {
     // o'tib bo'lgan va zakaz qabul qilishda davom etardi).
     await this.accounts.invalidate('driver', driverId);
     await this.realtime.disconnectDriver(driverId, 'blocked');
-    return saved;
+    return toDriverView(saved);
   }
 
-  listAll(): Promise<Driver[]> {
+  async listAll(): Promise<DriverView[]> {
     // Mashina ham keladi: admin panel o'rinlar sonini (Damas 7 / Cobalt 4)
     // ko'rsatishi va o'zgartirishi kerak — busiz sig'im filtri amalda
     // sozlanmaydi (CUSTOMER-APP-PLAN.md §4b.5).
-    return this.drivers.find({
+    const rows = await this.drivers.find({
       order: { createdAt: 'DESC' },
       take: 200,
       relations: { vehicles: true },
     });
+    return rows.map(toDriverView);
   }
 
   /** Haydovchining mashinasini tahrirlash (o'rinlar soni, rusum, raqam). */
@@ -140,11 +160,15 @@ export class DriversService {
     return this.vehicles.save(vehicle);
   }
 
-  async setBilling(driverId: string, mode: string, config?: Record<string, unknown>): Promise<Driver> {
+  async setBilling(
+    driverId: string,
+    mode: string,
+    config?: Record<string, unknown>,
+  ): Promise<DriverView> {
     const driver = await this.mustFind(driverId);
     driver.billingMode = mode as Driver['billingMode'];
     if (config) driver.billingConfig = config;
-    return this.drivers.save(driver);
+    return toDriverView(await this.drivers.save(driver));
   }
 
   async getCategory(driverId: string): Promise<VehicleCategory> {

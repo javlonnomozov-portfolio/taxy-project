@@ -61,12 +61,26 @@ export class AuthService {
   }
 
   /** Yangi admin/operator yaratish (super-admin). */
-  async createAdmin(login: string, password: string, role: PanelRole): Promise<AdminUser> {
+  /**
+   * Yangi operator/admin hisobi.
+   *
+   * Javobda parol hash'i QAYTARILMAYDI — `GET /ops/drivers` dagi bilan bir xil
+   * sabab: panelga u kerak emas, lekin javob loglarda va brauzer tarixida
+   * qolardi.
+   */
+  async createAdmin(
+    login: string,
+    password: string,
+    role: PanelRole,
+  ): Promise<Omit<AdminUser, 'passwordHash'>> {
     const existing = await this.admins.findOne({ where: { login } });
     if (existing) throw new UnauthorizedException('Bunday login allaqachon mavjud');
-    return this.admins.save(
+    const saved = await this.admins.save(
       this.admins.create({ login, role, passwordHash: await bcrypt.hash(password, 10) }),
     );
+    const { passwordHash, ...rest } = saved;
+    void passwordHash;
+    return rest;
   }
 
   static hash(password: string): Promise<string> {
