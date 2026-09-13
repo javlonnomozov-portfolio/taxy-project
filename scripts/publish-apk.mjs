@@ -36,9 +36,12 @@ const flag = (n, d) => {
 };
 const tag = flag('tag', 'mijoz-latest');
 const assetName = flag('name', 'toy-taxy-mijoz.apk');
+// Reliz sarlavhasidagi ilova nomi. Avval "mijoz" qattiq yozilgan edi va
+// haydovchi APK'si ham "mijoz ilovasi" deb chiqardi.
+const label = flag('label', 'mijoz');
 
 if (!apkPath) {
-  console.error('Foydalanish: node scripts/publish-apk.mjs <apk> [--tag T] [--name F.apk]');
+  console.error('Foydalanish: node scripts/publish-apk.mjs <apk> [--tag T] [--name F.apk] [--label mijoz|haydovchi]');
   process.exit(1);
 }
 statSync(apkPath); // yo'q bo'lsa shu yerda yiqiladi
@@ -73,7 +76,7 @@ async function gh(method, path, body) {
 
 // ------------------------------------------------------------------- jarayon
 const notes = [
-  `Eng so'nggi mijoz ilovasi. Bu havola O'ZGARMAYDI — har build'da fayl yangilanadi.`,
+  `Eng so'nggi ${label} ilovasi. Bu havola O'ZGARMAYDI — har build'da fayl yangilanadi.`,
   ``,
   `**Yuklab olish:** \`${assetName}\``,
   `**Kod:** \`${shortSha}\``,
@@ -90,7 +93,7 @@ try {
   // Tegni yangi commit'ga ko'chiramiz (reliz `target_commitish` ni O'ZI ko'chirmaydi).
   await gh('PATCH', `/repos/${REPO}/git/refs/tags/${tag}`, { sha, force: true });
   release = await gh('PATCH', `/repos/${REPO}/releases/${release.id}`, {
-    name: `Toy TaxY mijoz — eng so'nggi (${shortSha})`,
+    name: `Toy TaxY ${label} — eng so'nggi (${shortSha})`,
     body: notes,
     prerelease: true,
     make_latest: 'false',
@@ -107,7 +110,7 @@ try {
   release = await gh('POST', `/repos/${REPO}/releases`, {
     tag_name: tag,
     target_commitish: sha,
-    name: `Toy TaxY mijoz — eng so'nggi (${shortSha})`,
+    name: `Toy TaxY ${label} — eng so'nggi (${shortSha})`,
     body: notes,
     draft: false,
     prerelease: true,
