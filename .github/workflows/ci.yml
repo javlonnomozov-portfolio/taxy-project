@@ -44,6 +44,43 @@ jobs:
       - name: Test
         run: pnpm -r test
 
+  # Mobil ilovalar — `pnpm -r` ularni KO'RMAYDI.
+  #
+  # Ikkala Expo ilovasi `pnpm-workspace.yaml` da ataylab chiqarib tashlangan
+  # ("!apps/customer-app", "!apps/driver-app") — ular o'z `node_modules` va npm
+  # bilan quriladi, aks holda EAS `npm ci` bilan yiqiladi. Natijada 5 700+
+  # qator kod CI dan BUTUNLAY tashqarida qolgan edi: na lint, na tip tekshiruvi.
+  #
+  # Bu qadam tip xatolarini ushlaydi (buzilgan JSX, mos kelmagan proplar,
+  # mavjud bo'lmagan ikonka nomi va h.k.). Joylashuv/rasm nuqsonlarini u
+  # KO'RMAYDI — ularni faqat qurilmada ko'rish mumkin.
+  #
+  # ESLint bu ilovalarda hali sozlanmagan (`eslint.config.mjs` ularni chetlab
+  # o'tadi) — alohida ish.
+  mobile:
+    runs-on: ubuntu-latest
+    strategy:
+      # Biri yiqilsa ikkinchisi ham tekshirilsin — ikkita mustaqil ilova.
+      fail-fast: false
+      matrix:
+        app: [customer-app, driver-app]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
+
+      - name: O'rnatish
+        run: npm ci
+        working-directory: apps/${{ matrix.app }}
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: apps/${{ matrix.app }}
+
   # Integratsiya: haqiqiy Postgres + Redis bilan to'liq oqimlarni haydaydi.
   # Sim skriptlari eng qimmatli qamrov edi, lekin CI'da hech qachon ishlamagan —
   # ular DB va Redis talab qiladi.
