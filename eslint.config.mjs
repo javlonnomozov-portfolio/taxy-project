@@ -52,9 +52,30 @@ export default tseslint.config(
     },
   },
 
+  // --- Mijoz ilovasi (React Native) ---
+  //
+  // `apps/driver-app` butunlay chetlab o'tilgan, mijoz ilovasi esa yo'q —
+  // shuning uchun unga RN qoidalari kerak: rasm importlari `require()` bilan
+  // yoziladi (Metro bundler shunday ishlaydi, ESM ishlamaydi).
+  {
+    files: ['apps/customer-app/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks },
+    languageOptions: {
+      globals: { ...globals.browser },
+      parserOptions: { ecmaVersion: 2022, sourceType: 'module', ecmaFeatures: { jsx: true } },
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      // Metro rasmni `require()` orqali bog'laydi — bu RN'da yagona yo'l.
+      '@typescript-eslint/no-require-imports': 'off',
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+
   // --- Node konfiguratsiya fayllari (CommonJS) ---
   {
-    files: ['**/jest.config.js', '**/*.cjs'],
+    files: ['**/jest.config.js', '**/*.cjs', '**/babel.config.js', '**/metro.config.js'],
     languageOptions: {
       globals: { ...globals.node },
       sourceType: 'commonjs',

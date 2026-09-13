@@ -351,6 +351,28 @@ export function HomeScreen({
     timer.current = null;
   }, []);
 
+  /** Nega tugadi — bekor qilingan safarda ko'rsatiladigan yagona ma'lumot. */
+  const endedReason = useCallback(
+    (st: string): string => {
+      if (st === 'CANCELLED_BY_DRIVER') return t('cancelled_by_driver');
+      if (st === 'CUSTOMER_NO_SHOW') return t('hist_no_show');
+      if (st === 'CANCELLED_BY_CUSTOMER') return t('cancelled_free');
+      return t('order_closed');
+    },
+    [t],
+  );
+
+  // MUHIM: ikkalasi ham kuzatuv effektidan chaqiriladi, shuning uchun
+  // `useCallback` SHART. Oddiy funksiya bo'lsa har renderda yangi bo'lib,
+  // effekt bog'liqligi sifatida poll tsiklini har safar qaytadan boshlardi.
+  const reset = useCallback(() => {
+    stop();
+    setOrderId(null);
+    setView(null);
+    setRateSent(false);
+    setErr(null);
+  }, [stop]);
+
   /**
    * Joriy joylashuvni olib pinni o'sha yerga ko'chiradi.
    *
@@ -537,7 +559,7 @@ export function HomeScreen({
       alive = false;
       stop();
     };
-  }, [orderId, token, stop, t]);
+  }, [orderId, token, stop, t, endedReason, reset]);
 
   async function order() {
     setBusy(true);
@@ -614,22 +636,6 @@ export function HomeScreen({
     } catch {
       setRateSent(false);
     }
-  }
-
-  /** Nega tugadi — bekor qilingan safarda ko'rsatiladigan yagona ma'lumot. */
-  function endedReason(st: string): string {
-    if (st === 'CANCELLED_BY_DRIVER') return t('cancelled_by_driver');
-    if (st === 'CUSTOMER_NO_SHOW') return t('hist_no_show');
-    if (st === 'CANCELLED_BY_CUSTOMER') return t('cancelled_free');
-    return t('order_closed');
-  }
-
-  function reset() {
-    stop();
-    setOrderId(null);
-    setView(null);
-    setRateSent(false);
-    setErr(null);
   }
 
   /**

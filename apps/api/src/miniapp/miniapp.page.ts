@@ -682,7 +682,11 @@ export function miniappPage(): string {
   var CAR = { standard: 'standart', comfort: 'komfort', cargo: 'yuk' };
 
   function som(v) {
-    return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    // DIQQAT: bu satr template literal ICHIDA — regex eskeyplari IKKI marta
+    // yozilishi shart. Bitta backslash bilan yozilganda TypeScript uni satr
+    // eskeypi deb o'qib yeb qo'yadi va sahifaga /B(?=(d{3})+(?!d))/ bo'lib
+    // tushadi — narx razryadlarga umuman ajratilmaydi (12000, 12 000 emas).
+    return String(Math.round(v)).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ' ');
   }
 
   /**

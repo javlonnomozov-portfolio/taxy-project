@@ -103,7 +103,7 @@ async function main() {
 
   // ---- 3: "Yetib keldim" → bosqich tiklanishi ham yangilanadi ----
   console.log('\n--- 3: bosqich o\'zgargach ham to\'g\'ri tiklanadi ---');
-  ({ s, bag } = await connectDriver(d.token));
+  ({ s } = await connectDriver(d.token));
   await emit(s, 'trip:arrived', { orderId: o1.id });
   await sleep(600);
   s.close();
@@ -112,7 +112,7 @@ async function main() {
   check('Bosqich = arrived', a2?.stage === 'arrived', a2?.stage);
 
   // ---- 4: safar boshlandi ----
-  ({ s, bag } = await connectDriver(d.token));
+  ({ s } = await connectDriver(d.token));
   await emit(s, 'trip:start', { orderId: o1.id });
   await sleep(600);
   s.close();
@@ -123,7 +123,7 @@ async function main() {
 
   // ---- 5: safar yakunlandi — endi null ----
   console.log('\n--- 5: yakunlangach faol safar qolmaydi ---');
-  ({ s, bag } = await connectDriver(d.token));
+  ({ s } = await connectDriver(d.token));
   await emit(s, 'trip:complete', { orderId: o1.id, distanceM: 3000 });
   await sleep(800);
   const a4 = await active(d.token);
