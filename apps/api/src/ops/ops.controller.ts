@@ -12,6 +12,7 @@ import {
   CreateDriverDto,
   SettingsDto,
   TopUpDto,
+  UpdateTariffDto,
   UpdateVehicleDto,
 } from './dto/ops.dto';
 
@@ -167,7 +168,7 @@ export class OpsController {
 
   @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
   @Put('tariffs/:category')
-  updateTariff(@Param('category') category: VehicleCategory, @Body() body: Record<string, number>) {
+  updateTariff(@Param('category') category: VehicleCategory, @Body() body: UpdateTariffDto) {
     return this.ops.updateTariff(category, body);
   }
 }

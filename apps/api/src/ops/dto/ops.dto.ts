@@ -1,4 +1,5 @@
 import {
+  Matches,
   Max,
   Min,
   IsBoolean,
@@ -22,8 +23,42 @@ export class CloseDto {
   @IsOptional() @IsString() reason?: string;
 }
 
+/**
+ * Tarif tahriri (`PUT /ops/tariffs/:category`).
+ *
+ * NEGA KERAK BO'LDI: bu endpoint `Record<string, number>` qabul qilardi, ya'ni
+ * HECH QANDAY tekshiruv yo'q edi va tana to'g'ridan entity'ga `Object.assign`
+ * qilinardi. Manfiy narx, 40 barobar surge yoki tasodifiy maydon jimgina
+ * saqlanib ketardi — keyin esa mijozga allaqachon hisob chiqarilgan bo'lardi.
+ *
+ * Yuqori chegaralar ATAYLAB qo'yilgan: ular "haqiqiy narx" emas, xato bosishdan
+ * himoya (masalan 5 000 o'rniga 500 000 yozib yuborish).
+ */
+export class UpdateTariffDto {
+  /** Mashinaga o'tirish haqi (so'm). */
+  @IsOptional() @IsNumber() @Min(0) @Max(1_000_000) baseFare?: number;
+  /** 1 km uchun (so'm). */
+  @IsOptional() @IsNumber() @Min(0) @Max(1_000_000) perKm?: number;
+  /** Bepul daqiqalardan keyingi har daqiqa uchun (so'm). */
+  @IsOptional() @IsNumber() @Min(0) @Max(100_000) waitingPerMin?: number;
+  /** Haydovchi bepul kutadigan daqiqalar. */
+  @IsOptional() @IsInt() @Min(0) @Max(120) freeWaitMin?: number;
+  /** Tungi tarif boshlanishi, "HH:MM". */
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'nightFrom HH:MM shaklida bo\'lishi kerak' })
+  nightFrom?: string;
+  /** Tungi tarif tugashi, "HH:MM". Yarim tundan o'tishi mumkin (22:00 -> 06:00). */
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'nightTo HH:MM shaklida bo\'lishi kerak' })
+  nightTo?: string;
+  /** Tungi koeffitsient (1 = qimmatlashmaydi). */
+  @IsOptional() @IsNumber() @Min(1) @Max(5) nightMultiplier?: number;
+  /** Shu toifaning qimmatlashuv koeffitsienti (bosh kalit yoqilganda ishlaydi). */
+  @IsOptional() @IsNumber() @Min(1) @Max(5) surgeMultiplier?: number;
+}
+
 export class SettingsDto {
-  @IsOptional() @IsNumber() surgeMultiplier?: number;
+  /** Yangi toifa uchun boshlang'ich koeffitsient (amaldagi narx TARIFDAN olinadi). */
+  @IsOptional() @IsNumber() @Min(1) @Max(5) surgeMultiplier?: number;
+  /** Qimmatlashuvning BOSH KALITI — o'chirilsa hech bir toifada qo'llanmaydi. */
   @IsOptional() @IsBoolean() surgeActive?: boolean;
   /** Jarimasiz bekor qilish oynasi (sekund). */
   @IsOptional() @IsNumber() freeCancelSec?: number;

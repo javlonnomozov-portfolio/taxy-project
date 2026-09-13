@@ -14,14 +14,21 @@ const tariff = (over: Partial<Tariff> = {}): Tariff =>
     nightFrom: '22:00',
     nightTo: '06:00',
     nightMultiplier: 1.2,
+    surgeMultiplier: 1.0,
     category: VehicleCategory.STANDARD,
     ...over,
   }) as Tariff;
 
+/**
+ * `surge` endi TARIFDA turadi (`tariffs.surge_multiplier`), servis esa faqat
+ * bosh kalitni so'raydi. Testlar qulay bo'lishi uchun bu yordamchi ikkalasini
+ * ham o'rnatadi: koeffitsient 1 dan farq qilsa — kalit yoqiladi.
+ */
 function makeService(t: Tariff | null, surge = 1, maxWait = 30) {
+  const withSurge = t ? ({ ...t, surgeMultiplier: surge } as Tariff) : t;
   const settings = {
-    getTariff: jest.fn().mockResolvedValue(t),
-    currentSurge: jest.fn().mockResolvedValue(surge),
+    getTariff: jest.fn().mockResolvedValue(withSurge),
+    surgeActive: jest.fn().mockResolvedValue(surge !== 1),
   } as unknown as SettingsService;
   const config = { get: jest.fn().mockReturnValue(maxWait) } as unknown as ConfigService;
   return new PricingService(settings, config);
@@ -139,5 +146,46 @@ describe('PricingService.isNight — yarim tunni o‘rab o‘tish', () => {
     const t = tariff({ nightFrom: '01:00', nightTo: '05:00' });
     expect(svc.isNight(t, at('03:00'))).toBe(true);
     expect(svc.isNight(t, at('23:00'))).toBe(false);
+  });
+});
+
+describe('toifa bo\u2018yicha surge', () => {
+  it('bosh kalit o\u2018chiq bo\u2018lsa tarifdagi koeffitsient QO\u2018LLANMAYDI', async () => {
+    const settings = {
+      getTariff: jest.fn().mockResolvedValue(tariff({ surgeMultiplier: 2 })),
+      surgeActive: jest.fn().mockResolvedValue(false),
+    } as unknown as SettingsService;
+    const config = { get: jest.fn().mockReturnValue(30) } as unknown as ConfigService;
+    const fare = await new PricingService(settings, config).computeFare(
+      VehicleCategory.STANDARD, 0, 0, DAY,
+    );
+    expect(fare.surgeMultiplier).toBe(1);
+    expect(fare.total).toBe(4000);
+  });
+
+  it('kalit yoqilganda AYNAN shu tarifning koeffitsienti qo\u2018llanadi', async () => {
+    const settings = {
+      getTariff: jest.fn().mockResolvedValue(tariff({ surgeMultiplier: 1.5 })),
+      surgeActive: jest.fn().mockResolvedValue(true),
+    } as unknown as SettingsService;
+    const config = { get: jest.fn().mockReturnValue(30) } as unknown as ConfigService;
+    const fare = await new PricingService(settings, config).computeFare(
+      VehicleCategory.STANDARD, 0, 0, DAY,
+    );
+    expect(fare.surgeMultiplier).toBe(1.5);
+    expect(fare.total).toBe(6000);
+  });
+
+  it('koeffitsient buzuq bo\u2018lsa 1 ga tushadi (narx nolga aylanmasin)', async () => {
+    const settings = {
+      getTariff: jest.fn().mockResolvedValue(tariff({ surgeMultiplier: 0 as number })),
+      surgeActive: jest.fn().mockResolvedValue(true),
+    } as unknown as SettingsService;
+    const config = { get: jest.fn().mockReturnValue(30) } as unknown as ConfigService;
+    const fare = await new PricingService(settings, config).computeFare(
+      VehicleCategory.STANDARD, 0, 0, DAY,
+    );
+    expect(fare.surgeMultiplier).toBe(1);
+    expect(fare.total).toBe(4000);
   });
 });

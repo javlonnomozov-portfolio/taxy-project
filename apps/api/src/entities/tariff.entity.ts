@@ -30,4 +30,22 @@ export class Tariff {
 
   @Column({ type: 'numeric', name: 'night_multiplier', precision: 4, scale: 2, transformer: numericTransformer })
   nightMultiplier!: number;
+
+  /**
+   * Qimmatlashuv koeffitsienti — SHU toifa uchun.
+   *
+   * Faqat `settings.config.surgeActive` yoqilganda qo'llanadi (bosh kalit).
+   * Avval bitta global koeffitsient uchala toifaga ham tegardi: Standart
+   * taksi taqchil bo'lgani uchun oshirilgan koeffitsient Yuk mashinasini ham
+   * qimmatlashtirardi.
+   */
+  @Column({
+    type: 'numeric',
+    name: 'surge_multiplier',
+    precision: 4,
+    scale: 2,
+    default: 1.0,
+    transformer: numericTransformer,
+  })
+  surgeMultiplier!: number;
 }

@@ -75,7 +75,11 @@ export class PricingService {
     const subtotal = base + distance + waiting;
 
     const nightMultiplier = this.isNight(tariff, when) ? tariff.nightMultiplier : 1;
-    const surgeMultiplier = await this.settings.currentSurge();
+    // Koeffitsient TOIFANIKI, bosh kalit esa umumiy — shunda operator bitta
+    // tugma bilan qimmatlashuvni butunlay o'chira oladi.
+    const surgeMultiplier = (await this.settings.surgeActive())
+      ? Number(tariff.surgeMultiplier) || 1
+      : 1;
     const total = Math.round(subtotal * nightMultiplier * surgeMultiplier);
 
     return { base, distance, waiting, subtotal, nightMultiplier, surgeMultiplier, total };

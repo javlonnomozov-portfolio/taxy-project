@@ -31,10 +31,17 @@ export class SettingsService {
     return next;
   }
 
-  /** Amaldagi surge (faol bo'lsa multiplier, aks holda 1.0). */
-  async currentSurge(): Promise<number> {
+  /**
+   * Qimmatlashuv umuman YOQILGANMI (bosh kalit).
+   *
+   * Koeffitsientning O'ZI endi har tarifda alohida turadi
+   * (`tariffs.surge_multiplier`) — bu yerda faqat "hammasini bir tugma
+   * bilan o'chirish" kaliti qoldi. `config.surgeMultiplier` esa yangi
+   * toifa qo'shilganda boshlang'ich qiymat sifatida saqlanib turadi.
+   */
+  async surgeActive(): Promise<boolean> {
     const c = await this.getConfig();
-    return c.surgeActive ? Number(c.surgeMultiplier) || 1.0 : 1.0;
+    return !!c.surgeActive;
   }
 
   getTariff(category: VehicleCategory): Promise<Tariff | null> {
