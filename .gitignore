@@ -41,7 +41,11 @@ apps/driver-app/GoogleService-Info.plist
 *serviceAccountKey*.json
 *.apk
 *.aab
+# Imzo kalitlari HECH QACHON repoga tushmasin — kalitni yo'qotsangiz
+# Play Market'dagi ilovani boshqa YANGILAB BO'LMAYDI, oshkor qilsangiz
+# istalgan odam sizning ilova ustiga soxta APK o'rnata oladi.
 *.keystore
+*.jks
 
 # docker volumes
 data/

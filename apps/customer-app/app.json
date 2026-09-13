@@ -18,6 +18,7 @@
     ],
     "android": {
       "package": "uz.toytaxy.customer",
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0F1E"
@@ -36,7 +37,8 @@
         {
           "locationWhenInUsePermission": "Taksi chaqirish uchun joylashuvingiz kerak."
         }
-      ]
+      ],
+      "./plugins/withAndroidRelease"
     ],
     "extra": {
       "apiUrl": "https://api-production-13444.up.railway.app",

@@ -24,6 +24,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "sim:race": "node scripts/race-sim.mjs",
     "typecheck": "pnpm -r typecheck",
+    "bump:mobile": "node scripts/bump-mobile.mjs",
     "sim:security": "node scripts/security-sim.mjs",
     "sim:cluster": "node scripts/cluster-sim.mjs",
     "sim:online-geo": "node scripts/online-geo-sim.mjs",

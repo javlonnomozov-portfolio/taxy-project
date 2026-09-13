@@ -75,10 +75,21 @@ export default tseslint.config(
 
   // --- Node konfiguratsiya fayllari (CommonJS) ---
   {
-    files: ['**/jest.config.js', '**/*.cjs', '**/babel.config.js', '**/metro.config.js'],
+    files: [
+      '**/jest.config.js',
+      '**/*.cjs',
+      '**/babel.config.js',
+      '**/metro.config.js',
+      // Expo config plaginlari — prebuild paytida Node ichida ishlaydi.
+      'apps/*/plugins/**/*.js',
+    ],
     languageOptions: {
       globals: { ...globals.node },
       sourceType: 'commonjs',
+    },
+    rules: {
+      // Bu fayllar CommonJS — `require()` ularda yagona yo'l.
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 

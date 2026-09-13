@@ -435,10 +435,55 @@ o'lchamlarni** to'liq olish mumkin — ya'ni maketning 80% i. Bermaydigani:
 
 ### 5.11 Template literal ichidagi izohda backtick — satrni erta yopadi
 
-`MapView.tsx` da WebView HTML'i template literal ichida yozilgan. Ichkaridagi
-JS izohiga backtick qo'yilsa (`` // `inset` (panel balandligi) ``) u
-template literal'ni TUGATADI va TypeScript tushunarsiz joyda
-`TS1005: ';' expected` beradi. Izohlarda oddiy tirnoq ishlating.
+`MapView.tsx` da WebView HTML'i, `miniapp.page.ts` da esa butun Mini App
+sahifasi template literal ichida yozilgan. Ikki xil tuzoq bor va ikkalasi
+ham shu sessiyada yana bir marta tushdi:
+
+**(a) Backtick izohda** — (`` // `inset` (panel balandligi) ``) template
+literal'ni TUGATADI, TypeScript tushunarsiz joyda `TS1005: ';' expected`
+yoki `Parsing error: Invalid character` beradi. Izohlarda oddiy tirnoq
+ishlating.
+
+**(b) Regex eskeyplari YEYILADI — jim, xatosiz** (2026-09-13). Template
+literal ichida `/\B(?=(\d{3})+(?!\d))/g` deb yozilsa, TypeScript `\B` va
+`\d` ni SATR eskeypi deb o'qiydi va sahifaga `/B(?=(d{3})+(?!d))/` bo'lib
+tushadi. Hech qanday xato chiqmaydi, regex shunchaki ishlamay qo'yadi —
+mini appda narx oylar davomida "12000" ko'rinib turdi, "12 000" emas.
+
+> Template literal ichida regex yozganda eskeyplarni **ikkilantiring**:
+> `\\B`, `\\d`, `\\s`. `pnpm lint` buni `no-useless-escape` bilan
+> ushlaydi — shuning uchun lint YASHIL turishi shart (6-qadam).
+
+---
+
+### 5.12 Xatolar haqida Telegram'ga xabar (2026-09-13)
+
+5xx xatolar to'liq stack bilan loglanardi, lekin loglarga hech kim
+qaramaydi — prod'dagi nosozlik faqat mijoz qo'ng'iroq qilganda bilinardi.
+
+Endi `AllExceptionsFilter` 5xx bo'lganda `bot:alert` Redis kanaliga yozadi,
+bot esa uni `ADMIN_CHAT_ID` chatiga yuboradi (`apps/bot/src/alerts.ts`).
+Sentry o'rniga shu tanlandi: yangi bog'liqlik ham, tashqi hisob ham,
+oylik to'lov ham yo'q — API va bot allaqachon bitta Redis'ni bo'lishadi.
+
+**Yoqish:** Railway'da bot servisiga `ADMIN_CHAT_ID` qo'shing (o'z
+Telegram ID'ingizni `@userinfobot` beradi). Berilmasa — jim o'chiq.
+
+**Nimalar ATAYLAB yuborilmaydi:**
+- So'rov satri (`?...`) kesib tashlanadi — mini app `initData` (Telegram
+  imzosi) chatga, telefon bildirishnomasiga va Telegram serverlariga
+  tushmasin.
+- Xato matnidagi ulanish paroli o'chiriladi (`redis://user:parol@` →
+  `://***@`) — TypeORM/ioredis uzilish xatolari ba'zan butun URL'ni
+  matnga qo'shadi.
+
+**Bo'g'uv uch qavat** (aks holda bitta buzuq handler chatni ko'mardi):
+bir xil xato uchun 5 daqiqa jimlik, daqiqasiga eng ko'pi 5 xabar, yo'ldagi
+id lar `:id` ga birlashtiriladi.
+
+Filtr `main.ts` da QO'LDA quriladi (DI konteynerida emas), shuning uchun
+Redis klienti `app.get(REDIS)` orqali beriladi. Klient ixtiyoriy — usiz
+filtr avvalgidek faqat logga yozadi (testlar shunday ishlaydi).
 
 ---
 
@@ -527,10 +572,11 @@ Bu 2026-08-31 da sinab ko'rildi va APK shu yo'l bilan yig'ildi (EAS hisobi
    26.1 ni qayta yuklatish (~700 MB, cmdline-tools o'rnatilmagani uchun
    `sdkmanager` YO'Q).
 
-   ⚠️ `android/` `.gitignore` da, ya'ni **har `expo prebuild` dan keyin bu
-   tuzatish yo'qoladi va qaytadan qo'llanadi.** Doimiy yechim —
-   `expo-build-properties` plaginini qo'shib `ndkVersion` ni `app.json` ga
-   ko'chirish (yangi bog'liqlik, hali qilinmagan).
+   ✅ **TUZATILDI (2026-09-13).** `plugins/withAndroidRelease.js` har
+   `expo prebuild` da `ndkVersion` ni `TTY_ANDROID_NDK` dan o'rnatadi.
+   O'zgaruvchi berilmasa shablon qiymati qoladi (boshqa mashinalar
+   buzilmasin). Yangi bog'liqlik qo'shilmadi — `expo-build-properties`
+   kerak bo'lmadi.
 
 **Retsept (PowerShell):**
 ```powershell
@@ -552,18 +598,53 @@ cd android
 `android/` papkasi `.gitignore` da (ikkala ilova uchun ham) — repo
 shishmasin. Uni O'CHIRMANG: qayta build ancha tez bo'ladi.
 
-### 6.2 ⚠️ Lokal APK IMZOSI EAS'nikidan BOSHQA
+### 6.2 APK imzosi — endi o'z kalitimiz bilan (2026-09-13)
 
-Expo shabloni release'ni ham `android/app/debug.keystore` bilan imzolaydi
-(build.gradle: `release { signingConfig signingConfigs.debug }`).
+**Avval:** Expo shabloni reliz build'ini ham `android/app/debug.keystore`
+bilan imzolardi (`release { signingConfig signingConfigs.debug }`). Bu
+kalitning MAXFIY qismi React Native shablonida ochiq turibdi — ya'ni
+istalgan odam bizning ilova ustiga tushadigan soxta APK yasay olardi.
+Play Market ham bunday APK'ni qabul qilmaydi.
 
-**Oqibatlari:**
-- EAS bilan qurilgan eski ilova ustiga **o'rnatilmaydi** — foydalanuvchi
-  avval eskisini o'chirishi kerak (bir marta).
-- Lokal build'lar O'ZARO mos: `debug.keystore` shablonda qat'iy fayl,
-  har prebuild'da bir xil — ya'ni keyingi lokal APK'lar ustiga tushadi.
-- **Play Market uchun YARAMAYDI** — u debug kalit bilan imzolangan APK'ni
-  qabul qilmaydi. Reliz uchun alohida keystore kerak (yoki EAS).
+**Endi:** `plugins/withAndroidRelease.js` (ikkala ilovada) reliz imzosini
+shartli qiladi. Parollar FAQAT muhit o'zgaruvchilaridan olinadi — na
+repoda, na `gradle.properties` da hech narsa qolmaydi:
+
+```bash
+export TTY_ANDROID_KEYSTORE="C:/kalitlar/toy-taxy.jks"   # TO'LIQ yo'l
+export TTY_ANDROID_KEYSTORE_PASSWORD=...
+export TTY_ANDROID_KEY_ALIAS=toytaxy
+export TTY_ANDROID_KEY_PASSWORD=...
+export TTY_ANDROID_NDK=27.1.12297006                      # 6.1 dagi tuzoq
+```
+
+`TTY_ANDROID_KEYSTORE` berilmasa build AVVALGIDEK debug kaliti bilan
+imzolanadi va Gradle logida ogohlantirish chiqadi — sinov build'lari
+uchun yetarli, hech narsa buzilmaydi. Ikkala shox ham
+`:app:signingReport` bilan tekshirilgan (2026-09-13).
+
+**Kalitni yaratish (bir marta, kalit REPOGA TUSHMAYDI):**
+
+```bash
+keytool -genkeypair -v -keystore C:/kalitlar/toy-taxy.jks \
+  -alias toytaxy -keyalg RSA -keysize 2048 -validity 10000
+```
+
+⚠️ **Kalitni yo'qotsangiz Play Market'dagi ilovani boshqa YANGILAB
+BO'LMAYDI** — faqat yangi paket nomi bilan yangi ilova joylash qoladi.
+Uni repodan tashqarida, zaxirasi bilan saqlang (`.gitignore`: `*.keystore`,
+`*.jks`).
+
+**O'tish:** reliz kaliti debug kalitidan boshqa, shuning uchun yangi imzoli
+APK eski (debug imzoli) ilova ustiga **o'rnatilmaydi** — foydalanuvchi
+bir marta eskisini o'chirishi kerak. Kalitni almashtirish uchun eng yaxshi
+payt — Play Market'ga chiqishdan OLDIN.
+
+**Play Market uchun AAB:**
+```bash
+cd apps/customer-app/android && ./gradlew.bat bundleRelease
+# natija: app/build/outputs/bundle/release/app-release.aab
+```
 
 ### 6.3 EAS hisobi: `jav1on`, `javl9n` EMAS
 
@@ -577,6 +658,29 @@ Entity not authorized: AppEntity[c3ad9431-…] (action = READ)
 ```
 Token so'raganda **`jav1on` bilan kirilganini** tekshiring —
 `eas whoami` ro'yxatida `jav1on` ko'rinishi shart.
+
+---
+
+### 6.7 Versiya raqami — `pnpm bump:mobile`
+
+`app.json` da `versionCode` UMUMAN yo'q edi, ya'ni Expo uni har build'da
+`1` qilib qo'yardi. Oqibati: telefondagi ilova qaysi build ekanini aytib
+bo'lmasdi, Android uni yangilanish deb hisoblamasdi, Play Market esa bir
+xil `versionCode` li ikkinchi APK'ni rad etadi.
+
+Endi `versionCode` `app.json` da turadi (`2` dan boshlandi) va skript uni
+oshiradi:
+
+```bash
+pnpm bump:mobile mijoz             # versionCode +1
+pnpm bump:mobile haydovchi --patch # versionCode +1 va 1.0.0 -> 1.0.1
+```
+
+`eas.json` da `appVersionSource` `remote` dan `local` ga o'tkazildi —
+aks holda EAS va lokal build har xil raqam qo'yardi.
+
+**Reliz tartibi:** `pnpm bump:mobile mijoz` → `expo prebuild` →
+`gradlew.bat assembleRelease` → `pnpm release:apk <apk>` (6.5).
 
 ---
 

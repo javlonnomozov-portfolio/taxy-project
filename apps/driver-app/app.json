@@ -33,6 +33,7 @@
     },
     "android": {
       "package": "uz.toytaxy.driver",
+      "versionCode": 2,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -67,7 +68,8 @@
         {
           "color": "#4c8dff"
         }
-      ]
+      ],
+      "./plugins/withAndroidRelease"
     ],
     "extra": {
       "apiUrl": "https://api-production-13444.up.railway.app",
