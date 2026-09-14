@@ -46,6 +46,8 @@
     "sim:driver-chat": "node scripts/driver-chat-sim.mjs",
     "sim:password-reset": "node scripts/password-reset-sim.mjs",
     "sim:customer-socket": "node scripts/customer-socket-sim.mjs",
+    "sim:comfort-fallback": "node scripts/comfort-fallback-sim.mjs",
+    "sim:driver-search": "node scripts/driver-search-sim.mjs",
     "try:login": "node scripts/customer-login-try.mjs",
     "release:apk": "node scripts/publish-apk.mjs"
   },

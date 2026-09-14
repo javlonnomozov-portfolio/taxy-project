@@ -87,6 +87,11 @@ export class OrdersService {
     return order;
   }
 
+  /** Comfort topilmadi — Standart'ga o'tkazib qayta qidirish (mantiq `DispatchService` da). */
+  switchToStandard(orderId: string, actor: ActorType, actorId?: string) {
+    return this.dispatch.switchToStandard(orderId, actor, actorId);
+  }
+
   findById(id: string): Promise<Order | null> {
     return this.orders.findOne({ where: { id } });
   }

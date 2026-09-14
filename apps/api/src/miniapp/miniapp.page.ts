@@ -56,6 +56,9 @@ const T = {
     skip_rating: 'O‘tkazib yuborish',
     cancelled: 'Buyurtma bekor qilindi',
     cancel_btn: '❌ Buyurtmani bekor qilish',
+    no_driver: 'Taksi topilmadi',
+    no_driver_comfort: 'Hozir bo‘sh Comfort mashina yo‘q. Standart mashina bilan qidirib ko‘ramizmi? Narx Standart bo‘yicha bo‘ladi.',
+    switch_standard_btn: 'Standart bilan qidirish',
     cancel_confirm: 'Buyurtma bekor qilinsinmi?',
     cancel_confirm_penalty: 'Haydovchi allaqachon yo‘lda. Bekor qilish bekor darajangizga ta’sir qiladi. Davom etamizmi?',
     cancelled_free: 'Buyurtma bekor qilindi (jarimasiz).',
@@ -99,6 +102,9 @@ const T = {
     skip_rating: 'Пропустить',
     cancelled: 'Заказ отменён',
     cancel_btn: '❌ Отменить заказ',
+    no_driver: 'Такси не найдено',
+    no_driver_comfort: 'Свободных машин Comfort сейчас нет. Поискать машину Стандарт? Цена будет по тарифу Стандарт.',
+    switch_standard_btn: 'Искать Стандарт',
     cancel_confirm: 'Отменить заказ?',
     cancel_confirm_penalty: 'Водитель уже в пути. Отмена повлияет на ваш рейтинг отмен. Продолжить?',
     cancelled_free: 'Заказ отменён (без штрафа).',
@@ -222,6 +228,11 @@ export function miniappPage(): string {
     border: 2px solid var(--red); border-radius: 26px; background: var(--bg);
     color: var(--red); font-size: 17px; font-weight: 800; }
   .cancel:disabled { opacity: 0.5; }
+  .switch { display: block; width: 100%; margin-top: 12px; padding: 16px;
+    border: 0; border-radius: 26px; background: #0CAF50;
+    color: #fff; font-size: 17px; font-weight: 800; }
+  .switch:disabled { opacity: 0.5; }
+  .sw-hint { margin-top: 10px; color: #51565F; font-size: 14px; line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -440,6 +451,7 @@ export function miniappPage(): string {
     if (st === 'ARRIVED') return t.arrived;
     if (st === 'IN_PROGRESS') return t.in_progress;
     if (st === 'ACCEPTED') return t.on_the_way;
+    if (st === 'NO_DRIVER') return t.no_driver;
     return t.searching;
   }
 
@@ -505,9 +517,22 @@ export function miniappPage(): string {
    */
   function renderCancel(d) {
     var el = document.getElementById('cancelWrap');
-    if (!d.cancellable) { el.innerHTML = ''; return; }
-    el.innerHTML = '<button class="cancel" id="cancelBtn">' + esc(t.cancel_btn) + '</button>';
-    document.getElementById('cancelBtn').addEventListener('click', function () {
+    var html = '';
+    // Comfort topilmadi: kutib turish o'rniga Standart taklif qilinadi. Qoida
+    // serverda (canSwitchToStandard) - ilova va bot bilan bir xil.
+    if (d.canSwitchToStandard) {
+      html += '<div class="sw-hint">' + esc(t.no_driver_comfort) + '</div>' +
+              '<button class="switch" id="switchBtn">' + esc(t.switch_standard_btn) + '</button>';
+    }
+    if (d.cancellable) {
+      html += '<button class="cancel" id="cancelBtn">' + esc(t.cancel_btn) + '</button>';
+    }
+    el.innerHTML = html;
+    var sw = document.getElementById('switchBtn');
+    if (sw) sw.addEventListener('click', sendSwitch);
+    var cb = document.getElementById('cancelBtn');
+    if (!cb) return;
+    cb.addEventListener('click', function () {
       if (cancelBusy) return;
       // Haydovchi biriktirilgan bo'lsa bekor qilish jarimali — mijoz buni
       // BOSISHDAN OLDIN bilsin.
@@ -518,6 +543,34 @@ export function miniappPage(): string {
         sendCancel();
       }
     });
+  }
+
+  var switchBusy = false;
+
+  /** Comfort topilmadi - Standart bilan qayta qidirish, keyin holat darhol yangilanadi. */
+  function sendSwitch() {
+    if (switchBusy) return;
+    switchBusy = true;
+    var btn = document.getElementById('switchBtn');
+    if (btn) btn.disabled = true;
+    fetch('/miniapp/switch-standard', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ initData: tg.initData, orderId: orderId }),
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function () {
+        switchBusy = false;
+        poll();
+      })
+      .catch(function (e) {
+        switchBusy = false;
+        if (btn) btn.disabled = false;
+        elSub.textContent = t.err + ' [' + (e && e.message ? e.message : 'network') + ']';
+      });
   }
 
   function sendCancel() {

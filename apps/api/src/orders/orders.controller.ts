@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { ActorType } from '@tty/shared';
 import { TripsService } from '../trips/trips.service';
 import { OrdersService } from './orders.service';
 import { InternalGuard } from '../auth/internal.guard';
@@ -32,6 +33,13 @@ export class OrdersController {
   @ApiOperation({ summary: 'Biriktirilgan taksining oxirgi joylashuvi' })
   driverLocation(@Param('id') id: string) {
     return this.orders.driverLocation(id);
+  }
+
+  /** Bot: Comfort topilmagan zakazni mijoz roziligi bilan Standart'ga o'tkazish. */
+  @Post(':id/switch-standard')
+  @ApiOperation({ summary: 'Comfort topilmadi — Standart bilan qayta qidirish' })
+  switchToStandard(@Param('id') id: string) {
+    return this.orders.switchToStandard(id, ActorType.CUSTOMER);
   }
 
   @Post(':id/cancel')

@@ -156,6 +156,13 @@ export class MiniappController {
     return this.miniapp.cancel(dto.initData, dto.orderId);
   }
 
+  /** Comfort topilmadi — Standart bilan qayta qidirish. */
+  @Post('switch-standard')
+  @HttpCode(200)
+  switchToStandard(@Body() dto: TrackDto) {
+    return this.miniapp.switchToStandard(dto.initData, dto.orderId);
+  }
+
   /** Xaritadan tanlangan nuqta bilan buyurtma berish. */
   @Post('order')
   create(@Body() dto: CreateOrderDto): Promise<{ orderId: string }> {

@@ -64,6 +64,8 @@ const dict: Record<Lang, Record<string, string>> = {
 
     price: 'Narx',
     extra_fee: 'Qo‘shimcha',
+    no_driver_comfort: 'Hozir bo‘sh Comfort mashina yo‘q. Standart mashina bilan qidirib ko‘ramizmi? Narx Standart bo‘yicha bo‘ladi.',
+    switch_standard_btn: 'Standart bilan qidirish',
     som: 'so‘m',
     rate_prompt: 'Xohlasangiz, haydovchini baholang:',
     rate_comment_ph: 'Izoh (ixtiyoriy)',
@@ -173,6 +175,8 @@ const dict: Record<Lang, Record<string, string>> = {
 
     price: 'Стоимость',
     extra_fee: 'Доплата',
+    no_driver_comfort: 'Свободных машин Comfort сейчас нет. Поискать машину Стандарт? Цена будет по тарифу Стандарт.',
+    switch_standard_btn: 'Искать Стандарт',
     som: 'сум',
     rate_prompt: 'Если хотите, оцените водителя:',
     rate_comment_ph: 'Комментарий (необязательно)',

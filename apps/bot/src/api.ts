@@ -50,7 +50,12 @@ export const apiClient = {
 
   // Zakaz holatini olish (bot stale activeOrderId'ni tekshirishi uchun).
   getOrder(orderId: string) {
-    return req<{ id: string; status: string } | null>('GET', `/orders/${orderId}`);
+    return req<{ id: string; status: string; vehicleCategory?: string } | null>('GET', `/orders/${orderId}`);
+  },
+
+  /** Comfort topilmadi — mijoz roziligi bilan Standart'ga o'tkazib qayta qidirish. */
+  switchToStandard(orderId: string) {
+    return req<{ ok: true; category: string }>('POST', `/orders/${orderId}/switch-standard`, {});
   },
 
   // Biriktirilgan taksining oxirgi joylashuvi va holati (mijozga ko'rsatish uchun).

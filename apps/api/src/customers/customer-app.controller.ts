@@ -178,6 +178,12 @@ export class CustomerAppController {
     return this.orders.cancel(this.me(req), id);
   }
 
+  @Post('orders/:id/switch-standard')
+  @ApiOperation({ summary: 'Comfort topilmadi — Standart bilan qayta qidirish' })
+  switchToStandard(@Req() req: Request, @Param('id') id: string) {
+    return this.orders.switchToStandard(this.me(req), id);
+  }
+
   @Post('orders/:id/rate')
   @ApiOperation({ summary: 'Haydovchini baholash (1..5) + ixtiyoriy izoh' })
   rate(@Req() req: Request, @Param('id') id: string, @Body() dto: RateDto) {

@@ -257,6 +257,34 @@ export class OpsService {
    * Haydovchi parolini tiklash — bir martalik parol qaytaradi.
    * Panel uni bir marta ko'rsatadi va qayta so'rab bo'lmaydi.
    */
+  /** Operator: Comfort topilmagan zakazni Standart'ga o'tkazib qayta qidirish. */
+  switchOrderToStandard(orderId: string, actorId?: string) {
+    return this.dispatch.switchToStandard(orderId, ActorType.OPERATOR, actorId);
+  }
+
+  /** Haydovchilar ro'yxati: qidiruv, filtr, sahifalash (yuzlab haydovchi uchun). */
+  searchDrivers(filters: Parameters<DriversService['search']>[0]) {
+    return this.drivers.search(filters);
+  }
+
+  updateDriverProfile(driverId: string, patch: { firstName?: string; lastName?: string; phone?: string }) {
+    return this.drivers.updateProfile(driverId, patch);
+  }
+
+  /** Haydovchining so'nggi safarlari — panel oynasi uchun ixcham ko'rinish. */
+  async driverTrips(driverId: string) {
+    const rows = await this.drivers.tripHistory(driverId);
+    return rows.map((o) => ({
+      id: o.id,
+      status: o.status,
+      category: o.vehicleCategory,
+      finalPrice: o.finalPrice,
+      distanceM: o.distanceM,
+      createdAt: o.createdAt,
+      completedAt: o.completedAt,
+    }));
+  }
+
   resetDriverPassword(driverId: string) {
     return this.drivers.resetPassword(driverId);
   }

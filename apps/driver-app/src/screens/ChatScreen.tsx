@@ -19,6 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import type { Socket } from 'socket.io-client';
 import { api } from '../api';
+import { dismissChatNotifications } from '../push';
 import { API_URL } from '../config';
 import { makeT, Lang } from '../i18n';
 import { C, F, R, S, SP } from '../theme';
@@ -161,10 +162,15 @@ export function ChatScreen({
       .then((list) => alive && setMsgs(list))
       .catch(() => {});
     void api('POST', '/chat/read', undefined, token).catch(() => {});
+    // Xabarlar ko'rildi — shtorkadagi chat bildirishnomalari endi keraksiz.
+    void dismissChatNotifications();
 
     const onMessage = (m: Msg) => {
       add(m);
-      if (m.sender === 'ops') void api('POST', '/chat/read', undefined, token).catch(() => {});
+      if (m.sender === 'ops') {
+        void api('POST', '/chat/read', undefined, token).catch(() => {});
+        void dismissChatNotifications();
+      }
     };
     socket?.on('chat:message', onMessage);
     return () => {

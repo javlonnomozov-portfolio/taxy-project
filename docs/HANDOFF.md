@@ -393,6 +393,42 @@ ya'ni zaxira yo'l bo'lib qoldi.
 Sim: `sim:customer-socket` — 8 tekshiruv (tokensiz/buzuq token/haydovchi
 tokeni UZILADI; holat o'zgarishi so'rovsiz yetib keladi).
 
+### ✅ Comfort topilmasa Standartga o'tkazish; haydovchilar qidiruvi va oynasi; chat push'i (2026-09-14)
+
+**Comfort → Standart.** Comfort mashinalar kam; Comfort zakaz NO_DRIVER'da
+qolib ketardi, holbuki bo'sh Standart mashina bor. Endi NO_DRIVER + Comfort
+bo'lsa server `canSwitchToStandard: true` qaytaradi va tugma chiqadi:
+
+| Kanal | Qayerda | Yo'l |
+|---|---|---|
+| Mijoz ilovasi | NO_DRIVER varag'i | `POST /customer/orders/:id/switch-standard` |
+| Mini app | holat varag'i | `POST /miniapp/switch-standard` |
+| Bot | "taksi topilmadi" xabarida inline tugma (`order:std:<id>`) | `POST /orders/:id/switch-standard` (ichki kalit) |
+| Panel | Dashboard zakaz qatori | `POST /ops/orders/:id/switch-standard` (operator+) |
+
+Yadro: `DispatchService.switchToStandard` — FAQAT NO_DRIVER + Comfort'da;
+holat va toifa BITTA atomik so'rovda (`NO_DRIVER→CREATED`, `comfort→standard`),
+operator taymeri bekor qilinadi, `category_changed` hodisasi yoziladi, `start()`.
+Mijozning boshqa faol zakazi bo'lsa 409. Narx Standart bo'yicha tushadi — matnda
+OCHIQ aytiladi. Bot'da tugmada zakaz id bor, chunki NO_DRIVER'da sessiyadagi
+`activeOrderId` allaqachon bo'shatilgan. Sim: `sim:comfort-fallback` (13).
+
+**Haydovchilar qidiruvi.** `GET /ops/drivers/search?q=&status=&approval=&category=&balance=negative&limit=&offset=`
+— ism+familiya, telefon (bo'shliqlar bilan ham), davlat raqami; LIKE belgilari
+("%", "_") ekranlanadi. Eski `GET /ops/drivers` o'zgarmadi (simlar unga tayanadi).
+Panel: qidiruv + filtrlar + 25 tadan sahifalash; qator bosilganda `DriverDetail`
+oynasi (Ma'lumot va chat = xaritadagi `DriverWindow`, Tahrirlash, Balans tarixi,
+Safarlar). Yangi: `PUT /ops/drivers/:id/profile` (telefon unikal, 409),
+`PUT /ops/drivers/:id/vehicle` endi `category` ham oladi — o'zgarganda toifa
+keshi (`driver:cat:*`) va geo-indeks DARHOL yangilanadi. `GET /ops/drivers/:id/trips`.
+Sim: `sim:driver-search` (16).
+
+**Chat push'i (haydovchi ilovasi).** Ilova OCHIQ bo'lsa chat bildirishnomasi
+ko'rsatilmaydi (`setNotificationHandler` — `data.type === 'chat'`), yopiq/fonda
+bo'lsa tizim ko'rsatadi. Chat ochilganda shtorkadagi chat bildirishnomalari
+o'chiriladi; bildirishnoma bosilsa to'g'ridan chat ochiladi (ilova yopiq bo'lsa
+`getLastNotificationResponseAsync`).
+
 ### ✅ Hal qilingan mahsulot savollari (o'zgarmagan, qayta ochilmasin)
 
 - **4+ yo'lovchi uchun yangi TOIFA/mashina rusumi tanlash — KERAK EMAS.**

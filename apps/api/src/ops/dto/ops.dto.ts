@@ -11,6 +11,8 @@ import {
   IsString,
   MinLength,
   ValidateNested,
+  IsIn,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PanelRole, VehicleCategory } from '@tty/shared';
@@ -111,6 +113,32 @@ export class UpdateVehicleDto {
   @IsOptional() @IsString() plate?: string;
   /** Yo'lovchi o'rinlari — 5+ yo'lovchi filtri shu qiymatga tayanadi. */
   @IsOptional() @IsInt() @Min(1) @Max(8) seats?: number;
+  /**
+   * Mashina toifasi. Noto'g'ri toifa haydovchini boshqa zakazlardan butunlay
+   * uzib qo'yadi (dispatch toifa bo'yicha qidiradi) — panelda tuzatish shart.
+   */
+  @IsOptional() @IsEnum(VehicleCategory) category?: VehicleCategory;
+}
+
+/** Haydovchi profili (ism, telefon). Telefon — kirish logini, shuning uchun unikal. */
+export class UpdateDriverProfileDto {
+  @IsOptional() @IsString() @MaxLength(60) firstName?: string;
+  @IsOptional() @IsString() @MaxLength(60) lastName?: string;
+  @IsOptional() @Matches(/^[+]?[0-9 ]{9,20}$/, { message: 'Telefon raqami noto‘g‘ri' })
+  phone?: string;
+}
+
+/** `GET /ops/drivers/search` — qidiruv va filtrlar. */
+export class DriverSearchQuery {
+  /** Ism, familiya, telefon yoki davlat raqami bo'yicha. */
+  @IsOptional() @IsString() @MaxLength(60) q?: string;
+  @IsOptional() @IsIn(['pending', 'approved', 'blocked']) approval?: string;
+  @IsOptional() @IsIn(['online', 'on_trip', 'offline']) status?: string;
+  @IsOptional() @IsEnum(VehicleCategory) category?: VehicleCategory;
+  /** `negative` — faqat qarzdorlar. */
+  @IsOptional() @IsIn(['negative']) balance?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) offset?: number;
 }
 
 export class CreateDriverDto {

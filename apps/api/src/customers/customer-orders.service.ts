@@ -9,7 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import Redis from 'ioredis';
-import { OrderStatus, VehicleCategory } from '@tty/shared';
+import { OrderStatus, VehicleCategory, ActorType } from '@tty/shared';
 import { REDIS } from '../redis/redis.module';
 import { Order } from '../entities/order.entity';
 import { Customer } from '../entities/customer.entity';
@@ -196,10 +196,19 @@ export class CustomerOrdersService {
           ? await this.reputation.hasRated(order.id, 'customer_to_driver')
           : false,
       cancellable: CUSTOMER_CANCELLABLE_STATUSES.includes(order.status),
+      category: order.vehicleCategory,
+      canSwitchToStandard:
+        order.status === OrderStatus.NO_DRIVER && order.vehicleCategory === VehicleCategory.COMFORT,
     };
   }
 
   /** Buyurtmani bekor qilish (jarima, dispatch to'xtatish — `TripsService` da). */
+  /** Comfort topilmadi — mijoz roziligi bilan Standart'ga o'tkazib qayta qidirish. */
+  async switchToStandard(customerId: string, orderId: string) {
+    await this.mustOwn(customerId, orderId);
+    return this.ordersService.switchToStandard(orderId, ActorType.CUSTOMER, customerId);
+  }
+
   async cancel(customerId: string, orderId: string): Promise<{ penalized: boolean }> {
     await this.mustOwn(customerId, orderId);
     const res = await this.trips.cancelByCustomer(orderId, 'customer');
@@ -267,6 +276,14 @@ export interface TrackView {
   rated: boolean;
   /** Hozir bekor qilsa bo'ladimi. */
   cancellable: boolean;
+  /** Mijoz TANLAGAN toifa. */
+  category: VehicleCategory;
+  /**
+   * Comfort topilmadi — "Standartga o'tkazish" tugmasini ko'rsatish.
+   * Qoida serverda: ilova, mini app va bot bir xil hisoblaydi, biri
+   * yangilanmay qolib ishlamaydigan tugma chiqarmasin.
+   */
+  canSwitchToStandard: boolean;
 }
 
 export interface HistoryItem {

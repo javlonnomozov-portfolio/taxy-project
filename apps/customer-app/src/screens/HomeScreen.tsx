@@ -48,6 +48,10 @@ interface TrackView {
   /** Operator qo'shgan summa — yakuniy narxga kirgan, alohida ko'rsatiladi. */
   fareAdjustment?: number;
   fareAdjustmentReason?: string | null;
+  /** Mijoz tanlagan toifa. */
+  category?: string;
+  /** Comfort topilmadi — "Standart bilan qidirish" tugmasi (qoida serverda). */
+  canSwitchToStandard?: boolean;
   completed: boolean;
   rated: boolean;
   cancellable: boolean;
@@ -326,6 +330,7 @@ export function HomeScreen({
   const [cancelling, setCancelling] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [rateSent, setRateSent] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const [comment, setComment] = useState('');
   const [locating, setLocating] = useState(false);
   /**
@@ -354,6 +359,26 @@ export function HomeScreen({
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
   }, []);
+
+  /**
+   * Comfort topilmadi — mijoz roziligi bilan Standartga o'tkazish.
+   * Muvaffaqiyatdan keyin ekran darhol "qidirilmoqda" holatiga o'tadi; server
+   * esa soket orqali DISPATCHING yuboradi va to'liq holat qayta olinadi.
+   */
+  async function switchToStandard() {
+    if (!orderId || switching) return;
+    setSwitching(true);
+    try {
+      await api('POST', `/customer/orders/${orderId}/switch-standard`, undefined, token);
+      setView((cur) =>
+        cur ? { ...cur, orderStatus: 'DISPATCHING', category: 'standard', canSwitchToStandard: false } : cur,
+      );
+    } catch (e) {
+      Alert.alert(t('err_network'), (e as Error).message);
+    } finally {
+      setSwitching(false);
+    }
+  }
 
   /** Nega tugadi — bekor qilingan safarda ko'rsatiladigan yagona ma'lumot. */
   const endedReason = useCallback(
@@ -894,9 +919,40 @@ export function HomeScreen({
         </Text>
 
         {view && !view.finished && view.orderStatus === 'NO_DRIVER' ? (
-          <Text style={{ color: C.muted, fontSize: F.label, marginTop: SP.sm, lineHeight: 19 }}>
-            {t('no_driver_info')}
-          </Text>
+          view.canSwitchToStandard ? (
+            // Comfort topilmadi — kutib turish o'rniga Standart taklif qilinadi.
+            // Narx o'zgarishini matnda OCHIQ aytamiz: mijoz nimaga rozi
+            // bo'layotganini bilishi kerak.
+            <View style={{ marginTop: SP.sm }}>
+              <Text style={{ color: C.muted, fontSize: F.label, lineHeight: 19 }}>
+                {t('no_driver_comfort')}
+              </Text>
+              <TouchableOpacity
+                onPress={() => void switchToStandard()}
+                disabled={switching}
+                style={{
+                  marginTop: SP.md,
+                  backgroundColor: C.ok,
+                  borderRadius: L.card.radius,
+                  paddingVertical: SP.md,
+                  alignItems: 'center',
+                  opacity: switching ? 0.6 : 1,
+                }}
+              >
+                {switching ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={{ color: '#FFFFFF', fontSize: F.body, fontWeight: '700' }}>
+                    {t('switch_standard_btn')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={{ color: C.muted, fontSize: F.label, marginTop: SP.sm, lineHeight: 19 }}>
+              {t('no_driver_info')}
+            </Text>
+          )
         ) : null}
 
         {err ? <Text style={[S.err, { marginTop: SP.sm }]}>{err}</Text> : null}

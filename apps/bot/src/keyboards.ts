@@ -64,6 +64,14 @@ export const confirmKeyboard = (lang: Lang) =>
 export const cancelOrderKeyboard = (lang: Lang) =>
   Markup.inlineKeyboard([[Markup.button.callback(t(lang, 'cancel_order_btn'), 'order:cancel')]]);
 
+/**
+ * Comfort topilmadi — Standart bilan qayta qidirish.
+ * Zakaz id TUGMANING O'ZIDA: NO_DRIVER'da sessiyadagi `activeOrderId` allaqachon
+ * bo'shatilgan (mijoz yangi zakaz bera olishi uchun). 10 + 36 bayt < 64 chegara.
+ */
+export const switchStandardKeyboard = (lang: Lang, orderId: string) =>
+  Markup.inlineKeyboard([[Markup.button.callback(t(lang, 'switch_standard_btn'), `order:std:${orderId}`)]]);
+
 // Haydovchi topilgach: taksi joylashuvini ko'rish + bekor qilish.
 /**
  * Safar davomidagi klaviatura.

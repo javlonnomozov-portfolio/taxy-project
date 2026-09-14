@@ -2,7 +2,8 @@ import { io, Socket } from 'socket.io-client';
 import type { Telegram } from 'telegraf';
 import { CONFIG } from './config';
 import { Lang, t } from './i18n';
-import { mainMenu, ratingKeyboard, trackingKeyboard } from './keyboards';
+import { mainMenu, ratingKeyboard, switchStandardKeyboard, trackingKeyboard } from './keyboards';
+import { apiClient } from './api';
 
 interface DriverCard {
   name: string;
@@ -113,13 +114,22 @@ export function trackOrder(opts: {
         // "Taksi chaqirish" tugmasi umuman ko'rinmay qolardi.
         await send(t(lang, 'use_menu'), mainMenu(lang));
         break;
-      case 'NO_DRIVER':
-        await send(t(lang, 'no_driver'), mainMenu(lang));
+      case 'NO_DRIVER': {
+        // Comfort topilmagan bo'lsa — kutish o'rniga Standart taklif qilamiz.
+        // Holat xabarida toifa yo'q, shuning uchun zakazni so'raymiz.
+        const o = await apiClient.getOrder(orderId).catch(() => null);
+        if (o?.vehicleCategory === 'comfort') {
+          await send(t(lang, 'no_driver_comfort'), switchStandardKeyboard(lang, orderId));
+          await send(t(lang, 'use_menu'), mainMenu(lang));
+        } else {
+          await send(t(lang, 'no_driver'), mainMenu(lang));
+        }
         // Zakaz sessiyada allaqachon bo'shatildi (mijoz yangi zakaz bera olsin),
         // LEKIN kuzatuvni saqlab qolamiz — operator yoki kech onlayn bo'lgan
         // haydovchi hali ham bu zakazni olishi mumkin.
         armWatchdog(orderId);
         return;
+      }
       // Mijozning O'ZI bekor qildi — mini app'dan bo'lishi mumkin. Avval bu
       // holat umuman ishlanmagan edi: mini app'dan bekor qilinsa chat jim
       // qolar, "Buyurtmani bekor qilish" tugmasi esa osilib turardi.

@@ -99,6 +99,12 @@ export class MiniappService {
     return this.shared.cancel(customer.id, orderId);
   }
 
+  /** Comfort topilmadi — Standart'ga o'tkazib qayta qidirish (ilova bilan bir xil qoida). */
+  async switchToStandard(initData: string, orderId: string) {
+    const customer = await this.requireCustomer(initData);
+    return this.shared.switchToStandard(customer.id, orderId);
+  }
+
   async rate(initData: string, orderId: string, score: number): Promise<{ ok: true }> {
     const customer = await this.requireCustomer(initData);
     return this.shared.rate(customer.id, orderId, score);

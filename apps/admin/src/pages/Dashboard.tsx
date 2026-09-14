@@ -164,6 +164,21 @@ export function Dashboard() {
     }
   }
 
+  /**
+   * Comfort topilmadi — operator mijoz bilan gaplashib Standartga o'tkazadi.
+   * Narx Standart bo'yicha tushadi, shuning uchun tasdiq so'raladi.
+   */
+  async function switchStandard(o: Order) {
+    if (!confirm(t('switch_standard_confirm'))) return;
+    try {
+      await api('POST', `/ops/orders/${o.id}/switch-standard`);
+      load();
+      flash(t('switched_standard'));
+    } catch (e) {
+      flash(t('error') + ': ' + (e as Error).message, 'err');
+    }
+  }
+
   async function doClose(o: Order) {
     try {
       await api('POST', `/ops/orders/${o.id}/close`, { reason: 'operator' });
@@ -395,6 +410,11 @@ export function Dashboard() {
                     {assignable && (
                       <button className="primary" onClick={() => setSelectedId(sel ? null : o.id)}>
                         {sel ? t('selected') : t('select_taxi')}
+                      </button>
+                    )}
+                    {o.status === 'NO_DRIVER' && o.vehicleCategory === 'comfort' && (
+                      <button className="ok" onClick={() => void switchStandard(o)}>
+                        {t('switch_standard')}
                       </button>
                     )}
                     {confirmCloseId === o.id ? (

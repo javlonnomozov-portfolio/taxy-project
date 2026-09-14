@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -151,15 +151,108 @@ export class DriversService {
     return rows.map(toDriverView);
   }
 
-  /** Haydovchining mashinasini tahrirlash (o'rinlar soni, rusum, raqam). */
+  /** Haydovchining mashinasini tahrirlash (o'rinlar soni, rusum, raqam, toifa). */
   async updateVehicle(
     driverId: string,
-    patch: { make?: string; model?: string; color?: string; plate?: string; seats?: number },
+    patch: {
+      make?: string;
+      model?: string;
+      color?: string;
+      plate?: string;
+      seats?: number;
+      category?: VehicleCategory;
+    },
   ): Promise<Vehicle> {
     const vehicle = await this.vehicles.findOne({ where: { driverId } });
     if (!vehicle) throw new NotFoundException('Haydovchida mashina yo‘q');
+    const prevCategory = vehicle.category;
     Object.assign(vehicle, patch);
-    return this.vehicles.save(vehicle);
+    const saved = await this.vehicles.save(vehicle);
+
+    // Toifa o'zgardi — dispatch buni DARHOL bilishi kerak. Busiz haydovchi
+    // 1 soatgacha eski toifa keshida (`driver:cat:*`) va eski geo-indeksda
+    // qolib, noto'g'ri zakazlarni olardi yoki kerakligini olmasdi.
+    if (patch.category && patch.category !== prevCategory) {
+      await this.redis.del(this.catKey(driverId));
+      await this.geo.removeFromAll(driverId);
+      const d = await this.drivers.findOne({ where: { id: driverId } });
+      if (d?.status === DriverStatus.ONLINE_IDLE && d.lastLat != null && d.lastLng != null) {
+        await this.geo.setDriverLocation(driverId, patch.category, d.lastLng, d.lastLat);
+      }
+      this.log.log(`Haydovchi ${driverId} toifasi: ${prevCategory} -> ${patch.category}`);
+    }
+    return saved;
+  }
+
+  /**
+   * Profilni tahrirlash. Telefon — kirish logini: boshqa haydovchida bo'lsa
+   * rad etiladi, aks holda ikkalasi ham bir raqam bilan kira olmay qolardi.
+   */
+  async updateProfile(
+    driverId: string,
+    patch: { firstName?: string; lastName?: string; phone?: string },
+  ): Promise<DriverView> {
+    const d = await this.mustFind(driverId);
+    if (patch.phone !== undefined) {
+      const phone = patch.phone.split(' ').join('');
+      if (phone !== d.phone) {
+        const taken = await this.drivers.findOne({ where: { phone } });
+        if (taken) throw new ConflictException('Bu telefon boshqa haydovchida');
+        d.phone = phone;
+      }
+    }
+    if (patch.firstName !== undefined) d.firstName = patch.firstName.trim() || null;
+    if (patch.lastName !== undefined) d.lastName = patch.lastName.trim() || null;
+    return toDriverView(await this.drivers.save(d));
+  }
+
+  /**
+   * Qidiruv va filtr — sahifalash bilan.
+   *
+   * Qidiruv matni ism+familiya, telefon va davlat raqami bo'yicha; 3+ raqam
+   * bo'lsa telefonning FAQAT raqamlari bo'yicha ham ("90 123" → "+99890123...").
+   * LIKE maxsus belgilari ("%", "_") ekranlanadi — aks holda "_" yozilsa
+   * hamma haydovchi chiqardi.
+   */
+  async search(f: {
+    q?: string;
+    approval?: string;
+    status?: string;
+    category?: string;
+    negativeBalance?: boolean;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ items: DriverView[]; total: number }> {
+    const limit = Math.min(Math.max(f.limit ?? 50, 1), 100);
+    const offset = Math.max(f.offset ?? 0, 0);
+    const qb = this.drivers.createQueryBuilder('d').leftJoinAndSelect('d.vehicles', 'v');
+
+    const q = f.q?.trim();
+    if (q) {
+      const like = '%' + q.replace(/[!%_]/g, (c) => '!' + c) + '%';
+      const digits = q.replace(/[^0-9]/g, '');
+      const byDigits = digits.length >= 3 ? ` OR regexp_replace(d.phone, '[^0-9]', '', 'g') LIKE :digits` : '';
+      qb.andWhere(
+        `((coalesce(d.first_name, '') || ' ' || coalesce(d.last_name, '')) ILIKE :like ESCAPE '!'` +
+          ` OR d.phone ILIKE :like ESCAPE '!' OR v.plate ILIKE :like ESCAPE '!'${byDigits})`,
+        { like, digits: '%' + digits + '%' },
+      );
+    }
+    if (f.approval) qb.andWhere('d.approval_status = :approval', { approval: f.approval });
+    if (f.status === 'online') {
+      qb.andWhere('d.status IN (:...online)', {
+        online: [DriverStatus.ONLINE_IDLE, DriverStatus.OFFERED, DriverStatus.ON_TRIP],
+      });
+    } else if (f.status === 'on_trip') {
+      qb.andWhere('d.status = :st', { st: DriverStatus.ON_TRIP });
+    } else if (f.status === 'offline') {
+      qb.andWhere('d.status = :st', { st: DriverStatus.OFFLINE });
+    }
+    if (f.category) qb.andWhere('v.category = :category', { category: f.category });
+    if (f.negativeBalance) qb.andWhere('d.balance < 0');
+
+    const [rows, total] = await qb.orderBy('d.createdAt', 'DESC').skip(offset).take(limit).getManyAndCount();
+    return { items: rows.map(toDriverView), total };
   }
 
   async setBilling(

@@ -237,6 +237,60 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     await this.fillWindow(state);
   }
 
+  /**
+   * Comfort topilmadi — buyurtmani Standart'ga o'tkazib QAYTA qidirish.
+   *
+   * NEGA: Comfort mashinalar kam (2026-09 da bitta). Mijoz Comfort tanlasa va
+   * u band/oflayn bo'lsa, zakaz NO_DRIVER'da qolib ketardi, holbuki bo'sh
+   * Standart mashina bor. Mijozga taklif qilinadi; o'tkazish FAQAT uning
+   * (yoki operatorning) roziligi bilan — narx Standart bo'yicha tushadi.
+   *
+   * FAQAT NO_DRIVER holatida: dispatch hali ketayotganda toifani almashtirish
+   * yuborilgan takliflar bilan poyga yaratardi.
+   *
+   * Holat va toifa BITTA atomik so'rovda o'zgaradi — ikki marta bosilsa
+   * yoki ikki instansiya bir vaqtda urinsa, faqat bittasi o'tadi.
+   */
+  async switchToStandard(
+    orderId: string,
+    actor: ActorType,
+    actorId?: string,
+  ): Promise<{ ok: true; category: VehicleCategory }> {
+    const order = await this.orders.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Buyurtma topilmadi');
+    if (order.status !== OrderStatus.NO_DRIVER || order.vehicleCategory !== VehicleCategory.COMFORT) {
+      throw new BadRequestException('Faqat taksi topilmagan Comfort buyurtmani Standartga o‘tkazish mumkin');
+    }
+    // Mijoz shu orada yangi zakaz bergan bo'lsa, eskisini tiriltirsak u bir
+    // vaqtda ikki safarga tushib qolardi (`retryPendingForDriver` bilan bir xil qoida).
+    const newer = await this.orders.findOne({
+      where: { customerId: order.customerId, status: In(ACTIVE_STATUSES) },
+    });
+    if (newer) throw new ConflictException('Mijozning boshqa faol buyurtmasi bor');
+
+    const res = await this.orders
+      .createQueryBuilder()
+      .update(Order)
+      .set({ status: OrderStatus.CREATED, vehicleCategory: VehicleCategory.STANDARD })
+      .where('id = :id AND status = :st AND vehicle_category = :cat', {
+        id: orderId,
+        st: OrderStatus.NO_DRIVER,
+        cat: VehicleCategory.COMFORT,
+      })
+      .execute();
+    if (!res.affected) throw new ConflictException('Buyurtma holati o‘zgardi');
+
+    this.cancelOperatorFallback(orderId);
+    await this.events.record(orderId, 'category_changed', actor, {
+      actorId,
+      reason: 'comfort_not_found',
+      payload: { from: VehicleCategory.COMFORT, to: VehicleCategory.STANDARD },
+    });
+    this.log.log(`Buyurtma ${orderId} Comfort -> Standart (${actor}) — qayta qidirilmoqda`);
+    await this.start(orderId);
+    return { ok: true, category: VehicleCategory.STANDARD };
+  }
+
   /** Buyurtma + mijozdan dispatch holatini yasash (start va offerToDriver uchun umumiy). */
   private buildState(order: Order, customer: Customer | null): DispatchState {
     const radiusSteps = this.config

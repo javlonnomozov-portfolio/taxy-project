@@ -339,6 +339,24 @@ export function createBot(store: SessionStore = createSessionStore(CONFIG.redisU
     }
   });
 
+  // Comfort topilmadi — mijoz Standart bilan qayta qidirishga rozi bo'ldi.
+  // Zakaz id tugmaning o'zida: NO_DRIVER'da sessiyadagi `activeOrderId`
+  // allaqachon bo'shatilgan. Kuzatuv socketi hali tirik (watchdog), shuning
+  // uchun haydovchi topilganda "Haydovchi topildi" xabari o'zi keladi.
+  bot.action(/^order:std:([0-9a-f-]{36})$/, async (ctx) => {
+    const s = getSession(ctx);
+    const orderId = ctx.match[1];
+    await ctx.answerCbQuery();
+    await ctx.editMessageReplyMarkup(undefined).catch(() => {});
+    try {
+      await apiClient.switchToStandard(orderId);
+      s.activeOrderId = orderId;
+      await ctx.reply(t(s.lang, 'switched_standard'), cancelOrderKeyboard(s.lang));
+    } catch {
+      await ctx.reply(t(s.lang, 'switch_standard_failed'));
+    }
+  });
+
   // Taksi joylashuvini ko'rish (10 soniyada bir marta ruxsat).
   bot.action('order:where', async (ctx) => {
     const s = getSession(ctx);

@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, auth } from '../api';
 import { Page, BillingLabel, money } from '../ui';
 import { useI18n } from '../i18n';
 import { Modal } from '../Modal';
+import { DriverDetail } from './DriverDetail';
 
 interface Driver {
   id: string;
   firstName: string | null;
+  lastName?: string | null;
   phone: string;
   status: string;
   approvalStatus: string;
@@ -15,7 +17,15 @@ interface Driver {
   cancelRate: number;
   balance: number;
   /** Mashinalar — o'rinlar soni 5+ yo'lovchi filtri uchun MUHIM. */
-  vehicles?: { id: string; model: string | null; plate: string | null; seats: number }[];
+  vehicles?: {
+    id: string;
+    make?: string | null;
+    model: string | null;
+    color?: string | null;
+    plate: string | null;
+    seats: number;
+    category?: string;
+  }[];
 }
 
 /**
@@ -74,10 +84,46 @@ export function Drivers() {
   const [formErr, setFormErr] = useState('');
   const isSuperAdmin = auth.role === 'super_admin';
 
-  const load = () => api<Driver[]>('GET', '/ops/drivers').then(setDrivers).catch(() => {});
+  // Qidiruv va filtrlar SERVERDA: `/ops/drivers` 200 ta bilan cheklangan va
+  // hammasini birdan qaytarardi — yuzlab haydovchida ko'z bilan topib bo'lmaydi.
+  const [q, setQ] = useState('');
+  const [fStatus, setFStatus] = useState('');
+  const [fApproval, setFApproval] = useState('');
+  const [fCategory, setFCategory] = useState('');
+  const [fDebt, setFDebt] = useState(false);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [openDriver, setOpenDriver] = useState<Driver | null>(null);
+  const PAGE_SIZE = 25;
+
+  const load = useCallback(() => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set('q', q.trim());
+    if (fStatus) params.set('status', fStatus);
+    if (fApproval) params.set('approval', fApproval);
+    if (fCategory) params.set('category', fCategory);
+    if (fDebt) params.set('balance', 'negative');
+    params.set('limit', String(PAGE_SIZE));
+    params.set('offset', String(page * PAGE_SIZE));
+    return api<{ items: Driver[]; total: number }>('GET', `/ops/drivers/search?${params.toString()}`)
+      .then((r) => {
+        setDrivers(r.items);
+        setTotal(r.total);
+      })
+      .catch(() => {});
+  }, [q, fStatus, fApproval, fCategory, fDebt, page]);
+
   useEffect(() => {
-    load();
-  }, []);
+    // Yozish paytida har harfga so'rov ketmasin.
+    const id = setTimeout(() => void load(), 300);
+    return () => clearTimeout(id);
+  }, [load]);
+
+  /** Filtr o'zgarsa birinchi sahifaga qaytamiz — aks holda bo'sh sahifa ko'rinardi. */
+  const filterSetter = <T,>(set: (v: T) => void) => (v: T) => {
+    set(v);
+    setPage(0);
+  };
 
   async function submitNew(e: React.FormEvent) {
     e.preventDefault();
@@ -230,6 +276,42 @@ export function Drivers() {
         </div>
       )}
 
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="flex" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            style={{ flex: 1, minWidth: 220 }}
+            placeholder={t('search_ph')}
+            value={q}
+            onChange={(e) => filterSetter(setQ)(e.target.value)}
+          />
+          <select value={fStatus} onChange={(e) => filterSetter(setFStatus)(e.target.value)}>
+            <option value="">{t('f_all_status')}</option>
+            <option value="online">{t('f_online')}</option>
+            <option value="on_trip">{t('f_on_trip')}</option>
+            <option value="offline">{t('f_offline')}</option>
+          </select>
+          <select value={fApproval} onChange={(e) => filterSetter(setFApproval)(e.target.value)}>
+            <option value="">{t('f_all_approval')}</option>
+            <option value="pending">{t('f_pending')}</option>
+            <option value="approved">{t('f_approved')}</option>
+            <option value="blocked">{t('f_blocked')}</option>
+          </select>
+          <select value={fCategory} onChange={(e) => filterSetter(setFCategory)(e.target.value)}>
+            <option value="">{t('f_all_cat')}</option>
+            <option value="standard">{t('cat_standard')}</option>
+            <option value="comfort">{t('cat_comfort')}</option>
+            <option value="cargo">{t('cat_cargo')}</option>
+          </select>
+          <label className="flex" style={{ gap: 4 }}>
+            <input type="checkbox" checked={fDebt} onChange={(e) => filterSetter(setFDebt)(e.target.checked)} />
+            {t('f_debt')}
+          </label>
+          <span className="lbl" style={{ marginLeft: 'auto' }}>
+            {t('found')}: {total} · {t('dd_open_hint')}
+          </span>
+        </div>
+      </div>
+
       <div className="card">
         <table>
           <thead>
@@ -248,7 +330,12 @@ export function Drivers() {
           </thead>
           <tbody>
             {drivers.map((d) => (
-              <tr key={d.id} className={flagged(d) ? 'row-red' : ''}>
+              <tr
+                key={d.id}
+                className={flagged(d) ? 'row-red' : ''}
+                style={{ cursor: 'pointer' }}
+                onClick={() => setOpenDriver(d)}
+              >
                 <td>{d.firstName || '—'} {flagged(d) && <span className="badge danger">flag</span>}</td>
                 <td className="mono">{d.phone}</td>
                 <td><span className={'badge ' + (d.status === 'OFFLINE' ? 'muted' : 'ok')}>{d.status}</span></td>
@@ -256,9 +343,9 @@ export function Drivers() {
                 <td><BillingLabel mode={d.billingMode} /></td>
                 <td>{Number(d.ratingAvg).toFixed(2)}</td>
                 <td>{Number(d.cancelRate).toFixed(0)}%</td>
-                <td><SeatsCell driver={d} onSaved={load} /></td>
+                <td onClick={(e) => e.stopPropagation()}><SeatsCell driver={d} onSaved={load} /></td>
                 <td className={Number(d.balance) < 0 ? 'num neg' : 'num'}>{money(d.balance)}</td>
-                <td><div className="cell-actions">
+                <td onClick={(e) => e.stopPropagation()}><div className="cell-actions">
                   {d.approvalStatus !== 'approved' && (
                     <button className="ok" onClick={() => act(d.id, 'approve')}>{t('approve')}</button>
                   )}
@@ -289,7 +376,22 @@ export function Drivers() {
             )}
           </tbody>
         </table>
+        {total > PAGE_SIZE ? (
+          <div className="flex" style={{ gap: 8, justifyContent: 'flex-end', marginTop: 12, alignItems: 'center' }}>
+            <button disabled={page === 0} onClick={() => setPage(page - 1)}>{t('pager_prev')}</button>
+            <span className="lbl">
+              {page + 1} / {Math.ceil(total / PAGE_SIZE)}
+            </span>
+            <button disabled={(page + 1) * PAGE_SIZE >= total} onClick={() => setPage(page + 1)}>
+              {t('pager_next')}
+            </button>
+          </div>
+        ) : null}
       </div>
+
+      {openDriver ? (
+        <DriverDetail driver={openDriver} onClose={() => setOpenDriver(null)} onChanged={() => void load()} />
+      ) : null}
 
       {actErr && <div className="toast err">{actErr}</div>}
 

@@ -12,9 +12,11 @@ import {
   CloseDto,
   CreateAdminDto,
   CreateDriverDto,
+  DriverSearchQuery,
   FareAdjustmentDto,
   SettingsDto,
   TopUpDto,
+  UpdateDriverProfileDto,
   UpdateTariffDto,
   UpdateVehicleDto,
 } from './dto/ops.dto';
@@ -94,6 +96,25 @@ export class OpsController {
   }
 
   // --- Haydovchilar (admin+) ---
+
+  /**
+   * Qidiruv va filtr — `GET /ops/drivers` 200 ta bilan cheklangan va
+   * hammasini birdan qaytaradi; yuzlab haydovchida operator ro'yxatdan
+   * ko'z bilan qidira olmaydi. Eski endpoint o'zgarmadi (simlar unga tayanadi).
+   */
+  @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Get('drivers/search')
+  searchDrivers(@Query() q: DriverSearchQuery) {
+    return this.ops.searchDrivers({
+      q: q.q,
+      approval: q.approval,
+      status: q.status,
+      category: q.category,
+      negativeBalance: q.balance === 'negative',
+      limit: q.limit,
+      offset: q.offset,
+    });
+  }
   @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
   @Get('drivers')
   drivers() {
@@ -176,6 +197,29 @@ export class OpsController {
   adjustFare(@Param('id') id: string, @Body() dto: FareAdjustmentDto, @Req() req: Request) {
     const user = (req as Request & { user?: JwtPayload }).user;
     return this.ops.adjustFare(id, dto.amount, dto.reason, user?.sub);
+  }
+
+  @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Put('drivers/:id/profile')
+  updateDriverProfile(@Param('id') id: string, @Body() dto: UpdateDriverProfileDto) {
+    return this.ops.updateDriverProfile(id, dto);
+  }
+
+  @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Get('drivers/:id/trips')
+  driverTrips(@Param('id') id: string) {
+    return this.ops.driverTrips(id);
+  }
+
+  /**
+   * Comfort topilmadi — operator mijoz bilan gaplashib Standart'ga o'tkazadi.
+   * Operator ham qila oladi: mijoz bilan telefonda aynan u gaplashadi.
+   */
+  @Roles(PanelRole.OPERATOR, PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Post('orders/:id/switch-standard')
+  switchOrderToStandard(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as Request & { user?: JwtPayload }).user;
+    return this.ops.switchOrderToStandard(id, user?.sub);
   }
 
   /**

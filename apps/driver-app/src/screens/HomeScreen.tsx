@@ -5,7 +5,7 @@ import * as Notifications from 'expo-notifications';
 import { Socket } from 'socket.io-client';
 import { connectDriver, EV, SocketAck } from '../socket';
 import { api } from '../api';
-import { registerForPush, notifyOffer } from '../push';
+import { registerForPush, notifyOffer, onChatNotificationTap, openedFromChatNotification } from '../push';
 import { startBackgroundLocation, stopBackgroundLocation } from '../location-task';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { S, C, R, F, SP } from '../theme';
@@ -140,6 +140,18 @@ export function HomeScreen({
       .then((r) => setChatUnread(r?.unread ?? 0))
       .catch(() => {});
   }, [token]);
+
+  // Admin xabari bildirishnomasi bosilsa — to'g'ridan chat ochiladi
+  // (ilova fonda bo'lsa tinglovchi, butunlay yopiq bo'lsa oxirgi bosilgan
+  // bildirishnoma orqali). Chat ekrani o'zi bildirishnomani o'chiradi.
+  useEffect(() => {
+    const openChat = () => {
+      setShowChat(true);
+      setChatUnread(0);
+    };
+    void openedFromChatNotification().then((yes) => yes && openChat());
+    return onChatNotificationTap(openChat);
+  }, []);
   const showChatRef = useRef(false);
   showChatRef.current = showChat;
   // Ulanish/ro'yxatdan o'tish xatosi — avval JIMGINA yutilardi va haydovchi
