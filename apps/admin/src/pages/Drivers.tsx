@@ -117,6 +117,19 @@ export function Drivers() {
     }
   }
 
+  async function resetPassword(d: Driver) {
+    if (!confirm(t('reset_pw_confirm'))) return;
+    try {
+      const r = await api<{ tempPassword: string }>('POST', `/ops/drivers/${d.id}/reset-password`);
+      setPwFor(d);
+      setTempPw(r.tempPassword);
+      setPwCopied(false);
+      setActErr('');
+    } catch (e) {
+      setActErr((e as Error).message || t('error'));
+    }
+  }
+
   async function saveBilling() {
     if (!billingFor) return;
     // `per_order` da haydovchi bilan alohida kelishuv bo'lsa — tizim
@@ -152,6 +165,11 @@ export function Drivers() {
   const [bPercent, setBPercent] = useState('10');
   const [bPerOrder, setBPerOrder] = useState('');
   const [topupFor, setTopupFor] = useState<Driver | null>(null);
+  // Bir martalik parol: javobdan keyin FAQAT shu yerda ko'rinadi, qayta
+  // so'rab bo'lmaydi (bazada bcrypt hash turadi).
+  const [pwFor, setPwFor] = useState<Driver | null>(null);
+  const [tempPw, setTempPw] = useState('');
+  const [pwCopied, setPwCopied] = useState(false);
   const [tAmount, setTAmount] = useState('');
   const [tNote, setTNote] = useState('');
   const [actErr, setActErr] = useState('');
@@ -260,6 +278,9 @@ export function Drivers() {
                   <button onClick={() => { setTopupFor(d); setTAmount(''); setTNote(''); }}>
                     {t('topup')}
                   </button>
+                  {/* Parolni tiklash — operator haydovchining parolini bilmaydi.
+                      Javobdagi parol BIR MARTA ko'rsatiladi va qayta so'ralmaydi. */}
+                  <button onClick={() => void resetPassword(d)}>{t('reset_pw')}</button>
                   </div></td>
               </tr>
             ))}
@@ -274,6 +295,33 @@ export function Drivers() {
 
       {/* Billing rejimi — RO'YXATDAN tanlanadi. Avval `prompt()` da qo'lda
           yozish kerak edi: xato terilsa server 500 berardi (ENUM turi). */}
+      {/* Bir martalik parol. Nusxalash tugmasi bor, chunki uni qo'lda
+          ko'chirishda xato qilish oson (katta-kichik harf aralash). */}
+      {pwFor ? (
+        <div className="card" style={{ marginBottom: 16, borderColor: 'var(--warn)' }}>
+          <h2>{t('reset_pw_title')} — {pwFor.firstName || pwFor.phone}</h2>
+          <div className="flex" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="mono" style={{ fontSize: 26, fontWeight: 700, letterSpacing: 2 }}>{tempPw}</span>
+            <button
+              onClick={() => {
+                void navigator.clipboard?.writeText(tempPw).then(() => setPwCopied(true));
+              }}
+            >
+              {pwCopied ? t('reset_pw_copied') : t('reset_pw_copy')}
+            </button>
+            <button
+              className="primary"
+              onClick={() => {
+                setPwFor(null);
+                setTempPw('');
+              }}
+            >
+              {t('reset_pw_done')}
+            </button>
+          </div>
+          <div className="lbl" style={{ marginTop: 8 }}>{t('reset_pw_hint')}</div>
+        </div>
+      ) : null}
       {billingFor && (
         <Modal
           title={`${t('th_billing')} — ${billingFor.firstName || billingFor.phone}`}

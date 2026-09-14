@@ -253,6 +253,14 @@ export class OpsService {
   ) {
     return this.drivers.updateVehicle(driverId, patch);
   }
+  /**
+   * Haydovchi parolini tiklash — bir martalik parol qaytaradi.
+   * Panel uni bir marta ko'rsatadi va qayta so'rab bo'lmaydi.
+   */
+  resetDriverPassword(driverId: string) {
+    return this.drivers.resetPassword(driverId);
+  }
+
   topUpDriver(driverId: string, amount: number, note?: string) {
     return this.billing.topUp(driverId, amount, note);
   }

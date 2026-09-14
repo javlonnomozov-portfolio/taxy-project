@@ -346,6 +346,30 @@ sahifasi ham, ro'yxat endpointi ham YO'Q.
 > 2026-09-13 da lokal API aynan shunday yiqildi (fonda Gradle bazani
 > sekinlashtirgan). Endi faqat `typeof === 'string'` bo'lsa ishlatiladi, test bor.
 
+### ✅ Parol tiklash va admin xabari uchun push (2026-09-14)
+
+**Parolni tiklash.** Operator haydovchining parolini bilmaydi va tiklash yo'li
+YO'Q edi — shuning uchun Damasli haydovchi 2026-09-13 da BLOKLANGAN (kira
+olmagani uchun), ya'ni Standart toifa bitta mashinasiz qolgan.
+
+`POST /ops/drivers/:id/reset-password` (ADMIN+) bir martalik parol qaytaradi;
+panelda Haydovchilar sahifasidagi "Parolni tiklash" tugmasi uni bir marta
+ko'rsatadi (nusxalash tugmasi bilan) va qayta so'rab bo'lmaydi — bazada
+bcrypt hash turadi. `mustChangePassword` yoqiladi.
+
+> Mavjud sessiyalar ATAYLAB uzilmaydi: haydovchi safarda bo'lishi mumkin, uni
+> yo'l o'rtasida chiqarish zakazni yo'qotardi. Telefon yo'qolgan holatda
+> avval BLOKLANADI (u soketlarni uzadi), keyin parol tiklanadi.
+
+Sim: `sim:password-reset` — 8 tekshiruv, jumladan "eski parol endi ishlamaydi",
+tokensiz 401 va haydovchi tokeni bilan 403.
+
+**Admin xabari uchun push.** Chatda FAQAT panel yozganda haydovchiga Expo push
+ketadi (`ChatService.publish`) — foydalanuvchi qarori. Ilova yopiq bo'lsa
+soket yo'q, xabar faqat shu yo'l bilan yetadi. Push kanali mavjud `orders`
+kanalidan foydalanadi — alohida "chat" kanali ilovaga yangi build talab
+qilardi.
+
 ### ✅ Hal qilingan mahsulot savollari (o'zgarmagan, qayta ochilmasin)
 
 - **4+ yo'lovchi uchun yangi TOIFA/mashina rusumi tanlash — KERAK EMAS.**

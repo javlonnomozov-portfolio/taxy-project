@@ -13,6 +13,7 @@ import Redis from 'ioredis';
 import { OrderStatus } from '@tty/shared';
 import { REDIS } from '../redis/redis.module';
 import { RealtimeService } from '../realtime/realtime.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ChatKind, ChatSender, DriverMessage } from '../entities/driver-message.entity';
 import { ChatMedia } from '../entities/chat-media.entity';
 import { Driver } from '../entities/driver.entity';
@@ -70,6 +71,7 @@ export class ChatService {
     @InjectRepository(AdminUser) private readonly admins: Repository<AdminUser>,
     @Inject(REDIS) private readonly redis: Redis,
     private readonly realtime: RealtimeService,
+    private readonly notifications: NotificationsService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -322,6 +324,17 @@ export class ChatService {
     const view = this.toView(m);
     this.realtime.emitToDriver(m.driverId, CHAT_EVENTS.message, view);
     this.realtime.emitToOps(CHAT_EVENTS.message, view);
+
+    // Push FAQAT panel yozganda (foydalanuvchi qarori). Haydovchi o'z
+    // xabaridan bildirishnoma olmaydi. Ilova yopiq bo'lsa soket yo'q —
+    // admin xabari faqat shu yo'l bilan yetadi.
+    if (m.sender === 'ops') {
+      const preview =
+        m.kind === 'text' ? (m.body ?? '') : m.kind === 'voice' ? '🎤 Ovozli xabar' : '📷 Rasm';
+      void this.notifications
+        .pushToDriver(m.driverId, 'Admin xabari', preview.slice(0, 120), { type: 'chat' })
+        .catch((e) => this.log.warn(`Chat push yuborilmadi: ${(e as Error).message}`));
+    }
     this.log.log(`Chat: ${m.sender} -> haydovchi ${m.driverId} (${m.kind})`);
     return view;
   }

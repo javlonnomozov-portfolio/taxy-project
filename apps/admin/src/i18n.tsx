@@ -90,6 +90,14 @@ const uz: Record<string, string> = {
   drv_rates: 'Qabul / bekor / yakun',
   drv_active_order: 'Faol zakaz',
   drv_loading: 'Yuklanmoqda…',
+  // Parol tiklash — bir martalik parol.
+  reset_pw: 'Parolni tiklash',
+  reset_pw_confirm: 'Yangi parol yaratilsinmi? Eski parol darhol ishlamay qoladi.',
+  reset_pw_title: 'Bir martalik parol',
+  reset_pw_hint: 'Bu parol QAYTA ko‘rsatilmaydi. Haydovchiga aytib, oynani yoping — u birinchi kirishda o‘zi almashtiradi.',
+  reset_pw_copy: 'Nusxalash',
+  reset_pw_copied: 'Nusxalandi',
+  reset_pw_done: 'Yopish',
 
   // Foydalanuvchilar
   customers_title: 'Foydalanuvchilar',
@@ -309,6 +317,13 @@ const ru: Record<string, string> = {
   drv_rates: 'Принятие / отмена / завершение',
   drv_active_order: 'Активный заказ',
   drv_loading: 'Загрузка…',
+  reset_pw: 'Сбросить пароль',
+  reset_pw_confirm: 'Создать новый пароль? Старый сразу перестанет работать.',
+  reset_pw_title: 'Одноразовый пароль',
+  reset_pw_hint: 'Пароль больше не будет показан. Передайте его водителю и закройте окно — при первом входе он сменит его сам.',
+  reset_pw_copy: 'Копировать',
+  reset_pw_copied: 'Скопировано',
+  reset_pw_done: 'Закрыть',
 
   customers_title: 'Пользователи',
   search_customer: 'Поиск (имя или телефон)',

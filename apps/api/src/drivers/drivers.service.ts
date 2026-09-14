@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -44,6 +44,8 @@ export function toDriverView(d: Driver): DriverView {
 
 @Injectable()
 export class DriversService {
+  private readonly log = new Logger(DriversService.name);
+
   constructor(
     @InjectRepository(Driver) private readonly drivers: Repository<Driver>,
     @InjectRepository(Vehicle) private readonly vehicles: Repository<Vehicle>,
@@ -318,6 +320,34 @@ export class DriversService {
       const category = await this.getCategory(driverId);
       await this.geo.setDriverLocation(driverId, category, driver.lastLng, driver.lastLat);
     }
+  }
+
+  /**
+   * Parolni tiklash — yangi BIR MARTALIK parol qaytaradi.
+   *
+   * NEGA KERAK: operator haydovchining parolini bilmaydi va uni tiklashning
+   * yo'li yo'q edi. 2026-09-13 da Damasli haydovchi aynan shu sabab
+   * BLOKLANGAN (kira olmagani uchun), ya'ni butun Standart toifa bitta
+   * mashinasiz qolgan.
+   *
+   * Parol javobda FAQAT SHU SAFAR qaytadi — bazada bcrypt hash saqlanadi,
+   * qayta ko'rsatib bo'lmaydi. `mustChangePassword` yoqiladi: haydovchi
+   * birinchi kirishda o'zi almashtiradi.
+   *
+   * MAVJUD SESSIYALAR UZILMAYDI. Bu ataylab: haydovchi safarda bo'lishi
+   * mumkin, uni yo'l o'rtasida tizimdan chiqarish zakazni yo'qotardi.
+   * Telefon yo'qolgan holatda operator avval bloklaydi (u soketlarni uzadi),
+   * keyin parolni tiklaydi.
+   */
+  async resetPassword(driverId: string): Promise<{ tempPassword: string }> {
+    const driver = await this.mustFind(driverId);
+    const tempPassword = this.genTempPassword();
+    await this.drivers.update(driver.id, {
+      passwordHash: await bcrypt.hash(tempPassword, 10),
+      mustChangePassword: true,
+    });
+    this.log.log(`Parol tiklandi: haydovchi ${driver.id}`);
+    return { tempPassword };
   }
 
   async setPushToken(driverId: string, token: string): Promise<void> {

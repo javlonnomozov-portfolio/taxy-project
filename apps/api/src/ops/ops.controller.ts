@@ -178,6 +178,16 @@ export class OpsController {
     return this.ops.adjustFare(id, dto.amount, dto.reason, user?.sub);
   }
 
+  /**
+   * Parolni tiklash — javobda bir martalik parol. ADMIN+ uchun: bu hisob
+   * ma'lumoti, operator darajasida ochiq qoldirilmaydi.
+   */
+  @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
+  @Post('drivers/:id/reset-password')
+  resetDriverPassword(@Param('id') id: string) {
+    return this.ops.resetDriverPassword(id);
+  }
+
   @Roles(PanelRole.ADMIN, PanelRole.SUPER_ADMIN)
   @Put('drivers/:id/vehicle')
   updateDriverVehicle(@Param('id') id: string, @Body() dto: UpdateVehicleDto) {
