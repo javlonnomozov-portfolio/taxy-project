@@ -15,6 +15,7 @@ import * as Location from 'expo-location';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { api } from '../api';
+import { connectCustomer } from '../socket';
 import { LiveMap, MapMarker, PickupPicker } from '../MapView';
 import { CategoryCard } from '../CategoryCard';
 import { C, F, L, S, SP, elev, shadow } from '../theme';
@@ -534,6 +535,9 @@ export function HomeScreen({
     if (!orderId) return;
     let alive = true;
     const tick = async () => {
+      // Soket ham, taymer ham `tick` ni chaqiradi — eskisini to'xtatmasak,
+      // har hodisada YANGI zanjir qo'shilib, so'rovlar ko'payib ketardi.
+      stop();
       try {
         const v = await api<TrackView>('GET', `/customer/orders/${orderId}`, undefined, token);
         if (!alive) return;
@@ -548,7 +552,9 @@ export function HomeScreen({
         }
         setView(v);
         setErr(null);
-        if (!v.finished) timer.current = setTimeout(tick, 5000);
+        // 5 s emas, 30 s: jonli yangilanish endi soketdan keladi, bu esa
+        // faqat zaxira (soket uzilgan yoki hodisa yo'qolgan holat uchun).
+        if (!v.finished) timer.current = setTimeout(tick, 30000);
       } catch (e) {
         if (!alive) return;
         // Xatoni KO'RSATAMIZ — jimgina yutilsa foydalanuvchi qotib qolgan
@@ -558,8 +564,25 @@ export function HomeScreen({
       }
     };
     void tick();
+
+    // Jonli kanal: server holat o'zgarganini aytadi, biz darhol so'raymiz
+    // (yagona haqiqat manbai baribir server javobi). Haydovchi joylashuvi
+    // esa to'g'ridan xaritaga tushadi — u tez-tez keladi va har safar
+    // so'rov yuborish eski pollingdan farq qilmasdi.
+    const socket = connectCustomer(token);
+    socket.on('order:status', () => {
+      if (alive) void tick();
+    });
+    socket.on('driver:location', (p: { lat?: number; lng?: number }) => {
+      if (!alive || typeof p?.lat !== 'number' || typeof p?.lng !== 'number') return;
+      const lat = p.lat;
+      const lng = p.lng;
+      setView((cur) => (cur ? { ...cur, driver: { lat, lng, at: new Date().toISOString() } } : cur));
+    });
+
     return () => {
       alive = false;
+      socket.close();
       stop();
     };
   }, [orderId, token, stop, t, endedReason, reset]);

@@ -370,6 +370,29 @@ soket yo'q, xabar faqat shu yo'l bilan yetadi. Push kanali mavjud `orders`
 kanalidan foydalanadi — alohida "chat" kanali ilovaga yangi build talab
 qilardi.
 
+### ✅ Mijoz ilovasi: 5 s polling o'rniga soket (2026-09-14)
+
+Ilova zakaz holatini har 5 soniyada so'rardi — safar davomida yuzlab so'rov,
+batareya va server yuki.
+
+**Tuzoq:** jonli kanal (`/customer`) bor edi, lekin u FAQAT `INTERNAL_API_KEY`
+bilan ochilardi — u bot backend uchun mo'ljallangan. Kalitni ilovaga qo'yib
+bo'lmaydi: u butun ichki API'ni ochadi va APK ichidan chiqarib olinadi.
+Shuning uchun `customer.gateway.ts` ga MIJOZ JWT'si bilan ulanish yo'li
+qo'shildi (rol tekshiruvi + `AccountStatusService`). Ichki kalit yo'li
+o'zgarmadi — bot avvalgidek ishlaydi.
+
+**Ilovada:** `src/socket.ts` → `order:status` kelganda darhol
+`GET /customer/orders/:id` (yagona haqiqat manbai baribir server javobi),
+`driver:location` esa to'g'ridan xaritaga tushadi. Poll 5 s → **30 s**,
+ya'ni zaxira yo'l bo'lib qoldi.
+
+> `tick()` boshida `stop()` SHART: soket ham, taymer ham uni chaqiradi —
+> aks holda har hodisada yangi zanjir qo'shilib, so'rovlar ko'payib ketardi.
+
+Sim: `sim:customer-socket` — 8 tekshiruv (tokensiz/buzuq token/haydovchi
+tokeni UZILADI; holat o'zgarishi so'rovsiz yetib keladi).
+
 ### ✅ Hal qilingan mahsulot savollari (o'zgarmagan, qayta ochilmasin)
 
 - **4+ yo'lovchi uchun yangi TOIFA/mashina rusumi tanlash — KERAK EMAS.**
