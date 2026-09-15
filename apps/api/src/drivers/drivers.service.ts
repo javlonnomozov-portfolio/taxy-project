@@ -24,6 +24,15 @@ const FINISHED_STATUSES = [
   OrderStatus.CANCELLED_BY_DRIVER,
 ];
 
+// Haydovchi mijoz bilan bog'langan holatlar — joylashuv shu mijozga jonli boradi.
+const TRIP_STATUSES = [
+  OrderStatus.ACCEPTED,
+  OrderStatus.CONFIRMED,
+  OrderStatus.ARRIVING,
+  OrderStatus.ARRIVED,
+  OrderStatus.IN_PROGRESS,
+];
+
 /**
  * Panelga chiqariladigan haydovchi — parol hash'i va push tokenisiz.
  *
@@ -336,6 +345,35 @@ export class DriversService {
       lng,
       status: driver.status,
       category,
+    });
+    // `markOnTrip` biriktirilgan zahoti qo'yiladi — mijoz oldiga borish ham shu.
+    if (driver.status === DriverStatus.ON_TRIP) await this.relayToCustomer(driverId, lat, lng, now);
+  }
+
+  /**
+   * Safardagi haydovchi joylashuvini FAQAT o'sha zakaz mijoziga jonli yuborish.
+   *
+   * 2026-09-15: mijoz ilovasi `driver:location` ni kutib turardi, server esa
+   * uni hech qachon yubormasdi — polling soketga almashtirilganda (30 s zaxira
+   * so'rov) mashina xaritada deyarli siljimay qoldi. Socket ham, fon HTTP
+   * (`POST /drivers/location`) ham shu metoddan o'tadi.
+   *
+   * Zakaz har safar bazadan olinadi (kesh YO'Q): kesh safar tugab yangisi
+   * boshlanganda haydovchi joylashuvini bir necha soniya OLDINGI mijozga
+   * yuborib turardi. Safardagi haydovchi soni kichik, so'rov indeks bo'yicha.
+   */
+  private async relayToCustomer(driverId: string, lat: number, lng: number, at: Date): Promise<void> {
+    const order = await this.orders.findOne({
+      where: { driverId, status: In(TRIP_STATUSES) },
+      select: { id: true, customerId: true },
+      order: { createdAt: 'DESC' },
+    });
+    if (!order) return;
+    this.realtime.emitToCustomer(order.customerId, SOCKET_EVENTS.customer.driverLocation, {
+      orderId: order.id,
+      lat,
+      lng,
+      at: at.toISOString(),
     });
   }
 

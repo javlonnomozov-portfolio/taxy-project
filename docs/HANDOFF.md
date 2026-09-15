@@ -481,6 +481,20 @@ Qurilmada qo'lda tekshirish kerak (simda GPS yo'q): safar boshlash → yurish �
 ilovani yopish (swipe) → yurish → ochish: narx kamaymasligi, yopiq paytdagi
 yo'l qo'shilgan bo'lishi.
 
+### ✅ Xaritada joylashuv jonli yangilanadi — mijoz va haydovchi (2026-09-15)
+
+**Hodisa:** "haydovchi ilovasida ham, mijoz ilovasida ham xaritada joylashuv
+real time ko'rinmayapti".
+
+| Ilova | Sabab | Tuzatish |
+|---|---|---|
+| Mijoz | Ilova `driver:location` ni kutardi, server uni **hech qachon** yubormasdi. 5 s polling soketga almashtirilgach mashina faqat 30 s zaxira so'rovda siljirdi | `DriversService.updateLocation` → `relayToCustomer`: `ON_TRIP` haydovchining joylashuvi faqat uning zakazi (ACCEPTED…IN_PROGRESS) mijoziga `{orderId, lat, lng, at}`. Socket ham, fon HTTP ham shu yerdan o'tadi. Kesh YO'Q — yangi safarda eski mijozga sizib chiqmasin. Bot bu hodisani tinglamaydi |
+| Haydovchi | Xarita nuqtasi, "~1.3 km" va "GPS qidirilmoqda" `lastLoc.current` (ref) dan chizilardi — ref o'zgarsa ekran qayta chizilmaydi | `myLoc` holati; ref handlerlar uchun qoladi |
+
+Mini app avvaldan har 5 s so'raydi — unga ta'sir yo'q. Sim:
+`sim:customer-socket` ga 3 tekshiruv (mijozga keladi, begonaga bormaydi, safar
+tugagach to'xtaydi).
+
 **Haydovchilar qidiruvi.** `GET /ops/drivers/search?q=&status=&approval=&category=&balance=negative&limit=&offset=`
 — ism+familiya, telefon (bo'shliqlar bilan ham), davlat raqami; LIKE belgilari
 ("%", "_") ekranlanadi. Eski `GET /ops/drivers` o'zgarmadi (simlar unga tayanadi).

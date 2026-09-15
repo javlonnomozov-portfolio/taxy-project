@@ -154,6 +154,11 @@ export function HomeScreen({
   const socketRef = useRef<Socket | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
   const lastLoc = useRef<{ lat: number; lng: number } | null>(null);
+  // Ekranga chiziladigan nusxa. `lastLoc` ref — u o'zgarganda ekran qayta
+  // chizilmaydi, shuning uchun xaritadagi "Onlayn" nuqtasi va "~1.3 km" joyida
+  // qotib qolardi (faqat boshqa biror holat o'zgarganda siljirdi). Ref esa
+  // handlerlar uchun qoladi — ular eski closure'dan ham eng yangisini o'qiydi.
+  const [myLoc, setMyLoc] = useState<{ lat: number; lng: number } | null>(null);
   const tripRef = useRef<Trip | null>(null);
   tripRef.current = trip;
   const distanceRef = useRef(0);
@@ -540,6 +545,7 @@ export function HomeScreen({
           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           socketRef.current?.emit(EV.location, loc);
           lastLoc.current = loc;
+          setMyLoc(loc);
           // Taksometr saqlangan yozuvga qo'shiladi va ekran undan oladi — ilova
           // yopilsa ham masofa yo'qolmaydi (`storage.addTripPoint`). Fonda bu
           // nuqtalarni fon vazifasi sanaydi: ikkalasi birga sanasa har nuqta
@@ -567,6 +573,7 @@ export function HomeScreen({
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       lastLoc.current = loc;
+      setMyLoc(loc);
       socketRef.current?.emit(EV.location, loc);
     } catch {
       /* GPS hozir yo'q — keyingi urinishda */
@@ -763,8 +770,8 @@ export function HomeScreen({
       trip.meter.baseFare + (trip.meter.perKm * distanceM) / 1000 + (trip.fareAdjustment || 0),
     );
     const goingToCustomer = trip.stage !== 'in_progress';
-    const me = lastLoc.current
-      ? [{ lat: lastLoc.current.lat, lng: lastLoc.current.lng, color: C.online, label: t('online') }]
+    const me = myLoc
+      ? [{ lat: myLoc.lat, lng: myLoc.lng, color: C.online, label: t('online') }]
       : [];
     const tripMarkers: MapMarker[] = goingToCustomer
       ? [{ lat: trip.pickup.lat, lng: trip.pickup.lng, color: C.danger, label: t('customer') }, ...me]
@@ -822,7 +829,7 @@ export function HomeScreen({
     // Mijozgacha QOLGAN masofa (to'g'ri chiziq bo'yicha, yo'l emas).
     // `distanceM` bu yerda YARAMAYDI: u safar davomida BOSIB O'TILGAN masofa
     // va safar boshlanmaguncha 0 — panelda "Mijoz oldiga 0.0 km" deb turardi.
-    const toTarget = lastLoc.current ? haversine(lastLoc.current, navTarget) : null;
+    const toTarget = myLoc ? haversine(myLoc, navTarget) : null;
 
     const mapOverlay = (
       <>
@@ -1140,7 +1147,7 @@ export function HomeScreen({
 
           {/* Onlayn, lekin GPS nuqtasi hali yo'q — dispatch bizni shu sababdan
               ko'rmasligi mumkin, shuning uchun holatni ochiq aytamiz. */}
-          {online && !lastLoc.current && (
+          {online && !myLoc && (
             <View style={[S.row, { gap: 6, marginTop: SP.md }]}>
               <MaterialIcons name="gps-not-fixed" size={16} color={C.warn} />
               <Text style={{ color: C.warn, fontSize: F.label }}>{t('gps_searching')}</Text>
@@ -1373,11 +1380,11 @@ export function HomeScreen({
                               color: C.danger,
                               label: t('customer'),
                             },
-                            ...(lastLoc.current
+                            ...(myLoc
                               ? [
                                   {
-                                    lat: lastLoc.current.lat,
-                                    lng: lastLoc.current.lng,
+                                    lat: myLoc.lat,
+                                    lng: myLoc.lng,
                                     color: C.online,
                                     label: t('online'),
                                   },

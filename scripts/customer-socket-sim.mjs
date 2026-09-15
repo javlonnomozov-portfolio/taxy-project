@@ -102,8 +102,34 @@ async function main() {
     events.some((e) => e.orderId === order.id && e.status === 'ACCEPTED'),
     JSON.stringify(events.map((e) => [e.orderId === order.id, e.status])));
 
+  // ---- 3: haydovchi joylashuvi jonli keladimi ----
+  //
+  // 2026-09-15: ilova `driver:location` ni kutib turardi, server esa uni
+  // HECH QACHON yubormasdi — mashina xaritada faqat 30 soniyalik zaxira
+  // so'rovda siljirdi ("real time ko'rinmayapti").
+  console.log('\n--- 3: haydovchi joylashuvi mijozga jonli ---');
+  const locs = [];
+  good.socket.on('driver:location', (p) => locs.push(p));
+  const stranger = await customerToken();
+  const other = await tryConnect({ token: stranger.token });
+  const leaked = [];
+  other.socket.on('driver:location', (p) => leaked.push(p));
+
+  const moved = { lat: pickup.lat + 0.0015, lng: pickup.lng + 0.0007 };
+  ds.emit('driver:location', moved);
+  await sleep(1200);
+  check('Mijozga driver:location keldi (so‘rovsiz)',
+    locs.some((p) => p.orderId === order.id && p.lat === moved.lat && p.lng === moved.lng),
+    JSON.stringify(locs));
+  check('Begona mijozga joylashuv BORMADI', leaked.length === 0, JSON.stringify(leaked));
+  other.socket.close();
+
   await j('POST', `/orders/${order.id}/cancel`, { reason: 'sim' }, INT);
   await sleep(600);
+  locs.length = 0;
+  ds.emit('driver:location', { lat: moved.lat + 0.001, lng: moved.lng });
+  await sleep(1000);
+  check('Safar tugagach joylashuv endi yuborilmaydi', locs.length === 0, JSON.stringify(locs));
   good.socket.close();
   ds.close();
 
