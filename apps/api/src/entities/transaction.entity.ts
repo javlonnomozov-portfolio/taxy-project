@@ -1,7 +1,11 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { numericTransformer } from '../database/numeric.transformer';
 
-export type TransactionType = 'commission' | 'topup' | 'subscription' | 'adjustment';
+/**
+ * `bonus` — aksiya bo'yicha har zakazga qo'shiladigan summa (2026-09-15).
+ * Ustun `text` — yangi tur uchun migratsiya shart emas.
+ */
+export type TransactionType = 'commission' | 'topup' | 'subscription' | 'adjustment' | 'bonus';
 
 @Entity('transactions')
 export class Transaction {

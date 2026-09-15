@@ -25,6 +25,7 @@ import { ReputationModule } from './reputation/reputation.module';
 import { OpsModule } from './ops/ops.module';
 import { MiniappModule } from './miniapp/miniapp.module';
 import { ChatModule } from './chat/chat.module';
+import { PromotionsModule } from './promotions/promotions.module';
 
 @Module({
   imports: [
@@ -103,6 +104,7 @@ import { ChatModule } from './chat/chat.module';
     OpsModule,
     MiniappModule,
     ChatModule,
+    PromotionsModule,
     RealtimeModule,
   ],
 })

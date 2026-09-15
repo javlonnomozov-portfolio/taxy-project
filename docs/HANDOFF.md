@@ -429,6 +429,48 @@ bo'lsa tizim ko'rsatadi. Chat ochilganda shtorkadagi chat bildirishnomalari
 o'chiriladi; bildirishnoma bosilsa to'g'ridan chat ochiladi (ilova yopiq bo'lsa
 `getLastNotificationResponseAsync`).
 
+### ✅ Aksiyalar va haydovchi guruhlari; chat 3 kunda o'chadi (2026-09-15)
+
+**Nega:** foydalanuvchi yangi yilgacha to'lov yechmasdan har zakazga +300 so'm
+bermoqchi edi va `per_order = -300` qo'yib ko'rmoqchi edi. **Bu ISHLAMAYDI:**
+`computeCommission` manfiyni `Math.max(0, …)` bilan 0 ga aylantiradi —
+haydovchi tekin ishlaydi, lekin bonus tushmaydi; umumiy `perOrderFee` esa
+manfiyni 400 bilan rad etadi. Manfiy to'lovni "bonus" qilib ishlatmang.
+
+**Model:** `driver_groups` + `driver_group_members` (bir haydovchi bir nechta
+guruhda) va `promotions`: `commission_discount_percent` (0..100) va
+`bonus_per_order` (so'm), `group_id` (null = barchaga), `active` (qo'lda) va
+ixtiyoriy `starts_at` / `ends_at`.
+
+| Qoida | Qayerda | Nega |
+|---|---|---|
+| Ishlaydi: `active` VA boshlanish o'tgan VA tugash kelmagan | `promotions.util.ts` `promoState` | Qo'lda o'chiq aksiya sanadan qat'i nazar ishlamaydi |
+| Tugash vaqtining O'ZI kirmaydi | shu yerda | "31-dekabr oxirigacha" = `ends_at` 1-yanvar 00:00 (panelda "Yangi yilgacha" tugmasi) |
+| Bir nechta aksiya QO'SHILMAYDI | `pickBenefit` | Eng katta chegirma va eng katta bonus alohida olinadi — aks holda +100 va +300 birga +400 berib yuborardi |
+| Safar yakunlanadigan TRANZAKSIYA ichida | `BillingService.applyCommission` → `PromotionsService.benefitFor(manager)` | To'lov va bonus bir xil holatga tayanadi |
+| Bonus alohida tranzaksiya `type='bonus'` | `transactions.type` — `text`, migratsiya shart emas | Balans tarixida "Aksiya bonusi" bo'lib ko'rinadi |
+| Aksiyadagi guruh o'chmaydi (409, FK RESTRICT) | `deleteGroup` | Aks holda aksiya jimgina yo'qolardi |
+| Chegirmasiz va bonussiz aksiya — 400 | `apply` | Hech narsa qilmaydigan aksiya "ishlayapti" deb turmasin |
+
+**Panel:** "Aksiyalar" sahifasi (aksiyalar jadvali + holat nishoni, yoqish/o'chirish,
+tahrir; guruhlar va a'zolar — haydovchini qidirib qo'shish). Haydovchi
+oynasining "Tahrirlash" bo'limida guruh belgilari. Faqat ADMIN+.
+
+**Sim:** `sim:promotions` — 19 tekshiruv, har holat HAQIQIY safar bilan
+(balans harakati aynan kutilgan summaga teng): aksiyasiz -1000, guruh a'zosi
++300 va to'lovsiz, a'zo bo'lmagan -1000, kelajak/o'tgan/o'chiq aksiya ishlamaydi,
+barchaga 50% + 100, ikki aksiya qo'shilmaydi, 409/400/403.
+
+**Chat tozalash:** `ChatRetentionService` — ishga tushgach 30 s dan keyin va
+soatiga bir marta `CHAT_RETENTION_DAYS` (sukut 3) dan eski xabarlar va ularning
+fayllari BITTA SQL (data-modifying CTE) bilan o'chadi. Noto'g'ri qiymat 3 ga
+tushadi (butun chat o'chib ketmasin). Joy Postgres ichida qayta ishlatiladi
+(autovacuum), OS'ga darhol qaytmaydi.
+
+**Haydovchi kabineti:** profil kartasi faqat "Ko'rsatkichlar" bo'limida; "Chiqish"
+kabinet pastida, tasdiq bilan. `GET /drivers/me` endi aniq maydonlar ro'yxati
+(avval butun entity — parol hash va push token bilan).
+
 ### ✅ Hal qilingan mahsulot savollari (o'zgarmagan, qayta ochilmasin)
 
 - **4+ yo'lovchi uchun yangi TOIFA/mashina rusumi tanlash — KERAK EMAS.**

@@ -80,6 +80,22 @@ export function DriverDetail({
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [txs, setTxs] = useState<Tx[] | null>(null);
   const [trips, setTrips] = useState<Trip[] | null>(null);
+  // Guruhlar (aksiya/chegirma guruhga qo'llanadi) — "Tahrirlash" ochilganda yuklanadi.
+  const [allGroups, setAllGroups] = useState<Array<{ id: string; name: string }> | null>(null);
+  const [myGroups, setMyGroups] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (tab !== 'edit' || allGroups !== null) return;
+    Promise.all([
+      api<Array<{ id: string; name: string }>>('GET', '/ops/driver-groups'),
+      api<Array<{ id: string; name: string }>>('GET', `/ops/drivers/${driver.id}/groups`),
+    ])
+      .then(([all, mine]) => {
+        setAllGroups(all);
+        setMyGroups(new Set(mine.map((g) => g.id)));
+      })
+      .catch(() => setAllGroups([]));
+  }, [tab, allGroups, driver.id]);
 
   useEffect(() => {
     if (tab === 'balance' && txs === null) {
@@ -119,6 +135,22 @@ export function DriverDetail({
         plate: veh.plate.trim(),
         seats: Number(veh.seats) || 4,
         category: veh.category,
+      });
+      done(true, t('dd_saved'));
+    } catch (e) {
+      done(false, (e as Error).message);
+    }
+  }
+
+  async function toggleGroup(groupId: string, on: boolean) {
+    try {
+      if (on) await api('POST', `/ops/driver-groups/${groupId}/members`, { driverId: driver.id });
+      else await api('DELETE', `/ops/driver-groups/${groupId}/members/${driver.id}`);
+      setMyGroups((cur) => {
+        const next = new Set(cur);
+        if (on) next.add(groupId);
+        else next.delete(groupId);
+        return next;
       });
       done(true, t('dd_saved'));
     } catch (e) {
@@ -206,6 +238,26 @@ export function DriverDetail({
               />
             </label>
             <button className="primary" onClick={() => void saveVehicle()} disabled={!v}>{t('save')}</button>
+          </div>
+
+          <div>
+            <h3 style={{ marginTop: 0 }}>{t('dd_groups')}</h3>
+            {allGroups === null ? (
+              <div className="lbl">{t('drv_loading')}</div>
+            ) : allGroups.length === 0 ? (
+              <div className="lbl">{t('dd_no_groups')}</div>
+            ) : (
+              allGroups.map((g) => (
+                <label key={g.id} className="flex" style={{ gap: 6, padding: '4px 0' }}>
+                  <input
+                    type="checkbox"
+                    checked={myGroups.has(g.id)}
+                    onChange={(e) => void toggleGroup(g.id, e.target.checked)}
+                  />
+                  {g.name}
+                </label>
+              ))
+            )}
           </div>
         </div>
       )}

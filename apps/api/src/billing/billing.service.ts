@@ -5,6 +5,8 @@ import { BillingMode } from '@tty/shared';
 import { Driver } from '../entities/driver.entity';
 import { Transaction, TransactionType } from '../entities/transaction.entity';
 import { SettingsService } from '../settings/settings.service';
+import { PromotionsService } from '../promotions/promotions.service';
+import { discounted } from '../promotions/promotions.util';
 
 const DEFAULT_PERCENT = 10;
 
@@ -17,6 +19,7 @@ export class BillingService {
     @InjectRepository(Transaction) private readonly txns: Repository<Transaction>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly settings: SettingsService,
+    private readonly promotions: PromotionsService,
   ) {}
 
   /**
@@ -99,7 +102,20 @@ export class BillingService {
     const driver = await manager.findOne(Driver, { where: { id: driverId } });
     if (!driver) return 0;
     const { perOrderFee } = await this.settings.getConfig();
-    const commission = this.computeCommission(driver, fareTotal, perOrderFee);
+    const base = this.computeCommission(driver, fareTotal, perOrderFee);
+
+    // Aksiya: to'lovdan chegirma va/yoki har zakazga bonus. Shu tranzaksiya
+    // ichida o'qiladi — to'lov yechilishi va bonus bir xil holatga tayanadi.
+    // (Avval `per_order = -300` bilan "bonus" berib bo'lmasdi: `computeCommission`
+    // manfiyni 0 ga aylantiradi va haydovchi shunchaki tekin ishlardi.)
+    const benefit = await this.promotions.benefitFor(manager, driverId);
+    const commission = discounted(base, benefit.discountPercent);
+    if (benefit.discountPromo && commission < base) {
+      this.log.log(
+        `Aksiya chegirmasi ${benefit.discountPercent}% (${benefit.discountPromo.name}): ${base} -> ${commission} — haydovchi ${driverId}`,
+      );
+    }
+
     if (commission > 0) {
       // DIQQAT: balans MANFIYGA o'tishi mumkin — ataylab shunday. Haydovchi
       // qarzda qolsa ham safar yakunlanadi va pul yoziladi; qarzni ofisda
@@ -114,6 +130,18 @@ export class BillingService {
         driver.billingMode === BillingMode.PER_ORDER ? 'Zakaz uchun to‘lov' : 'Safar komissiyasi',
       );
       this.log.log(`Komissiya ${commission} so'm yechildi — haydovchi ${driverId}, balans: ${bal}`);
+    }
+
+    if (benefit.bonus > 0 && benefit.bonusPromo) {
+      const bal = await this.adjust(
+        manager,
+        driverId,
+        benefit.bonus,
+        'bonus',
+        orderId,
+        `Aksiya: ${benefit.bonusPromo.name}`,
+      );
+      this.log.log(`Aksiya bonusi +${benefit.bonus} so'm — haydovchi ${driverId}, balans: ${bal}`);
     }
     return commission;
   }

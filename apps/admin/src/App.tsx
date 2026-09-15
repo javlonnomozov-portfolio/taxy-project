@@ -8,6 +8,7 @@ import {
   IconLogout,
   IconOrders,
   IconPanel,
+  IconPromo,
   IconScheduled,
   IconSettings,
   IconTaxi,
@@ -19,6 +20,7 @@ import { Settings } from './pages/Settings';
 import { Scheduled } from './pages/Scheduled';
 import { Customers } from './pages/Customers';
 import { Orders } from './pages/Orders';
+import { Promotions } from './pages/Promotions';
 
 function Layout({ children }: { children: React.ReactNode }) {
   const nav = useNavigate();
@@ -52,6 +54,11 @@ function Layout({ children }: { children: React.ReactNode }) {
           {isAdmin && (
             <NavLink to="/drivers">
               <IconDrivers /> {t('nav_drivers')}
+            </NavLink>
+          )}
+          {isAdmin && (
+            <NavLink to="/promotions">
+              <IconPromo /> {t('nav_promotions')}
             </NavLink>
           )}
           {isAdmin && (
@@ -94,6 +101,7 @@ export function App() {
       <Route path="/customers" element={<Protected><Customers /></Protected>} />
       <Route path="/scheduled" element={<Protected><Scheduled /></Protected>} />
       <Route path="/drivers" element={<Protected><Drivers /></Protected>} />
+      <Route path="/promotions" element={<Protected><Promotions /></Protected>} />
       <Route path="/settings" element={<Protected><Settings /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

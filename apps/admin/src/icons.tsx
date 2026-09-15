@@ -90,3 +90,13 @@ export const IconWarn = ({ size = 18 }: P) => (
     <path d="M12 10v4M12 17h.01" />
   </svg>
 );
+
+/** Aksiyalar — sovg'a qutisi. */
+export const IconPromo = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8" />
+    <path d="M2 7h20v5H2z" />
+    <path d="M12 21V7" />
+    <path d="M12 7c-1.5-3-5-3.5-5-1s3.5 1 5 1c1.5 0 5 1.5 5-1s-3.5-2-5 1z" />
+  </svg>
+);

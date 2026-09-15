@@ -48,6 +48,7 @@
     "sim:customer-socket": "node scripts/customer-socket-sim.mjs",
     "sim:comfort-fallback": "node scripts/comfort-fallback-sim.mjs",
     "sim:driver-search": "node scripts/driver-search-sim.mjs",
+    "sim:promotions": "node scripts/promotions-sim.mjs",
     "try:login": "node scripts/customer-login-try.mjs",
     "release:apk": "node scripts/publish-apk.mjs"
   },

@@ -11,6 +11,7 @@ const svc = new BillingService(
   null as never,
   null as never,
   null as never,
+  null as never,
 );
 
 describe('BillingService — har zakaz uchun qat\'iy to\'lov (per_order)', () => {
