@@ -245,8 +245,9 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
    * Standart mashina bor. Mijozga taklif qilinadi; o'tkazish FAQAT uning
    * (yoki operatorning) roziligi bilan — narx Standart bo'yicha tushadi.
    *
-   * FAQAT NO_DRIVER holatida: dispatch hali ketayotganda toifani almashtirish
-   * yuborilgan takliflar bilan poyga yaratardi.
+   * NO_DRIVER'da HAM, qidiruv ketayotganda (DISPATCHING) HAM (2026-09-15): mijoz
+   * Comfort qidiruvi davom etayotganda Standart'ni tanlashi mumkin. Poyga xavfsiz:
+   * holat avval atomik egallanadi, keyin Comfort takliflari qaytarib olinadi.
    *
    * Holat va toifa BITTA atomik so'rovda o'zgaradi — ikki marta bosilsa
    * yoki ikki instansiya bir vaqtda urinsa, faqat bittasi o'tadi.
@@ -258,13 +259,16 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
   ): Promise<{ ok: true; category: VehicleCategory }> {
     const order = await this.orders.findOne({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Buyurtma topilmadi');
-    if (order.status !== OrderStatus.NO_DRIVER || order.vehicleCategory !== VehicleCategory.COMFORT) {
-      throw new BadRequestException('Faqat taksi topilmagan Comfort buyurtmani Standartga o‘tkazish mumkin');
+    const searching = order.status === OrderStatus.NO_DRIVER || order.status === OrderStatus.DISPATCHING;
+    if (!searching || order.vehicleCategory !== VehicleCategory.COMFORT) {
+      throw new BadRequestException('Faqat qidirilayotgan Comfort buyurtmani Standartga o‘tkazish mumkin');
     }
     // Mijoz shu orada yangi zakaz bergan bo'lsa, eskisini tiriltirsak u bir
     // vaqtda ikki safarga tushib qolardi (`retryPendingForDriver` bilan bir xil qoida).
+    // O'zini chiqarib tashlaymiz: DISPATCHING ham faol holat, aks holda qidiruv
+    // davomida o'tkazish har doim "boshqa faol buyurtma" deb rad etilardi.
     const newer = await this.orders.findOne({
-      where: { customerId: order.customerId, status: In(ACTIVE_STATUSES) },
+      where: { customerId: order.customerId, status: In(ACTIVE_STATUSES), id: Not(orderId) },
     });
     if (newer) throw new ConflictException('Mijozning boshqa faol buyurtmasi bor');
 
@@ -272,14 +276,20 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       .createQueryBuilder()
       .update(Order)
       .set({ status: OrderStatus.CREATED, vehicleCategory: VehicleCategory.STANDARD })
-      .where('id = :id AND status = :st AND vehicle_category = :cat', {
+      .where('id = :id AND status IN (:...st) AND vehicle_category = :cat', {
         id: orderId,
-        st: OrderStatus.NO_DRIVER,
+        st: [OrderStatus.NO_DRIVER, OrderStatus.DISPATCHING],
         cat: VehicleCategory.COMFORT,
       })
       .execute();
+    // Shu soniyada Comfort haydovchi qabul qilgan bo'lsa u yutadi (ACCEPTED) va bu
+    // yerda 0 qator bo'ladi — mijoz topilgan Comfort mashinasini yo'qotmaydi.
     if (!res.affected) throw new ConflictException('Buyurtma holati o‘zgardi');
 
+    // Qidiruv hali ketayotgan edi — Comfort takliflarini qaytarib olamiz. Holat
+    // allaqachon CREATED: kechikkan qabul `tryAssign` da 0 qator oladi va
+    // haydovchiga "taklif bekor" yuboriladi.
+    if (order.status === OrderStatus.DISPATCHING) this.abort(orderId);
     this.cancelOperatorFallback(orderId);
     await this.events.record(orderId, 'category_changed', actor, {
       actorId,

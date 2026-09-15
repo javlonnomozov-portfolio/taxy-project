@@ -406,12 +406,32 @@ bo'lsa server `canSwitchToStandard: true` qaytaradi va tugma chiqadi:
 | Bot | "taksi topilmadi" xabarida inline tugma (`order:std:<id>`) | `POST /orders/:id/switch-standard` (ichki kalit) |
 | Panel | Dashboard zakaz qatori | `POST /ops/orders/:id/switch-standard` (operator+) |
 
-Yadro: `DispatchService.switchToStandard` — FAQAT NO_DRIVER + Comfort'da;
-holat va toifa BITTA atomik so'rovda (`NO_DRIVER→CREATED`, `comfort→standard`),
+Yadro: `DispatchService.switchToStandard` — Comfort + (NO_DRIVER yoki DISPATCHING);
+holat va toifa BITTA atomik so'rovda (`→CREATED`, `comfort→standard`),
 operator taymeri bekor qilinadi, `category_changed` hodisasi yoziladi, `start()`.
 Mijozning boshqa faol zakazi bo'lsa 409. Narx Standart bo'yicha tushadi — matnda
 OCHIQ aytiladi. Bot'da tugmada zakaz id bor, chunki NO_DRIVER'da sessiyadagi
-`activeOrderId` allaqachon bo'shatilgan. Sim: `sim:comfort-fallback` (13).
+`activeOrderId` allaqachon bo'shatilgan. Sim: `sim:comfort-fallback`.
+
+**2026-09-15 yangilanishi — taklif qidiruv TO'XTASHINI kutmaydi.** Mijoz skrinshot
+yubordi: Comfort zakazda faqat "Taksi topilmadi" + "Bekor qilish". Ikki sabab:
+(1) qurilmada eski ilova (v5 dan oldin); (2) **loyiha nuqsoni** — Comfort
+haydovchi onlayn bo'lib taklifga javob bermasa, taklif muddatsiz turadi, zakaz
+hech qachon NO_DRIVER'ga tushmaydi va tugma umuman chiqmasdi.
+
+| Qoida | Qayerda | Nega |
+|---|---|---|
+| Taklif Comfort + DISPATCHING'da `COMFORT_SUGGEST_AFTER_SEC` (sukut 60) dan keyin, NO_DRIVER'da darhol | `dispatch.util.ts` `standardSuggestAt` / `canSuggestStandard` | Foydalanuvchi qarori: "topilmasa tavsiya berilsin va Comfort izlashda davom etsin" |
+| Taklif chiqqanda Comfort qidiruvi TO'XTAMAYDI; sarlavha "Comfort qidirilmoqda…" | ilova, mini app | "Taksi topilmadi" yakuniy eshitiladi — mijoz kutishni bas qilardi |
+| `track` javobida `standardSuggestAt` (ISO) | `customer-orders.service.ts` | Qidiruv davomida holat o'zgarmaydi va soket jim — ilova aynan shu vaqtda so'raydi, 30 s zaxira pollni kutmaydi |
+| DISPATCHING'da o'tkazish: avval atomik UPDATE, KEYIN `abort()` | `switchToStandard` | Comfort qabul qilish yutsa → 0 qator, 409 (topilgan mashina yo'qolmaydi). Bizniki yutsa → kechikkan qabul `tryAssign` da 0 qator, haydovchiga `order:offer_cancelled` |
+| "Boshqa faol zakaz" tekshiruvi o'zini chiqarib tashlaydi (`id: Not(orderId)`) | shu yerda | DISPATCHING ham faol — aks holda har doim 409 bo'lardi |
+| Bot: `trackOrder` dan 60 s keyin bir marta xabar + tugma; NO_DRIVER'da takrorlanmaydi | `tracker.ts` `suggestTimers` / `suggested` | Bot polling qilmaydi — taymer kerak |
+| Panel: tugma DISPATCHING Comfort qatorida ham | `Dashboard.tsx` | Operator mijoz qo'ng'irog'ida o'tkaza olsin |
+
+Sim ilova qisqa chegara bilan ishga tushirilishi kerak:
+`TELEGRAM_BOT_USERNAME=... COMFORT_SUGGEST_AFTER_SEC=4 node apps/api/dist/main.js`
+(aks holda "1b" bo'limi 60 s kutadi).
 
 **Haydovchilar qidiruvi.** `GET /ops/drivers/search?q=&status=&approval=&category=&balance=negative&limit=&offset=`
 — ism+familiya, telefon (bo'shliqlar bilan ham), davlat raqami; LIKE belgilari

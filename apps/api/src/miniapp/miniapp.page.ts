@@ -57,8 +57,9 @@ const T = {
     cancelled: 'Buyurtma bekor qilindi',
     cancel_btn: '❌ Buyurtmani bekor qilish',
     no_driver: 'Taksi topilmadi',
-    no_driver_comfort: 'Hozir bo‘sh Comfort mashina yo‘q. Standart mashina bilan qidirib ko‘ramizmi? Narx Standart bo‘yicha bo‘ladi.',
-    switch_standard_btn: 'Standart bilan qidirish',
+    no_driver_comfort: 'Comfort mashina hali topilmadi — qidirishda davom etamiz. Kutishni xohlamasangiz, Standart mashina chaqiring (narx Standart bo‘yicha).',
+    switch_standard_btn: 'Standart buyurtma berish',
+    searching_comfort: 'Comfort qidirilmoqda…',
     cancel_confirm: 'Buyurtma bekor qilinsinmi?',
     cancel_confirm_penalty: 'Haydovchi allaqachon yo‘lda. Bekor qilish bekor darajangizga ta’sir qiladi. Davom etamizmi?',
     cancelled_free: 'Buyurtma bekor qilindi (jarimasiz).',
@@ -103,8 +104,9 @@ const T = {
     cancelled: 'Заказ отменён',
     cancel_btn: '❌ Отменить заказ',
     no_driver: 'Такси не найдено',
-    no_driver_comfort: 'Свободных машин Comfort сейчас нет. Поискать машину Стандарт? Цена будет по тарифу Стандарт.',
-    switch_standard_btn: 'Искать Стандарт',
+    no_driver_comfort: 'Машина Comfort пока не найдена — продолжаем поиск. Если не хотите ждать, вызовите машину Стандарт (цена по тарифу Стандарт).',
+    switch_standard_btn: 'Заказать Стандарт',
+    searching_comfort: 'Ищем Comfort…',
     cancel_confirm: 'Отменить заказ?',
     cancel_confirm_penalty: 'Водитель уже в пути. Отмена повлияет на ваш рейтинг отмен. Продолжить?',
     cancelled_free: 'Заказ отменён (без штрафа).',
@@ -467,7 +469,10 @@ export function miniappPage(): string {
 
   function render(d) {
     lastData = d;
-    elTitle.textContent = d.finished ? t.finished : statusText(d.orderStatus);
+    // Comfort topilmasa ham qidiruv davom etadi - yakuniy eshitiladigan
+    // "Taksi topilmadi" o'rniga shuni aytamiz (ilova bilan bir xil).
+    var comfortSearch = d.category === 'comfort' && (d.orderStatus === 'DISPATCHING' || d.orderStatus === 'NO_DRIVER');
+    elTitle.textContent = d.finished ? t.finished : (comfortSearch ? t.searching_comfort : statusText(d.orderStatus));
     elDot.className = 'dot' + (d.driver ? '' : ' wait');
 
     if (!pickupMarker) {

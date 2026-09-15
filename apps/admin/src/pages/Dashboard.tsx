@@ -412,7 +412,7 @@ export function Dashboard() {
                         {sel ? t('selected') : t('select_taxi')}
                       </button>
                     )}
-                    {o.status === 'NO_DRIVER' && o.vehicleCategory === 'comfort' && (
+                    {(o.status === 'NO_DRIVER' || o.status === 'DISPATCHING') && o.vehicleCategory === 'comfort' && (
                       <button className="ok" onClick={() => void switchStandard(o)}>
                         {t('switch_standard')}
                       </button>

@@ -14,6 +14,8 @@ export const CONFIG = {
   // Server xatolari (5xx) haqida ogohlantirish shu chatga boradi. Bo'sh
   // qoldirilsa ogohlantirish butunlay o'chiq — lokal dev'da shunday.
   adminChatId: process.env.ADMIN_CHAT_ID ?? '',
+  // Comfort qidiruvidan shuncha soniya keyin Standart taklif qilinadi (API bilan bir xil).
+  comfortSuggestAfterSec: Number(process.env.COMFORT_SUGGEST_AFTER_SEC) || 60,
 };
 
 export const hasToken = !!CONFIG.botToken && CONFIG.botToken !== 'your_telegram_bot_token';

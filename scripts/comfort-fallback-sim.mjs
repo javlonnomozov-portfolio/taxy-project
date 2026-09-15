@@ -95,6 +95,62 @@ async function main() {
   await j('POST', `/orders/${order.id}/cancel`, { reason: 'sim' }, INT);
   await sleep(600);
 
+  // ---- 1b: Comfort haydovchi onlayn, lekin JAVOB BERMAYDI ----
+  //
+  // Taklif muddatsiz turadi va zakaz hech qachon NO_DRIVER'ga tushmaydi — avval
+  // tugma umuman chiqmasdi. Endi `COMFORT_SUGGEST_AFTER_SEC` dan keyin chiqadi,
+  // Comfort qidiruvi esa DAVOM etadi. API qisqa chegara bilan ishga tushirilishi
+  // kerak (masalan COMFORT_SUGGEST_AFTER_SEC=4), aks holda sim 60 s kutadi.
+  console.log('\n--- 1b: Comfort haydovchi javob bermaydi ---');
+  const cmf = await createDriver(API, adminToken, {
+    phone: simPhone(), firstName: 'Malibu',
+    vehicle: { category: 'comfort', plate: simPlate(), model: 'Malibu', seats: 4 },
+  });
+  const cs = io(API + '/driver', { auth: { token: cmf.token }, transports: ['websocket'] });
+  await new Promise((r) => cs.on('connect', r));
+  const cmfOffers = [];
+  const cmfCancelled = [];
+  cs.on('order:offer', (o) => cmfOffers.push(o));
+  cs.on('order:offer_cancelled', (o) => cmfCancelled.push(o));
+  await new Promise((r) => cs.emit('driver:online', {}, r));
+  cs.emit('driver:location', pickup);
+  await sleep(900);
+  offers.length = 0;
+
+  const waiter = await customerToken();
+  const slow = await j('POST', '/orders', { customerId: waiter.customerId, category: 'comfort', pickup }, INT);
+  await sleep(1500);
+  const s0 = await call('GET', `/customer/orders/${slow.id}`, waiter.auth);
+  check('Comfort haydovchi taklif oldi, qidiruv davom etmoqda',
+    cmfOffers.some((o) => o.orderId === slow.id) && s0.data?.orderStatus === 'DISPATCHING',
+    JSON.stringify(s0.data?.orderStatus));
+  check('Darhol tugma YO‘Q, lekin taklif vaqti belgilangan',
+    s0.data?.canSwitchToStandard === false && !!s0.data?.standardSuggestAt,
+    JSON.stringify({ s: s0.data?.canSwitchToStandard, at: s0.data?.standardSuggestAt }));
+
+  const waitMs = Math.max(0, new Date(s0.data?.standardSuggestAt).getTime() - Date.now()) + 800;
+  await sleep(Math.min(waitMs, 70_000));
+  const s1 = await call('GET', `/customer/orders/${slow.id}`, waiter.auth);
+  check('Vaqt o‘tgach tugma chiqdi, Comfort qidiruvi DAVOM etmoqda',
+    s1.data?.canSwitchToStandard === true && s1.data?.orderStatus === 'DISPATCHING',
+    JSON.stringify({ s: s1.data?.canSwitchToStandard, st: s1.data?.orderStatus }));
+
+  const sw2 = await call('POST', `/customer/orders/${slow.id}/switch-standard`, waiter.auth);
+  check('Qidiruv davomida Standartga o‘tdi', sw2.status < 300 && sw2.data?.category === 'standard',
+    `${sw2.status} ${JSON.stringify(sw2.data)}`);
+  await sleep(1500);
+  check('Comfort taklifi haydovchidan qaytarib olindi', cmfCancelled.some((o) => o.orderId === slow.id));
+  check('Standart haydovchi yangi taklif oldi', offers.some((o) => o.orderId === slow.id && o.category === 'standard'),
+    JSON.stringify(offers.map((o) => [o.orderId === slow.id, o.category])));
+
+  await j('POST', `/orders/${slow.id}/cancel`, { reason: 'sim' }, INT);
+  await sleep(600);
+  // Keyingi bo'limlar "Comfort topilmadi" holatini kutadi — haydovchini
+  // darhol oflayn qilamiz (soket yopilsa 2 daqiqa onlayn qolardi).
+  cs.emit('driver:offline', {});
+  await sleep(600);
+  cs.close();
+
   // ---- 2: bot (ichki yo'l) ----
   console.log('\n--- 2: bot orqali ---');
   const botOrder = await j('POST', '/orders', { customerId: other.customerId, category: 'comfort', pickup }, INT);

@@ -52,6 +52,8 @@ interface TrackView {
   category?: string;
   /** Comfort topilmadi — "Standart bilan qidirish" tugmasi (qoida serverda). */
   canSwitchToStandard?: boolean;
+  /** Taklif qachon chiqadi — shu vaqtda holat qayta so'raladi. */
+  standardSuggestAt?: string | null;
   completed: boolean;
   rated: boolean;
   cancellable: boolean;
@@ -371,7 +373,9 @@ export function HomeScreen({
     try {
       await api('POST', `/customer/orders/${orderId}/switch-standard`, undefined, token);
       setView((cur) =>
-        cur ? { ...cur, orderStatus: 'DISPATCHING', category: 'standard', canSwitchToStandard: false } : cur,
+        cur
+          ? { ...cur, orderStatus: 'DISPATCHING', category: 'standard', canSwitchToStandard: false, standardSuggestAt: null }
+          : cur,
       );
     } catch (e) {
       Alert.alert(t('err_network'), (e as Error).message);
@@ -579,7 +583,14 @@ export function HomeScreen({
         setErr(null);
         // 5 s emas, 30 s: jonli yangilanish endi soketdan keladi, bu esa
         // faqat zaxira (soket uzilgan yoki hodisa yo'qolgan holat uchun).
-        if (!v.finished) timer.current = setTimeout(tick, 30000);
+        if (!v.finished) {
+          // Standart taklifi yaqin bo'lsa aynan o'sha paytda so'raymiz: Comfort
+          // qidiruvi davomida holat o'zgarmaydi va soket hodisa yubormaydi.
+          const due = v.standardSuggestAt && !v.canSwitchToStandard
+            ? new Date(v.standardSuggestAt).getTime() - Date.now() + 500
+            : Infinity;
+          timer.current = setTimeout(tick, Math.max(1000, Math.min(30000, due)));
+        }
       } catch (e) {
         if (!alive) return;
         // Xatoni KO'RSATAMIZ — jimgina yutilsa foydalanuvchi qotib qolgan
@@ -914,11 +925,16 @@ export function HomeScreen({
           {view
             ? view.finished
               ? t(view.completed ? 'finished' : 'cancelled')
-              : statusText(view.orderStatus)
+              : // Comfort topilmasa ham qidiruv DAVOM etadi — "Taksi topilmadi" deb
+                // yakuniy eshitiladigan sarlavha o'rniga shuni aytamiz.
+                view.category === 'comfort' &&
+                  (view.orderStatus === 'DISPATCHING' || view.orderStatus === 'NO_DRIVER')
+                ? t('searching_comfort')
+                : statusText(view.orderStatus)
             : t('searching')}
         </Text>
 
-        {view && !view.finished && view.orderStatus === 'NO_DRIVER' ? (
+        {view && !view.finished && (view.canSwitchToStandard || view.orderStatus === 'NO_DRIVER') ? (
           view.canSwitchToStandard ? (
             // Comfort topilmadi — kutib turish o'rniga Standart taklif qilinadi.
             // Narx o'zgarishini matnda OCHIQ aytamiz: mijoz nimaga rozi

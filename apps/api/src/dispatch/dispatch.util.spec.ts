@@ -2,8 +2,10 @@ import { VehicleCategory } from '@tty/shared';
 import {
   Candidate,
   haversineM,
+  canSuggestStandard,
   servedCategories,
   servingVehicles,
+  standardSuggestAt,
   sortCandidates,
   RATING_BUCKET_M,
 } from './dispatch.util';
@@ -125,5 +127,32 @@ describe('servingVehicles — teskari qidiruv', () => {
         );
       }
     }
+  });
+});
+
+describe('Standart taklifi — qachon chiqadi', () => {
+  const created = new Date('2026-09-15T08:00:00Z');
+  const at = (sec: number) => new Date(created.getTime() + sec * 1000);
+  const order = (status: string, vehicleCategory = 'comfort') => ({ status, vehicleCategory, createdAt: created });
+
+  it('Comfort qidirilayotganda 60 soniyadan KEYIN chiqadi, oldin emas', () => {
+    expect(canSuggestStandard(order('DISPATCHING'), at(59))).toBe(false);
+    expect(canSuggestStandard(order('DISPATCHING'), at(60))).toBe(true);
+    expect(standardSuggestAt(order('DISPATCHING'))?.toISOString()).toBe(at(60).toISOString());
+  });
+
+  it('qidiruv to‘xtagan (NO_DRIVER) bo‘lsa darhol', () => {
+    expect(canSuggestStandard(order('NO_DRIVER'), at(1))).toBe(true);
+  });
+
+  it('Standart zakazda va topilgan/tugagan zakazda umuman yo‘q', () => {
+    expect(standardSuggestAt(order('DISPATCHING', 'standard'))).toBeNull();
+    expect(standardSuggestAt(order('ACCEPTED'))).toBeNull();
+    expect(standardSuggestAt(order('COMPLETED'))).toBeNull();
+  });
+
+  it('chegara sozlanadi', () => {
+    expect(canSuggestStandard(order('DISPATCHING'), at(5), 4)).toBe(true);
+    expect(canSuggestStandard(order('DISPATCHING'), at(3), 4)).toBe(false);
   });
 });

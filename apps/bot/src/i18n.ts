@@ -32,8 +32,8 @@ const uz: Dict = {
   confirm_order: (cat: string) => `Buyurtma: ${cat}\nTasdiqlaysizmi?`,
   searching: '🔎 Eng yaqin haydovchilar izlanmoqda…',
   no_driver: '😔 Hozircha bo‘sh taksi topilmadi. Operator qidirishda davom etmoqda — taksi topilsa darhol xabar beramiz. Xohlasangiz, yangi buyurtma ham berishingiz mumkin.',
-  no_driver_comfort: '😔 Hozir bo‘sh Comfort mashina yo‘q. Standart mashina bilan qidirib ko‘ramizmi? Narx Standart tarifi bo‘yicha bo‘ladi.',
-  switch_standard_btn: '🚕 Standart bilan qidirish',
+  no_driver_comfort: '🚕 Comfort mashina hali topilmadi — qidirishda davom etamiz. Kutishni xohlamasangiz, Standart mashina chaqiring (narx Standart tarifi bo‘yicha).',
+  switch_standard_btn: '🚕 Standart buyurtma berish',
   switched_standard: '🔎 Standart mashina qidirilmoqda…',
   switch_standard_failed: 'Standartga o‘tkazib bo‘lmadi — zakaz holati o‘zgargan bo‘lishi mumkin.',
   driver_found: (name: string, car: string, plate: string, phone: string, rating: string) =>
@@ -104,8 +104,8 @@ const ru: Dict = {
   confirm_order: (cat: string) => `Заказ: ${cat}\nПодтверждаете?`,
   searching: '🔎 Ищем ближайших водителей…',
   no_driver: '😔 Пока свободное такси не найдено. Оператор продолжает поиск — как только такси найдётся, мы сразу сообщим. При желании вы можете оформить новый заказ.',
-  no_driver_comfort: '😔 Свободных машин Comfort сейчас нет. Поискать машину Стандарт? Цена будет по тарифу Стандарт.',
-  switch_standard_btn: '🚕 Искать Стандарт',
+  no_driver_comfort: '🚕 Машина Comfort пока не найдена — продолжаем поиск. Если не хотите ждать, вызовите машину Стандарт (цена по тарифу Стандарт).',
+  switch_standard_btn: '🚕 Заказать Стандарт',
   switched_standard: '🔎 Ищем машину Стандарт…',
   switch_standard_failed: 'Не удалось перевести в Стандарт — возможно, статус заказа изменился.',
   driver_found: (name: string, car: string, plate: string, phone: string, rating: string) =>

@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import Redis from 'ioredis';
@@ -18,6 +19,7 @@ import { OrdersService } from '../orders/orders.service';
 import { ReputationService } from '../reputation/reputation.service';
 import { TripsService } from '../trips/trips.service';
 import { SettingsService } from '../settings/settings.service';
+import { COMFORT_SUGGEST_AFTER_SEC, canSuggestStandard, standardSuggestAt } from '../dispatch/dispatch.util';
 import {
   ACTIVE_STATUSES,
   CUSTOMER_CANCELLABLE_STATUSES,
@@ -65,6 +67,7 @@ export class CustomerOrdersService {
     private readonly reputation: ReputationService,
     private readonly trips: TripsService,
     private readonly settings: SettingsService,
+    private readonly config: ConfigService,
   ) {}
 
   /**
@@ -197,13 +200,23 @@ export class CustomerOrdersService {
           : false,
       cancellable: CUSTOMER_CANCELLABLE_STATUSES.includes(order.status),
       category: order.vehicleCategory,
-      canSwitchToStandard:
-        order.status === OrderStatus.NO_DRIVER && order.vehicleCategory === VehicleCategory.COMFORT,
+      canSwitchToStandard: canSuggestStandard(order, new Date(), this.suggestAfterSec()),
+      standardSuggestAt: standardSuggestAt(order, this.suggestAfterSec())?.toISOString() ?? null,
     };
   }
 
-  /** Buyurtmani bekor qilish (jarima, dispatch to'xtatish — `TripsService` da). */
-  /** Comfort topilmadi — mijoz roziligi bilan Standart'ga o'tkazib qayta qidirish. */
+  /** Comfort qidiruvidan necha soniya keyin Standart taklif qilinadi (`COMFORT_SUGGEST_AFTER_SEC`). */
+  private suggestAfterSec(): number {
+    const raw = this.config.get<string>('COMFORT_SUGGEST_AFTER_SEC');
+    const v = raw === undefined || raw === '' ? NaN : Number(raw);
+    return Number.isFinite(v) && v >= 0 ? v : COMFORT_SUGGEST_AFTER_SEC;
+  }
+
+  /**
+   * Comfort topilmayapti — mijoz roziligi bilan Standart'ga o'tkazib qayta
+   * qidirish. Qidiruv hali ketayotgan bo'lsa ham mumkin (Comfort takliflari
+   * qaytarib olinadi).
+   */
   async switchToStandard(customerId: string, orderId: string) {
     await this.mustOwn(customerId, orderId);
     return this.ordersService.switchToStandard(orderId, ActorType.CUSTOMER, customerId);
@@ -284,6 +297,12 @@ export interface TrackView {
    * yangilanmay qolib ishlamaydigan tugma chiqarmasin.
    */
   canSwitchToStandard: boolean;
+  /**
+   * Taklif qachon chiqadi (ISO). Klient shu vaqtda holatni qayta so'raydi —
+   * Comfort qidiruvi davomida holat o'zgarmaydi va soket hodisa yubormaydi,
+   * aks holda tugma keyingi zaxira so'rovgacha (30 s) kechikardi.
+   */
+  standardSuggestAt: string | null;
 }
 
 export interface HistoryItem {

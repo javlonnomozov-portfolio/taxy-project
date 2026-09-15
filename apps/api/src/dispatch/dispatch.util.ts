@@ -2,7 +2,7 @@
  * Dispatch'ning SOF mantiqi — DB/Redis/socket'siz, shuning uchun to'g'ridan test qilinadi.
  * (Avval bu kod `DispatchService` ichida private edi va unit test yozib bo'lmasdi.)
  */
-import { VehicleCategory } from '@tty/shared';
+import { OrderStatus, VehicleCategory } from '@tty/shared';
 
 /**
  * Haydovchi qaysi TOIFADAGI buyurtmalarni oladi.
@@ -32,6 +32,39 @@ export function servedCategories(vehicle: VehicleCategory): VehicleCategory[] {
 /** `servedCategories` ning teskarisi: shu toifadagi buyurtmani kim ola oladi. */
 export function servingVehicles(order: VehicleCategory): VehicleCategory[] {
   return Object.values(VehicleCategory).filter((v) => servedCategories(v).includes(order));
+}
+
+/** Comfort qidiruvi shuncha soniyadan keyin Standart taklif qilinadi (sukut). */
+export const COMFORT_SUGGEST_AFTER_SEC = 60;
+
+/**
+ * Mijozga "Standart buyurtma berish" taklifi QACHON ko'rsatiladi.
+ *
+ * NEGA VAQT BO'YICHA: Comfort haydovchi onlayn bo'lib taklifga javob bermasa,
+ * taklif muddatsiz turadi va zakaz hech qachon NO_DRIVER'ga tushmaydi — avval
+ * faqat NO_DRIVER'da chiqadigan tugma bunday holatda umuman ko'rinmasdi.
+ * Taklif chiqqanda Comfort qidiruvi TO'XTAMAYDI (foydalanuvchi qarori).
+ *
+ * `null` — bu zakazga taklif tegishli emas (Comfort emas yoki qidiruv tugagan).
+ */
+export function standardSuggestAt(
+  o: { status: string; vehicleCategory: string; createdAt: Date | string },
+  afterSec: number = COMFORT_SUGGEST_AFTER_SEC,
+): Date | null {
+  if (o.vehicleCategory !== VehicleCategory.COMFORT) return null;
+  // Qidiruv to'xtagan — kutishning ma'nosi yo'q, darhol.
+  if (o.status === OrderStatus.NO_DRIVER) return new Date(o.createdAt);
+  if (o.status !== OrderStatus.DISPATCHING) return null;
+  return new Date(new Date(o.createdAt).getTime() + Math.max(0, afterSec) * 1000);
+}
+
+export function canSuggestStandard(
+  o: { status: string; vehicleCategory: string; createdAt: Date | string },
+  now: Date = new Date(),
+  afterSec: number = COMFORT_SUGGEST_AFTER_SEC,
+): boolean {
+  const at = standardSuggestAt(o, afterSec);
+  return !!at && now.getTime() >= at.getTime();
 }
 
 export interface Candidate {

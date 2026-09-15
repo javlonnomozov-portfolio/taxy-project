@@ -41,6 +41,15 @@ const sockets = new Map<string, Socket>();
 const watchdogs = new Map<string, NodeJS.Timeout>();
 
 /**
+ * Comfort qidiruvi uzoq cho'zilsa Standart taklifi (bir marta). Taymer
+ * qidiruv boshlanishidan keyin ishga tushadi: Comfort haydovchi onlayn bo'lib
+ * javob bermasa, zakaz hech qachon NO_DRIVER'ga tushmaydi va avvalgi
+ * (faqat NO_DRIVER'dagi) taklif umuman chiqmasdi.
+ */
+const suggestTimers = new Map<string, NodeJS.Timeout>();
+const suggested = new Set<string>();
+
+/**
  * Bekor qilish haqida chatga ALLAQACHON xabar berilgan buyurtmalar.
  *
  * Mijoz zakazni ikki joydan bekor qila oladi: bot tugmasidan va mini app'dan.
@@ -78,6 +87,20 @@ export function trackOrder(opts: {
 
   const send = (text: string, extra?: object) =>
     telegram.sendMessage(chatId, text, extra as never).catch(() => {});
+
+  const suggestStandard = async () => {
+    if (suggested.has(orderId)) return;
+    const o = await apiClient.getOrder(orderId).catch(() => null);
+    if (!o || o.vehicleCategory !== 'comfort' || !['DISPATCHING', 'NO_DRIVER'].includes(o.status)) return;
+    suggested.add(orderId);
+    await send(t(lang, 'no_driver_comfort'), switchStandardKeyboard(lang, orderId));
+  };
+  const prevTimer = suggestTimers.get(orderId);
+  if (prevTimer) clearTimeout(prevTimer);
+  suggestTimers.set(
+    orderId,
+    setTimeout(() => void suggestStandard().catch(() => {}), CONFIG.comfortSuggestAfterSec * 1000),
+  );
 
   socket.on('order:status', async (m: StatusMsg) => {
     if (m.orderId !== orderId) return;
@@ -119,7 +142,8 @@ export function trackOrder(opts: {
         // Holat xabarida toifa yo'q, shuning uchun zakazni so'raymiz.
         const o = await apiClient.getOrder(orderId).catch(() => null);
         if (o?.vehicleCategory === 'comfort') {
-          await send(t(lang, 'no_driver_comfort'), switchStandardKeyboard(lang, orderId));
+          // Taymer allaqachon taklif yuborgan bo'lsa takrorlamaymiz.
+          await suggestStandard();
           await send(t(lang, 'use_menu'), mainMenu(lang));
         } else {
           await send(t(lang, 'no_driver'), mainMenu(lang));
@@ -150,6 +174,10 @@ export function trackOrder(opts: {
 
 export function stopTracking(orderId: string): void {
   clearWatchdog(orderId);
+  const st = suggestTimers.get(orderId);
+  if (st) clearTimeout(st);
+  suggestTimers.delete(orderId);
+  suggested.delete(orderId);
   const s = sockets.get(orderId);
   if (s) {
     s.close();
