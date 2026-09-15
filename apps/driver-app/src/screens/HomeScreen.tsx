@@ -703,7 +703,9 @@ export function HomeScreen({
   }
 
   if (showCabinet) {
-    return <CabinetScreen lang={lang} token={token} onClose={() => setShowCabinet(false)} />;
+    return (
+      <CabinetScreen lang={lang} token={token} onClose={() => setShowCabinet(false)} onLogout={onLogout} />
+    );
   }
 
   // Yakuniy narx ekrani — kuniga 20+ marta ko'riladi, shuning uchun bayramona
@@ -1057,9 +1059,8 @@ export function HomeScreen({
           <TouchableOpacity onPress={() => setShowCabinet(true)} hitSlop={10}>
             <Text style={{ color: C.accent, fontSize: 15, fontWeight: '700' }}>{t('cabinet')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onLogout} hitSlop={10}>
-            <Text style={{ color: C.muted, fontSize: 15 }}>{t('logout')}</Text>
-          </TouchableOpacity>
+          {/* "Chiqish" kabinet ichiga ko'chirildi (foydalanuvchi so'rovi): asosiy
+              ekranda "Chat" va "Kabinet" yonida turib, tasodifan bosilardi. */}
         </View>
       </View>
 

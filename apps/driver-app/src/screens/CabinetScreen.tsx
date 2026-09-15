@@ -38,6 +38,24 @@ interface Trip {
   completedAt: string | null;
   createdAt: string;
 }
+/** `GET /drivers/me` — server faqat shu maydonlarni qaytaradi (parol hash'isiz). */
+interface Profile {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string;
+  ratingAvg: number;
+  createdAt: string;
+  vehicle: {
+    make: string | null;
+    model: string | null;
+    color: string | null;
+    plate: string | null;
+    category: 'standard' | 'comfort' | 'cargo';
+    seats: number;
+  } | null;
+}
+
 interface Stats {
   ratingAvg: number;
   acceptanceRate: number;
@@ -57,10 +75,12 @@ export function CabinetScreen({
   lang,
   token,
   onClose,
+  onLogout,
 }: {
   lang: Lang;
   token: string;
   onClose: () => void;
+  onLogout: () => void;
 }) {
   const t = makeT(lang);
   const [tab, setTab] = useState<Tab>('balance');
@@ -69,20 +89,23 @@ export function CabinetScreen({
   const [txns, setTxns] = useState<Txn[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [b, tx, tr, st] = await Promise.all([
+      const [b, tx, tr, st, me] = await Promise.all([
         api<BalanceInfo>('GET', '/drivers/me/balance', undefined, token),
         api<Txn[]>('GET', '/drivers/me/transactions', undefined, token),
         api<Trip[]>('GET', '/drivers/me/trips', undefined, token),
         api<Stats>('GET', '/drivers/me/stats', undefined, token),
+        api<Profile>('GET', '/drivers/me', undefined, token),
       ]);
       setBalance(b);
       setTxns(tx);
       setTrips(tr);
       setStats(st);
+      setProfile(me);
     } catch (e) {
       Alert.alert(t('error'), (e as Error).message || t('error_generic'));
     } finally {
@@ -221,6 +244,55 @@ export function CabinetScreen({
           contentContainerStyle={{ padding: SP.xl, paddingBottom: SP.xxl }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={C.accent} />}
         >
+          {/* Kim sifatida kirilgan — FAQAT KO'RISH. Tahrir tugmasi yo'q: ism, telefon
+              (kirish logini) va mashina toifasi dispatch va hisob-kitobga ta'sir
+              qiladi, ularni faqat admin panelda o'zgartiradi. */}
+          {profile ? (
+            <View style={[S.card, { padding: SP.lg, marginBottom: SP.lg }]}>
+              <View style={[S.row, { gap: SP.md }]}>
+                <View
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: 26,
+                    backgroundColor: C.accentSoft,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MaterialIcons name="person" size={30} color={C.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: C.text, fontSize: F.h2, fontWeight: '800' }}>
+                    {[profile.firstName, profile.lastName].filter(Boolean).join(' ') || '—'}
+                  </Text>
+                  <Text style={{ color: C.muted, fontSize: F.body, marginTop: 2 }}>{profile.phone}</Text>
+                </View>
+                <MaterialIcons name="lock-outline" size={20} color={C.muted} />
+              </View>
+
+              <View style={{ marginTop: SP.md, borderTopWidth: 1, borderTopColor: C.border, paddingTop: SP.md }}>
+                {[
+                  [t('profile_car'), profile.vehicle
+                    ? [profile.vehicle.make, profile.vehicle.model, profile.vehicle.color].filter(Boolean).join(' ') || '—'
+                    : '—'],
+                  [t('profile_plate'), profile.vehicle?.plate || '—'],
+                  [t('profile_category'), profile.vehicle ? t('cat_' + profile.vehicle.category) : '—'],
+                  [t('profile_seats'), profile.vehicle ? String(profile.vehicle.seats) : '—'],
+                  [t('profile_since'), new Date(profile.createdAt).toLocaleDateString('ru-RU')],
+                ].map(([label, value]) => (
+                  <View key={label} style={[S.row, { justifyContent: 'space-between', paddingVertical: 5 }]}>
+                    <Text style={{ color: C.muted, fontSize: F.label }}>{label}</Text>
+                    <Text style={{ color: C.text, fontSize: F.body, fontWeight: '600', flexShrink: 1, textAlign: 'right' }}>
+                      {value}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={{ color: C.muted, fontSize: F.tiny, marginTop: SP.sm }}>{t('profile_readonly_hint')}</Text>
+            </View>
+          ) : null}
+
           {tab === 'balance' && balance && (
             <>
               {/* Manfiy balansda karta butunlay qizil rejimga o'tadi — bu holatda
@@ -365,6 +437,27 @@ export function CabinetScreen({
               </View>
             </>
           )}
+
+          {/* Chiqish — kabinetning ENG PASTIDA va tasdiq bilan: asosiy ekranda
+              "Chat"/"Kabinet" yonida turganda tasodifan bosilib, haydovchi
+              ish vaqtida tizimdan chiqib qolardi. */}
+          <TouchableOpacity
+            style={[
+              S.btnGhost,
+              { marginTop: SP.xxl, borderColor: C.danger, backgroundColor: 'transparent' },
+            ]}
+            onPress={() =>
+              Alert.alert(t('logout'), t('logout_confirm'), [
+                { text: t('close'), style: 'cancel' },
+                { text: t('logout'), style: 'destructive', onPress: onLogout },
+              ])
+            }
+          >
+            <View style={[S.row, { gap: 6 }]}>
+              <MaterialIcons name="logout" size={18} color={C.danger} />
+              <Text style={[S.btnGhostText, { color: C.danger }]}>{t('logout')}</Text>
+            </View>
+          </TouchableOpacity>
         </ScrollView>
       )}
     </View>

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards, NotFoundException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { DriversService } from './drivers.service';
@@ -14,11 +14,40 @@ import { LocationDto, PushTokenDto } from './dto/driver.dto';
 export class DriversController {
   constructor(private readonly drivers: DriversService) {}
 
+  /**
+   * Haydovchining o'z profili — kabinetda "kim sifatida kirdim" uchun.
+   *
+   * Maydonlar ANIQ RO'YXAT bilan qaytariladi. Avval butun `Driver` entity'si
+   * qaytardi: javobda haydovchining bcrypt parol hash'i va Expo push tokeni
+   * ham bor edi (panel `/ops/drivers` dagi sizish bilan bir xil sinf).
+   * Ro'yxat bilan entity'ga ertaga qo'shilgan maydon ham o'zicha chiqib ketmaydi.
+   */
   @Get('me')
   @ApiOperation({ summary: 'Haydovchi o‘z profili (mashina bilan)' })
   async me(@Req() req: Request) {
     const user = (req as Request & { user: JwtPayload }).user;
-    return this.drivers.findWithVehicle(user.sub);
+    const info = await this.drivers.findWithVehicle(user.sub);
+    if (!info) throw new NotFoundException('Haydovchi topilmadi');
+    const { driver: d, vehicle: v } = info;
+    return {
+      id: d.id,
+      firstName: d.firstName,
+      lastName: d.lastName,
+      phone: d.phone,
+      approvalStatus: d.approvalStatus,
+      ratingAvg: Number(d.ratingAvg) || 0,
+      createdAt: d.createdAt,
+      vehicle: v
+        ? {
+            make: v.make,
+            model: v.model,
+            color: v.color,
+            plate: v.plate,
+            category: v.category,
+            seats: v.seats,
+          }
+        : null,
+    };
   }
 
   @Post('push-token')

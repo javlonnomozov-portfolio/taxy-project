@@ -55,6 +55,17 @@ async function main() {
   check('Birinchi kirishda parol almashtirish talab qilinadi',
     fresh.body?.mustChangePassword === true, JSON.stringify(fresh.body?.mustChangePassword));
 
+  // Kabinetdagi "kim sifatida kirdim" kartasi shu javobdan chiziladi. Avval
+  // butun entity qaytardi — haydovchining parol hash'i va push tokeni bilan.
+  const meRes = await fetch(API + '/drivers/me', { headers: { authorization: 'Bearer ' + fresh.body.token } });
+  const me = await meRes.json();
+  check('/drivers/me profilni qaytaradi (ism, telefon, mashina)',
+    meRes.status === 200 && me.phone === phone && me.firstName === 'Damas' && me.vehicle?.seats === 7,
+    `${meRes.status} ${JSON.stringify(me).slice(0, 160)}`);
+  check('/drivers/me javobida parol hash va push token YO‘Q',
+    !JSON.stringify(me).includes('passwordHash') && !('pushToken' in me) && !('driver' in me),
+    Object.keys(me).join(','));
+
   const noAuth = await fetch(API + `/ops/drivers/${driverId}/reset-password`, { method: 'POST' });
   check('Tokensiz tiklab bo‘lmaydi (401)', noAuth.status === 401, String(noAuth.status));
 
