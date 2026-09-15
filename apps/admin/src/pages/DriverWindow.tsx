@@ -220,7 +220,9 @@ export function DriverWindow({ driverId, actions }: { driverId: string; actions?
 
       {actions ? <div style={{ marginTop: 12 }}>{actions}</div> : null}
 
-      <h3 style={{ margin: '16px 0 8px' }}>{t('chat_title')}</h3>
+      <h3 style={{ margin: '16px 0 2px' }}>{t('chat_title')}</h3>
+      {/* Server 3 kundan eski xabarlarni o'chiradi (`ChatRetentionService`). */}
+      <div className="lbl" style={{ marginBottom: 8 }}>{t('chat_retention')}</div>
       <div
         ref={listRef}
         style={{

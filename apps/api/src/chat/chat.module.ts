@@ -7,6 +7,7 @@ import { Vehicle } from '../entities/vehicle.entity';
 import { Order } from '../entities/order.entity';
 import { AdminUser } from '../entities/admin-user.entity';
 import { ChatService } from './chat.service';
+import { ChatRetentionService } from './chat-retention.service';
 import { DriverChatController, OpsChatController } from './chat.controller';
 
 /**
@@ -16,6 +17,6 @@ import { DriverChatController, OpsChatController } from './chat.controller';
 @Module({
   imports: [TypeOrmModule.forFeature([DriverMessage, ChatMedia, Driver, Vehicle, Order, AdminUser])],
   controllers: [DriverChatController, OpsChatController],
-  providers: [ChatService],
+  providers: [ChatService, ChatRetentionService],
 })
 export class ChatModule {}

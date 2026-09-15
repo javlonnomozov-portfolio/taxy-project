@@ -244,54 +244,6 @@ export function CabinetScreen({
           contentContainerStyle={{ padding: SP.xl, paddingBottom: SP.xxl }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={C.accent} />}
         >
-          {/* Kim sifatida kirilgan — FAQAT KO'RISH. Tahrir tugmasi yo'q: ism, telefon
-              (kirish logini) va mashina toifasi dispatch va hisob-kitobga ta'sir
-              qiladi, ularni faqat admin panelda o'zgartiradi. */}
-          {profile ? (
-            <View style={[S.card, { padding: SP.lg, marginBottom: SP.lg }]}>
-              <View style={[S.row, { gap: SP.md }]}>
-                <View
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 26,
-                    backgroundColor: C.accentSoft,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <MaterialIcons name="person" size={30} color={C.accent} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.text, fontSize: F.h2, fontWeight: '800' }}>
-                    {[profile.firstName, profile.lastName].filter(Boolean).join(' ') || '—'}
-                  </Text>
-                  <Text style={{ color: C.muted, fontSize: F.body, marginTop: 2 }}>{profile.phone}</Text>
-                </View>
-                <MaterialIcons name="lock-outline" size={20} color={C.muted} />
-              </View>
-
-              <View style={{ marginTop: SP.md, borderTopWidth: 1, borderTopColor: C.border, paddingTop: SP.md }}>
-                {[
-                  [t('profile_car'), profile.vehicle
-                    ? [profile.vehicle.make, profile.vehicle.model, profile.vehicle.color].filter(Boolean).join(' ') || '—'
-                    : '—'],
-                  [t('profile_plate'), profile.vehicle?.plate || '—'],
-                  [t('profile_category'), profile.vehicle ? t('cat_' + profile.vehicle.category) : '—'],
-                  [t('profile_seats'), profile.vehicle ? String(profile.vehicle.seats) : '—'],
-                  [t('profile_since'), new Date(profile.createdAt).toLocaleDateString('ru-RU')],
-                ].map(([label, value]) => (
-                  <View key={label} style={[S.row, { justifyContent: 'space-between', paddingVertical: 5 }]}>
-                    <Text style={{ color: C.muted, fontSize: F.label }}>{label}</Text>
-                    <Text style={{ color: C.text, fontSize: F.body, fontWeight: '600', flexShrink: 1, textAlign: 'right' }}>
-                      {value}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={{ color: C.muted, fontSize: F.tiny, marginTop: SP.sm }}>{t('profile_readonly_hint')}</Text>
-            </View>
-          ) : null}
 
           {tab === 'balance' && balance && (
             <>
@@ -395,6 +347,55 @@ export function CabinetScreen({
 
           {tab === 'stats' && stats && (
             <>
+              {/* Kim sifatida kirilgan — FAQAT KO'RISH va faqat "Ko'rsatkichlar" bo'limida
+                  (foydalanuvchi so'rovi: balans va safarlarda ortiqcha joy egallardi). Tahrir tugmasi yo'q: ism, telefon
+                  (kirish logini) va mashina toifasi dispatch va hisob-kitobga ta'sir
+                  qiladi, ularni faqat admin panelda o'zgartiradi. */}
+              {profile ? (
+                <View style={[S.card, { padding: SP.lg, marginBottom: SP.lg }]}>
+                  <View style={[S.row, { gap: SP.md }]}>
+                    <View
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 26,
+                        backgroundColor: C.accentSoft,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <MaterialIcons name="person" size={30} color={C.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.text, fontSize: F.h2, fontWeight: '800' }}>
+                        {[profile.firstName, profile.lastName].filter(Boolean).join(' ') || '—'}
+                      </Text>
+                      <Text style={{ color: C.muted, fontSize: F.body, marginTop: 2 }}>{profile.phone}</Text>
+                    </View>
+                    <MaterialIcons name="lock-outline" size={20} color={C.muted} />
+                  </View>
+
+                  <View style={{ marginTop: SP.md, borderTopWidth: 1, borderTopColor: C.border, paddingTop: SP.md }}>
+                    {[
+                      [t('profile_car'), profile.vehicle
+                        ? [profile.vehicle.make, profile.vehicle.model, profile.vehicle.color].filter(Boolean).join(' ') || '—'
+                        : '—'],
+                      [t('profile_plate'), profile.vehicle?.plate || '—'],
+                      [t('profile_category'), profile.vehicle ? t('cat_' + profile.vehicle.category) : '—'],
+                      [t('profile_seats'), profile.vehicle ? String(profile.vehicle.seats) : '—'],
+                      [t('profile_since'), new Date(profile.createdAt).toLocaleDateString('ru-RU')],
+                    ].map(([label, value]) => (
+                      <View key={label} style={[S.row, { justifyContent: 'space-between', paddingVertical: 5 }]}>
+                        <Text style={{ color: C.muted, fontSize: F.label }}>{label}</Text>
+                        <Text style={{ color: C.text, fontSize: F.body, fontWeight: '600', flexShrink: 1, textAlign: 'right' }}>
+                          {value}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={{ color: C.muted, fontSize: F.tiny, marginTop: SP.sm }}>{t('profile_readonly_hint')}</Text>
+                </View>
+              ) : null}
               <View style={[S.card, { alignItems: 'center', paddingVertical: SP.xxl }]}>
                 <Text style={{ color: C.muted, fontSize: F.tiny, letterSpacing: 1 }}>
                   {t('rating').toUpperCase()}

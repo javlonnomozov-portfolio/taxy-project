@@ -72,6 +72,7 @@ const uz: Record<string, string> = {
   adjust_reason_ph: 'masalan: katta yuk',
   // Haydovchi oynasi va chat (xaritada haydovchi bosilganda).
   chat_title: 'Chat',
+  chat_retention: 'Xabarlar (rasm va ovoz bilan) 3 kundan keyin avtomatik o‘chadi.',
   chat_placeholder: 'Xabar yozing…',
   chat_send: 'Yuborish',
   chat_photo: 'Rasm yuborish',
@@ -334,6 +335,7 @@ const ru: Record<string, string> = {
   adjust_reason: 'Причина:',
   adjust_reason_ph: 'например: крупный багаж',
   chat_title: 'Чат',
+  chat_retention: 'Сообщения (с фото и голосовыми) удаляются через 3 дня.',
   chat_placeholder: 'Напишите сообщение…',
   chat_send: 'Отправить',
   chat_photo: 'Отправить фото',

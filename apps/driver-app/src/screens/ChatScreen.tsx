@@ -334,6 +334,13 @@ export function ChatScreen({
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
         contentContainerStyle={{ padding: SP.lg, flexGrow: 1 }}
+        // Server 3 kundan eski xabarlarni o'chiradi (`ChatRetentionService`) —
+        // haydovchi eski rasm yo'qolganiga hayron bo'lmasin.
+        ListHeaderComponent={
+          <Text style={{ color: C.muted, fontSize: F.tiny, textAlign: 'center', marginBottom: SP.md }}>
+            {t('chat_retention')}
+          </Text>
+        }
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
         ListEmptyComponent={
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: SP.xxl }}>
