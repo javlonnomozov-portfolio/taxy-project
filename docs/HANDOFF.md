@@ -456,6 +456,31 @@ Sim: `sim:no-driver-restore` (8). `sim:dispatch` dagi "Aynan 6 ta taklif"
 tekshiruvi 800 ms kutish sababli BEQAROR (2–4 keladi); 3 s bilan 10/10 — bu
 o'zgarishga bog'liq emas.
 
+### ✅ Taksometr ilova yopilib ochilganda kamaymaydi (2026-09-15)
+
+**Hodisa:** safar davomida taksometr 4 124 so'm edi; haydovchi ilovani yopib,
+yo'l yurib, qayta ochganda 4 094 so'm.
+
+**Sabab:** masofa faqat ekrandagi `watchPositionAsync` da sanalib, AsyncStorage'ga
+15 soniyada bir saqlanardi. Ilova o'ldirilganda (1) oxirgi ≤15 s yo'qolardi,
+(2) yopiq paytda yurilgan yo'l umuman qo'shilmasdi — fon joylashuv vazifasi
+nuqtalarni faqat serverga yuborardi, qayta ochilganda esa oxirgi nuqta
+xotirada yo'q edi.
+
+| Qoida | Qayerda | Nega |
+|---|---|---|
+| Saqlangan yozuv — taksometrning YAGONA manbai: `{orderId, distanceM, inProgress, last}` | `storage.ts` | Ekran va fon vazifasi bir yozuvga qo'shadi, ekran undan o'qiydi |
+| Har GPS nuqtasida `addTripPoint` — masofa SAQLANGAN `last` dan o'lchanadi | `storage.ts` | Yopiq oraliq (fon joylashuvi ruxsati yo'q bo'lsa ham) kamida to'g'ri chiziq bo'lib qo'shiladi |
+| Ekranda — `HomeScreen`, fonda/o'ldirilganda — fon vazifasi (`AppState.currentState` bo'yicha) | `HomeScreen.tsx` watch, `location-task.ts` | Ikkalasi birga sanasa har nuqta ikki marta tushardi |
+| Fon vazifasi to'plamdagi HAMMA nuqtani qo'shadi | `location-task.ts` | Android nuqtalarni to'plab beradi |
+| `markTripStage` shu zakazning masofasi va `last` ini saqlaydi | bosqich effekti | Tiklash ham shu yerdan o'tadi — nolga tushirmasin |
+| Fondan qaytganda va `trip:complete` da saqlangan kattaroq qiymat olinadi | `syncActiveTrip`, `complete()` | Ekran hali yangilanmagan bo'lishi mumkin |
+| `haversine` — `geo.ts` | — | Ekran va fon vazifasi bir xil hisoblasin |
+
+Qurilmada qo'lda tekshirish kerak (simda GPS yo'q): safar boshlash → yurish →
+ilovani yopish (swipe) → yurish → ochish: narx kamaymasligi, yopiq paytdagi
+yo'l qo'shilgan bo'lishi.
+
 **Haydovchilar qidiruvi.** `GET /ops/drivers/search?q=&status=&approval=&category=&balance=negative&limit=&offset=`
 — ism+familiya, telefon (bo'shliqlar bilan ham), davlat raqami; LIKE belgilari
 ("%", "_") ekranlanadi. Eski `GET /ops/drivers` o'zgarmadi (simlar unga tayanadi).

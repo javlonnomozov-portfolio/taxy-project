@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { API_URL } from './config';
@@ -12,8 +13,20 @@ interface BgData {
 // Fon rejimida joylashuvni HTTP orqali serverga yuboradi (socket ochiq bo'lmaganda).
 TaskManager.defineTask(BG_LOCATION_TASK, async ({ data, error }) => {
   if (error || !data) return;
-  const loc = (data as BgData).locations?.[0];
+  const locations = (data as BgData).locations ?? [];
+  const loc = locations[0];
   if (!loc) return;
+  // Taksometr: ilova ekranda bo'lmasa masofani SHU YERDA sanaymiz — avval yopiq
+  // turgan paytda yurilgan yo'l umuman qo'shilmasdi. Ekranda bo'lsa `HomeScreen`
+  // sanaydi; ikkalasi birga sanasa har nuqta ikki marta tushardi. Tizim
+  // nuqtalarni to'plab berishi mumkin — yo'l bo'laklari yo'qolmasin, hammasi.
+  if (AppState.currentState !== 'active') {
+    for (const l of locations) {
+      await storage
+        .addTripPoint({ lat: l.coords.latitude, lng: l.coords.longitude })
+        .catch(() => null);
+    }
+  }
   const token = await storage.getToken();
   if (!token) return;
   try {

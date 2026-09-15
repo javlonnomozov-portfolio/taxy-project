@@ -7,6 +7,7 @@ import { connectDriver, EV, SocketAck } from '../socket';
 import { api } from '../api';
 import { registerForPush, notifyOffer, onChatNotificationTap, openedFromChatNotification } from '../push';
 import { startBackgroundLocation, stopBackgroundLocation } from '../location-task';
+import { haversine } from '../geo';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { S, C, R, F, SP } from '../theme';
 import { Lang, makeT } from '../i18n';
@@ -71,16 +72,6 @@ interface Trip {
    */
   fareAdjustment: number;
   fareAdjustmentReason: string | null;
-}
-
-function haversine(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const EARTH_R = 6371000;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return 2 * EARTH_R * Math.asin(Math.sqrt(s));
 }
 
 /** Kabinet API'sidan kerak bo'ladigan minimal maydonlar (daromad hisobi uchun). */
@@ -241,9 +232,13 @@ export function HomeScreen({
       return false;
     }
 
-    // Ayni safar allaqachon ekranda — tegmaymiz. Aks holda jonli masofa
-    // saqlangan (15 soniyagacha eski) qiymatga qaytib ketardi.
+    // Ayni safar allaqachon ekranda — qayta qurmaymiz. Faqat masofa: ilova
+    // fonda turganda uni fon vazifasi sanagan, ekrandagi qiymat eskirgan.
     if (tripRef.current?.orderId === active.orderId) {
+      const saved = await storage.getTripProgress();
+      if (saved?.orderId === active.orderId && saved.distanceM > distanceRef.current) {
+        setDistanceM(saved.distanceM);
+      }
       // Qolgan hamma narsaga tegmaymiz, lekin QO'SHIMCHA yangilanadi: operator
       // uni safar davomida o'zgartiradi va aynan shu yo'l bilan ekranga yetadi.
       const adj = active.fareAdjustment ?? 0;
@@ -503,20 +498,16 @@ export function HomeScreen({
     };
   }, []);
 
-  // Taksometr masofasini davriy saqlaymiz — ilova o'ldirilsa shu qiymatdan
-  // davom etadi. Har GPS nuqtasida yozish AsyncStorage'ni ortiqcha yuklaydi.
+  // Bosqich o'zgarganda taksometr yozuvini belgilaymiz: masofa faqat safar
+  // boshlangach sanaladi va buni fon vazifasi ham shu yozuvdan biladi.
+  //
+  // Masofaning o'zi endi HAR GPS nuqtasida saqlanadi (`storage.addTripPoint`).
+  // Avval 15 soniyada bir saqlanardi ("har nuqtada yozish ortiqcha") — lekin
+  // ilova yopilganda aynan o'sha soniyalar va yopiq paytdagi yo'l yo'qolib,
+  // taksometr KAMAYIB qolardi. Yozuv ~100 bayt, 4 soniyada bir — arzon.
   useEffect(() => {
     if (!trip) return;
-    const orderId = trip.orderId;
-    // `distanceRef` — `distanceM` emas: effekt ichidagi closure qiymatni
-    // yaratilgan paytda muzlatib qo'yadi va har safar eskisini saqlar edi.
-    const save = () =>
-      void storage.setTripProgress({ orderId, distanceM: Math.round(distanceRef.current) });
-    save(); // bosqich o'zgarganda darhol
-    const id = setInterval(save, 15_000);
-    return () => clearInterval(id);
-    // `distanceM` ataylab bog'liqlikda EMAS — u har soniyada o'zgaradi va
-    // interval doim qayta yaratilib, hech qachon ishlamas edi.
+    void storage.markTripStage(trip.orderId, trip.stage === 'in_progress', lastLoc.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip?.orderId, trip?.stage]);
 
@@ -548,10 +539,16 @@ export function HomeScreen({
         (pos) => {
           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           socketRef.current?.emit(EV.location, loc);
-          if (tripRef.current?.stage === 'in_progress' && lastLoc.current) {
-            setDistanceM((d) => d + haversine(lastLoc.current!, loc));
-          }
           lastLoc.current = loc;
+          // Taksometr saqlangan yozuvga qo'shiladi va ekran undan oladi — ilova
+          // yopilsa ham masofa yo'qolmaydi (`storage.addTripPoint`). Fonda bu
+          // nuqtalarni fon vazifasi sanaydi: ikkalasi birga sanasa har nuqta
+          // ikki marta tushardi.
+          if (tripRef.current?.stage === 'in_progress' && AppState.currentState === 'active') {
+            void storage.addTripPoint(loc).then((p) => {
+              if (p && p.orderId === tripRef.current?.orderId) setDistanceM(p.distanceM);
+            });
+          }
         },
       );
     }
@@ -611,11 +608,15 @@ export function HomeScreen({
     });
   }
 
-  function complete() {
+  async function complete() {
     if (!trip) return;
+    // Fondan qaytib ekran hali yangilanmagan bo'lishi mumkin — saqlangan yozuv
+    // (fon vazifasi sanagan yo'l bilan) kattaroq bo'lsa o'shani yuboramiz.
+    const saved = await storage.getTripProgress().catch(() => null);
+    const distance = Math.max(distanceM, saved?.orderId === trip.orderId ? saved.distanceM : 0);
     socketRef.current?.emit(
       EV.tripComplete,
-      { orderId: trip.orderId, distanceM: Math.round(distanceM) },
+      { orderId: trip.orderId, distanceM: Math.round(distance) },
       (resp?: SocketAck & { finalPrice?: number }) => {
         // Xatoda "0 so'm" ekranini ko'rsatmaymiz — safar hali tugamagan.
         if (resp && resp.ok === false) {
