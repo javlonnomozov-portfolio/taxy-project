@@ -29,7 +29,7 @@ import { DriversService } from '../drivers/drivers.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DispatchOwnershipService } from './dispatch-ownership.service';
-import { ACTIVE_STATUSES } from '../orders/orders.constants';
+import { ACTIVE_STATUSES, NO_DRIVER_PENDING_MS } from '../orders/orders.constants';
 import { Candidate, haversineM, servedCategories, sortCandidates } from './dispatch.util';
 
 interface DispatchState {
@@ -76,7 +76,8 @@ const OPERATOR_WINDOW_MS = 5 * 60_000;
 // Zakaz haydovchidan OLDIN kelishi odatiy hol (kечqurun bitta taksi ham onlayn
 // bo'lmasligi mumkin). Shuning uchun haydovchi keyin onlayn bo'lganda kutib
 // turgan NO_DRIVER zakazlarni unga qayta taklif qilamiz — lekin cheksiz emas.
-const RETRY_PENDING_MAX_AGE_MS = 15 * 60_000;
+// Mijozga ko'rinish va yangi zakazda yopish ham shu oynaga tayanadi.
+const RETRY_PENDING_MAX_AGE_MS = NO_DRIVER_PENDING_MS;
 // GPS har ~4 soniyada keladi — har nuqtada DB'ga bormaslik uchun bo'g'iq.
 const RETRY_THROTTLE_MS = 20_000;
 

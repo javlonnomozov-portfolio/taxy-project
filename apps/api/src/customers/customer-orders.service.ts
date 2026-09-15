@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, MoreThan, Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { OrderStatus, VehicleCategory, ActorType } from '@tty/shared';
 import { REDIS } from '../redis/redis.module';
@@ -23,6 +23,7 @@ import { COMFORT_SUGGEST_AFTER_SEC, canSuggestStandard, standardSuggestAt } from
 import {
   ACTIVE_STATUSES,
   CUSTOMER_CANCELLABLE_STATUSES,
+  NO_DRIVER_PENDING_MS,
   TERMINAL_STATUSES,
 } from '../orders/orders.constants';
 
@@ -122,10 +123,25 @@ export class CustomerOrdersService {
     return order;
   }
 
-  /** Mijozning hozirgi faol buyurtmasi (bo'lsa). */
+  /**
+   * Mijozning hozirgi faol buyurtmasi (bo'lsa) — ilova va mini app qayta
+   * ochilganda shu bilan kuzatuvga qaytadi.
+   *
+   * "Taksi topilmadi" (NO_DRIVER) ham qaytariladi, agar u hali qayta
+   * ko'tarilishi mumkin bo'lsa (`NO_DRIVER_PENDING_MS`). 2026-09-15: qaytarilmasdi
+   * — mijoz qayta ochib bo'sh buyurtma ekranini ko'rdi va zakaz bekor bo'ldi deb
+   * o'yladi, haydovchi esa keyin onlayn bo'lib o'sha zakazni qabul qildi.
+   */
   async activeOrderId(customerId: string): Promise<{ orderId: string | null }> {
     const order = await this.orders.findOne({
-      where: { customerId, status: In(ACTIVE_STATUSES) },
+      where: [
+        { customerId, status: In(ACTIVE_STATUSES) },
+        {
+          customerId,
+          status: OrderStatus.NO_DRIVER,
+          createdAt: MoreThan(new Date(Date.now() - NO_DRIVER_PENDING_MS)),
+        },
+      ],
       order: { createdAt: 'DESC' },
     });
     return { orderId: order?.id ?? null };

@@ -15,6 +15,18 @@ export const ACTIVE_STATUSES: OrderStatus[] = Object.values(OrderStatus).filter(
 );
 
 /**
+ * "Taksi topilmadi" (NO_DRIVER) zakaz shuncha vaqt HALI TIRIK: haydovchi onlayn
+ * bo'lsa `DispatchService.retryPendingForDriver` uni qayta ko'taradi.
+ *
+ * Shu sabab bu oynada zakaz mijozga KO'RINISHI kerak (ilova/mini app qayta
+ * ochilganda) va mijoz yangi zakaz bersa YOPILISHI kerak. 2026-09-15: ikkalasi
+ * yo'q edi — mijoz qayta ochib bo'sh buyurtma ekranini ko'rdi ("zakaz bekor
+ * bo'ldi"), haydovchi esa keyin onlayn bo'lib o'sha zakazni qabul qildi.
+ * Uchala qoida BITTA qiymatga tayanadi.
+ */
+export const NO_DRIVER_PENDING_MS = 15 * 60_000;
+
+/**
  * Haydovchi biriktirilgunga qadar — bu holatlarda bekor qilish JARIMASIZ
  * (agar bepul oynadan chiqib ketmagan bo'lsa).
  */

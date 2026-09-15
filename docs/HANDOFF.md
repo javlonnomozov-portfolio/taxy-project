@@ -433,6 +433,29 @@ Sim ilova qisqa chegara bilan ishga tushirilishi kerak:
 `TELEGRAM_BOT_USERNAME=... COMFORT_SUGGEST_AFTER_SEC=4 node apps/api/dist/main.js`
 (aks holda "1b" bo'limi 60 s kutadi).
 
+### ✅ "Taksi topilmadi" zakaz qayta ochilganda yo'qolmaydi (2026-09-15)
+
+**Hodisa (prod, zakaz `1b34afdf`):** Standart zakaz yagona haydovchiga taklif
+qilindi, haydovchi "Ishni tugatish"ni bosdi → NO_DRIVER. Mijoz mini app'ni qayta
+ochdi — buyurtma ekrani chiqdi ("zakaz bekor bo'lib ketibdi"). Haydovchi qayta
+onlayn bo'lgach `retryPendingForDriver` o'sha zakazni ko'tardi va u ACCEPTED
+bo'ldi: mijoz bexabar, haydovchi yo'lda.
+
+**Sabab:** `NO_DRIVER` `TERMINAL_STATUSES` da — `activeOrderId` uni qaytarmasdi.
+Holbuki zakaz 15 daqiqa davomida tirik (qayta ko'tariladi).
+
+| Qoida | Qayerda | Nega |
+|---|---|---|
+| `NO_DRIVER_PENDING_MS` (15 daq) — BITTA qiymat | `orders.constants.ts`; `RETRY_PENDING_MAX_AGE_MS` shunga teng | Qayta ko'tarish, mijozga ko'rsatish va yopish bir xil oynaga tayanishi shart |
+| `activeOrderId` shu oynadagi NO_DRIVER'ni ham qaytaradi | `customer-orders.service.ts` | Ilova (`/customer/active`) va mini app (`/miniapp/state`) qayta ochilganda kuzatuvga qaytadi |
+| Yangi zakazda oynadagi NO_DRIVER zakazlar `CANCELLED_BY_CUSTOMER` (atomik, hodisa `superseded_by_new_order`) | `OrdersService.create` → `closePendingNoDriver`, faol tekshiruvdan OLDIN | Aks holda yangi zakaz tugagach eskisi tirilib, ikkinchi taksi kelardi. Mijozga socket xabari YO'Q — bot eski zakaz uchun "bekor qilindi" deb chalkashtirardi |
+| Global `ACTIVE_STATUSES` O'ZGARMADI | — | U dispatch, chat, panel va "bitta faol zakaz" qoidasida ishlatiladi; NO_DRIVER'ni u yerga qo'shish qayta ko'tarishni o'zi bloklardi |
+| Mini app: standart NO_DRIVER'da "buyurtmangiz saqlanib turibdi" izohi | `miniapp.page.ts` `renderCancel` | Yolg'iz "Taksi topilmadi" yakuniy eshitilardi |
+
+Sim: `sim:no-driver-restore` (8). `sim:dispatch` dagi "Aynan 6 ta taklif"
+tekshiruvi 800 ms kutish sababli BEQAROR (2–4 keladi); 3 s bilan 10/10 — bu
+o'zgarishga bog'liq emas.
+
 **Haydovchilar qidiruvi.** `GET /ops/drivers/search?q=&status=&approval=&category=&balance=negative&limit=&offset=`
 — ism+familiya, telefon (bo'shliqlar bilan ham), davlat raqami; LIKE belgilari
 ("%", "_") ekranlanadi. Eski `GET /ops/drivers` o'zgarmadi (simlar unga tayanadi).

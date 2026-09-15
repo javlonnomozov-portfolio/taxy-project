@@ -57,6 +57,7 @@ const T = {
     cancelled: 'Buyurtma bekor qilindi',
     cancel_btn: '❌ Buyurtmani bekor qilish',
     no_driver: 'Taksi topilmadi',
+    no_driver_info: 'Hozircha bo‘sh taksi topilmadi. Buyurtmangiz saqlanib turibdi — taksi bo‘shashi bilan sizga yuboramiz. Xohlasangiz, bekor qilishingiz mumkin.',
     no_driver_comfort: 'Comfort mashina hali topilmadi — qidirishda davom etamiz. Kutishni xohlamasangiz, Standart mashina chaqiring (narx Standart bo‘yicha).',
     switch_standard_btn: 'Standart buyurtma berish',
     searching_comfort: 'Comfort qidirilmoqda…',
@@ -104,6 +105,7 @@ const T = {
     cancelled: 'Заказ отменён',
     cancel_btn: '❌ Отменить заказ',
     no_driver: 'Такси не найдено',
+    no_driver_info: 'Пока свободное такси не найдено. Ваш заказ сохранён — как только такси освободится, мы его отправим. При желании вы можете отменить заказ.',
     no_driver_comfort: 'Машина Comfort пока не найдена — продолжаем поиск. Если не хотите ждать, вызовите машину Стандарт (цена по тарифу Стандарт).',
     switch_standard_btn: 'Заказать Стандарт',
     searching_comfort: 'Ищем Comfort…',
@@ -528,6 +530,10 @@ export function miniappPage(): string {
     if (d.canSwitchToStandard) {
       html += '<div class="sw-hint">' + esc(t.no_driver_comfort) + '</div>' +
               '<button class="switch" id="switchBtn">' + esc(t.switch_standard_btn) + '</button>';
+    } else if (d.orderStatus === 'NO_DRIVER') {
+      // "Taksi topilmadi" yolg'iz turganda yakuniy eshitilardi - mijoz zakaz
+      // bekor bo'ldi deb o'ylardi, holbuki haydovchi onlayn bo'lsa u qayta ko'tariladi.
+      html += '<div class="sw-hint">' + esc(t.no_driver_info) + '</div>';
     }
     if (d.cancellable) {
       html += '<button class="cancel" id="cancelBtn">' + esc(t.cancel_btn) + '</button>';

@@ -6,14 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, MoreThan, Repository } from 'typeorm';
 import { ActorType, OrderStatus, OrderType, VehicleCategory } from '@tty/shared';
 import { Order } from '../entities/order.entity';
 import { Customer } from '../entities/customer.entity';
 import { OrderEventsService } from './order-events.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { DriversService } from '../drivers/drivers.service';
-import { ACTIVE_STATUSES } from './orders.constants';
+import { ACTIVE_STATUSES, NO_DRIVER_PENDING_MS } from './orders.constants';
 
 export interface CreateOrderInput {
   customerId: string;
@@ -45,6 +45,10 @@ export class OrdersService {
     const customer = await this.customers.findOne({ where: { id: input.customerId } });
     if (!customer) throw new NotFoundException('Mijoz topilmadi');
     if (customer.isBlocked) throw new BadRequestException('Mijoz bloklangan');
+
+    // Faol tekshiruvdan OLDIN: eskisi shu soniyada qayta ko'tarilgan bo'lsa u
+    // endi CREATED/DISPATCHING'da — pastda 409 beradi va mijoz o'shani kuzatadi.
+    await this.closePendingNoDriver(input.customerId);
 
     // Bir vaqtda bitta faol buyurtma (2.14).
     const active = await this.orders.findOne({
@@ -85,6 +89,45 @@ export class OrdersService {
       }, 500);
     }
     return order;
+  }
+
+  /**
+   * Mijoz yangi zakaz berdi — uning "taksi topilmadi" holatidagi, hali qayta
+   * ko'tarilishi mumkin bo'lgan zakazlarini yopamiz.
+   *
+   * NEGA: NO_DRIVER zakaz `NO_DRIVER_PENDING_MS` davomida haydovchi onlayn
+   * bo'lsa qayta ko'tariladi. Yangi zakaz tugagach eskisi tirilib, mijozga
+   * kutilmagan ikkinchi taksi kelardi. Oynadan eski zakazlar tegilmaydi — ular
+   * baribir ko'tarilmaydi va tarixda "Haydovchi topilmadi" bo'lib qoladi.
+   *
+   * Har biri atomik (`WHERE status = NO_DRIVER`): qayta ko'tarish bilan poyga
+   * bo'lsa faqat bittasi yutadi. Mijozga xabar yuborilmaydi — bot eski zakaz
+   * uchun "bekor qilindi" deb chalkashtirardi.
+   */
+  private async closePendingNoDriver(customerId: string): Promise<void> {
+    const pending = await this.orders.find({
+      where: {
+        customerId,
+        status: OrderStatus.NO_DRIVER,
+        createdAt: MoreThan(new Date(Date.now() - NO_DRIVER_PENDING_MS)),
+      },
+      select: { id: true },
+    });
+    for (const { id } of pending) {
+      const res = await this.orders
+        .createQueryBuilder()
+        .update(Order)
+        .set({ status: OrderStatus.CANCELLED_BY_CUSTOMER })
+        .where('id = :id AND status = :st', { id, st: OrderStatus.NO_DRIVER })
+        .execute();
+      if (!res.affected) continue;
+      this.dispatch.cancelOperatorFallback(id);
+      await this.events.record(id, 'cancelled', ActorType.CUSTOMER, {
+        actorId: customerId,
+        reason: 'superseded_by_new_order',
+      });
+      this.log.log(`Buyurtma ${id}: NO_DRIVER edi, mijoz yangi zakaz berdi — yopildi`);
+    }
   }
 
   /** Comfort topilmadi — Standart'ga o'tkazib qayta qidirish (mantiq `DispatchService` da). */
